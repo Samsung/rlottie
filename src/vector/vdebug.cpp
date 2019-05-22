@@ -17,6 +17,7 @@
  */
 
 #include "vdebug.h"
+#include "vglobal.h"
 #include "config.h"
 #include <atomic>
 #include <chrono>
