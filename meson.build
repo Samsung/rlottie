@@ -1,6 +1,6 @@
 project('rlottie',
         'cpp',
-        default_options : ['warning_level=3', 'werror=true', 'cpp_std=c++14', 'optimization=s'],
+        default_options : ['warning_level=3', 'werror=true', 'cpp_std=c++11', 'optimization=s'],
         version : '0.0.1',
         license : 'Apache')
 

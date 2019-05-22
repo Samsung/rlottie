@@ -45,7 +45,7 @@ target_include_directories(rlottie
 target_compile_options(rlottie
                     PUBLIC
                     PRIVATE
-                        -std=c++14
+                        -std=c++11
                         -fno-exceptions
                         -fno-unwind-tables
                         -fno-asynchronous-unwind-tables

@@ -55,27 +55,27 @@ LottieView::LottieView(Evas *evas, Strategy s) {
 
     switch (s) {
     case Strategy::renderCpp: {
-        mRenderDelegate = std::make_unique<RlottieRenderStrategy_CPP>(evas);
+        mRenderDelegate = std::unique_ptr<RlottieRenderStrategy_CPP>(new RlottieRenderStrategy_CPP(evas));
         break;
     }
     case Strategy::renderCppAsync: {
-        mRenderDelegate = std::make_unique<RlottieRenderStrategy_CPP_ASYNC>(evas);
+        mRenderDelegate = std::unique_ptr<RlottieRenderStrategy_CPP_ASYNC>(new RlottieRenderStrategy_CPP_ASYNC(evas));
         break;
     }
     case Strategy::renderC: {
-        mRenderDelegate = std::make_unique<RlottieRenderStrategy_C>(evas);
+        mRenderDelegate = std::unique_ptr<RlottieRenderStrategy_C>(new RlottieRenderStrategy_C(evas));
         break;
     }
     case Strategy::renderCAsync: {
-        mRenderDelegate = std::make_unique<RlottieRenderStrategy_C_ASYNC>(evas);
+        mRenderDelegate = std::unique_ptr<RlottieRenderStrategy_C_ASYNC>(new RlottieRenderStrategy_C_ASYNC(evas));
         break;
     }
     case Strategy::eflVg: {
-        mRenderDelegate = std::make_unique<EflVgRenderStrategy>(evas);
+        mRenderDelegate = std::unique_ptr<EflVgRenderStrategy>(new EflVgRenderStrategy(evas));
         break;
     }
     default:
-        mRenderDelegate = std::make_unique<RlottieRenderStrategy_CPP>(evas);
+        mRenderDelegate = std::unique_ptr<RlottieRenderStrategy_CPP>(new RlottieRenderStrategy_CPP(evas));
         break;
     }
 }
