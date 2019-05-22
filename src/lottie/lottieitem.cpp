@@ -452,9 +452,8 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel, VArenaAlloc* alloca
     for (const auto &layer : mLayers) {
         int id = layer->parentId();
         if (id >= 0) {
-            auto search =
-                std::find_if(mLayers.begin(), mLayers.end(),
-                             [id](const auto &val) { return val->id() == id; });
+            auto search = std::find_if(mLayers.begin(), mLayers.end(),
+                            [id](const LOTLayerItem* val){ return val->id() == id;});
             if (search != mLayers.end()) layer->setParentLayer(*search);
         }
     }
