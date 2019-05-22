@@ -23,7 +23,7 @@ add_library(rlottie::rlottie ALIAS rlottie)
 target_compile_options(rlottie
                     PUBLIC
                     PRIVATE
-                        -std=c++14
+                        -std=c++11
                         -Os
                         -fno-exceptions
                         -fno-unwind-tables
