@@ -432,9 +432,8 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel)
     for (const auto &layer : mLayers) {
         int id = layer->parentId();
         if (id >= 0) {
-            auto search =
-                std::find_if(mLayers.begin(), mLayers.end(),
-                             [id](const auto &val) { return val->id() == id; });
+            auto search = std::find_if(mLayers.begin(), mLayers.end(),
+                            [id](const std::unique_ptr<LOTLayerItem>& val){ return val->id() == id;});
             if (search != mLayers.end()) layer->setParentLayer((*search).get());
         }
     }

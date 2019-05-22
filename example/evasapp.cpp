@@ -134,7 +134,7 @@ EvasApp::jsonFiles(const std::string &dirName, bool /*recurse*/)
       closedir(d);
     }
 
-    std::sort(result.begin(), result.end(), [](auto & a, auto &b){return a < b;});
+    std::sort(result.begin(), result.end(), [](std::string & a, std::string &b){return a < b;});
 
     return result;
 }
