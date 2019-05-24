@@ -852,9 +852,17 @@ void LOTImageLayerItem::buildLayerNode()
         lotDrawable->mCNode->mImageInfo.width = mRenderNode->mBrush.mTexture.width();
         lotDrawable->mCNode->mImageInfo.height = mRenderNode->mBrush.mTexture.height();
 
-        combinedMatrix().getMatrix(&lotDrawable->mCNode->mImageInfo.mMatrix.m11, &lotDrawable->mCNode->mImageInfo.mMatrix.m12, &lotDrawable->mCNode->mImageInfo.mMatrix.m13,
-                                   &lotDrawable->mCNode->mImageInfo.mMatrix.m21, &lotDrawable->mCNode->mImageInfo.mMatrix.m22, &lotDrawable->mCNode->mImageInfo.mMatrix.m23,
-                                   &lotDrawable->mCNode->mImageInfo.mMatrix.m31, &lotDrawable->mCNode->mImageInfo.mMatrix.m32, &lotDrawable->mCNode->mImageInfo.mMatrix.m33);
+        lotDrawable->mCNode->mImageInfo.mMatrix.m11 = combinedMatrix().m_11();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m12 = combinedMatrix().m_12();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m13 = combinedMatrix().m_13();
+
+        lotDrawable->mCNode->mImageInfo.mMatrix.m21 = combinedMatrix().m_21();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m22 = combinedMatrix().m_22();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m23 = combinedMatrix().m_23();
+
+        lotDrawable->mCNode->mImageInfo.mMatrix.m31 = combinedMatrix().m_tx();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m32 = combinedMatrix().m_ty();
+        lotDrawable->mCNode->mImageInfo.mMatrix.m33 = combinedMatrix().m_13();
 
         mCNodeList.push_back(lotDrawable->mCNode.get());
     }

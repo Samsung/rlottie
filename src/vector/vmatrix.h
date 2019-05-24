@@ -46,9 +46,17 @@ public:
     MatrixType   type() const;
     inline float determinant() const;
 
-    void         getMatrix(float *_m11, float *_m12, float *_m13,
-                           float *_m21, float *_m22, float *_m23,
-                           float *_m31, float *_m32, float *_m33);
+    float        m_11() const { return m11;}
+    float        m_12() const { return m12;}
+    float        m_13() const { return m13;}
+
+    float        m_21() const { return m21;}
+    float        m_22() const { return m22;}
+    float        m_23() const { return m23;}
+
+    float        m_tx() const { return mtx;}
+    float        m_ty() const { return mty;}
+    float        m_33() const { return m33;}
 
     VMatrix &translate(VPointF pos) { return translate(pos.x(), pos.y()); };
     VMatrix &translate(float dx, float dy);

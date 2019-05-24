@@ -64,23 +64,6 @@ bool VMatrix::isTranslating() const
     return type() >= MatrixType::Translate;
 }
 
-void VMatrix::getMatrix(float *_m11, float *_m12, float *_m13,
-                        float *_m21, float *_m22, float *_m23,
-                        float *_m31, float *_m32, float *_m33)
-{
-   if (_m11)  *_m11 = m11;
-   if (_m12)  *_m12 = m12;
-   if (_m13)  *_m13 = m13;
-
-   if (_m21)  *_m21 = m21;
-   if (_m22)  *_m22 = m22;
-   if (_m23)  *_m23 = m23;
-
-   if (_m31)  *_m31 = mtx;
-   if (_m32)  *_m32 = mty;
-   if (_m33)  *_m33 = m33;
-}
-
 VMatrix &VMatrix::operator*=(float num)
 {
     if (num == 1.) return *this;
