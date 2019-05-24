@@ -847,6 +847,15 @@ void LOTImageLayerItem::buildLayerNode()
     for (auto &i : mDrawableList) {
         LOTDrawable *lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
+
+        lotDrawable->mCNode->mImageInfo.data = mRenderNode->mBrush.mTexture.data();
+        lotDrawable->mCNode->mImageInfo.width = mRenderNode->mBrush.mTexture.width();
+        lotDrawable->mCNode->mImageInfo.height = mRenderNode->mBrush.mTexture.height();
+
+        combinedMatrix().getMatrix(&lotDrawable->mCNode->mImageInfo.mMatrix.m11, &lotDrawable->mCNode->mImageInfo.mMatrix.m12, &lotDrawable->mCNode->mImageInfo.mMatrix.m13,
+                                   &lotDrawable->mCNode->mImageInfo.mMatrix.m21, &lotDrawable->mCNode->mImageInfo.mMatrix.m22, &lotDrawable->mCNode->mImageInfo.mMatrix.m23,
+                                   &lotDrawable->mCNode->mImageInfo.mMatrix.m31, &lotDrawable->mCNode->mImageInfo.mMatrix.m32, &lotDrawable->mCNode->mImageInfo.mMatrix.m33);
+
         mCNodeList.push_back(lotDrawable->mCNode.get());
     }
     layerNode()->mNodeList.ptr = mCNodeList.data();
