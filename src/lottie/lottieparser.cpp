@@ -1646,7 +1646,6 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGStrokeObject()
             parseGradientProperty(obj, key);
         }
     }
-    obj->mHidden = true;
     obj->setStatic(obj->isStatic() && obj->mWidth.isStatic() &&
                    obj->mDash.mStatic);
     return sharedGStroke;
