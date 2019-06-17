@@ -893,6 +893,8 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
             layer->mHasMask = GetBool();
         } else if (0 == strcmp(key, "masksProperties")) {
             parseMaskProperty(layer);
+        } else if (0 == strcmp(key, "hd")) {
+            layer->mHidden = GetBool();
         } else if (0 == strcmp(key, "ao")) {
             layer->mAutoOrient = GetInt();
         } else {
@@ -1071,7 +1073,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGroupObject()
         staticFlag &= child.get()->isStatic();
     }
 
-    group->setStatic(staticFlag && group->mTransform->isStatic());
+    group->setStatic(staticFlag && group->mTransform && group->mTransform->isStatic());
 
     return sharedGroup;
 }
@@ -1131,6 +1133,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseEllipseObject()
         }
     }
     obj->setStatic(obj->mPos.isStatic() && obj->mSize.isStatic());
+    obj->mHidden = true;
     return sharedEllipse;
 }
 
@@ -1196,8 +1199,6 @@ std::shared_ptr<LOTData> LottieParserImpl::parsePolystarObject()
             if (starType == 2) obj->mType = LOTPolystarData::PolyType::Polygon;
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Polystar property ignored :" << key;
@@ -1325,7 +1326,6 @@ std::shared_ptr<LOTData> LottieParserImpl::parseReapeaterObject()
     }
     obj->setStatic(obj->mCopies.isStatic() && obj->mOffset.isStatic() &&
                    obj->mTransform.isStatic());
-
     return sharedRepeater;
 }
 
@@ -1394,7 +1394,6 @@ std::shared_ptr<LOTTransformData> LottieParserImpl::parseTransformObject(bool dd
     obj->setStatic(obj->mStaticMatrix && obj->mOpacity.isStatic());
 
     if (obj->mStaticMatrix) obj->cacheMatrix();
-
     return sharedTransform;
 }
 
@@ -1525,6 +1524,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseStrokeObject()
     }
     obj->setStatic(obj->mColor.isStatic() && obj->mOpacity.isStatic() &&
                    obj->mWidth.isStatic() && obj->mDash.mStatic);
+    
     return sharedStroke;
 }
 
@@ -1566,6 +1566,7 @@ void LottieParserImpl::parseGradientProperty(LOTGradient *obj, const char *key)
         obj->mOpacity.isStatic() && obj->mStartPoint.isStatic() &&
         obj->mEndPoint.isStatic() && obj->mHighlightAngle.isStatic() &&
         obj->mHighlightLength.isStatic() && obj->mGradient.isStatic());
+    
 }
 
 /*
@@ -1643,7 +1644,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGStrokeObject()
             parseGradientProperty(obj, key);
         }
     }
-
+    obj->mHidden = true;
     obj->setStatic(obj->isStatic() && obj->mWidth.isStatic() &&
                    obj->mDash.mStatic);
     return sharedGStroke;

@@ -1,4 +1,4 @@
-﻿/* 
+/* 
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
  * 
  * This library is free software; you can redistribute it and/or
@@ -516,7 +516,7 @@ bool LOTLayerItem::visible() const
 {
     if (frameNo() >= mLayerData->inFrame() &&
         frameNo() < mLayerData->outFrame())
-        return true;
+        return !mLayerData->hidden();
     else
         return false;
 }
