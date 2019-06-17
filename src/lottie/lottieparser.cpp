@@ -1193,14 +1193,14 @@ std::shared_ptr<LOTData> LottieParserImpl::parsePolystarObject()
             parseProperty(obj->mOuterRoundness);
         } else if (0 == strcmp(key, "r")) {
             parseProperty(obj->mRotation);
-        } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
         } else if (0 == strcmp(key, "sy")) {
             int starType = GetInt();
             if (starType == 1) obj->mType = LOTPolystarData::PolyType::Star;
             if (starType == 2) obj->mType = LOTPolystarData::PolyType::Polygon;
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
+        } else if (0 == strcmp(key, "hd")) {
+            obj->mHidden = GetBool();
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Polystar property ignored :" << key;
@@ -1526,7 +1526,6 @@ std::shared_ptr<LOTData> LottieParserImpl::parseStrokeObject()
     }
     obj->setStatic(obj->mColor.isStatic() && obj->mOpacity.isStatic() &&
                    obj->mWidth.isStatic() && obj->mDash.mStatic);
-    
     return sharedStroke;
 }
 
@@ -1568,7 +1567,6 @@ void LottieParserImpl::parseGradientProperty(LOTGradient *obj, const char *key)
         obj->mOpacity.isStatic() && obj->mStartPoint.isStatic() &&
         obj->mEndPoint.isStatic() && obj->mHighlightAngle.isStatic() &&
         obj->mHighlightLength.isStatic() && obj->mGradient.isStatic());
-    
 }
 
 /*
