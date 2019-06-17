@@ -1193,6 +1193,8 @@ std::shared_ptr<LOTData> LottieParserImpl::parsePolystarObject()
             parseProperty(obj->mOuterRoundness);
         } else if (0 == strcmp(key, "r")) {
             parseProperty(obj->mRotation);
+        } else if (0 == strcmp(key, "hd")) {
+            obj->mHidden = GetBool();
         } else if (0 == strcmp(key, "sy")) {
             int starType = GetInt();
             if (starType == 1) obj->mType = LOTPolystarData::PolyType::Star;
