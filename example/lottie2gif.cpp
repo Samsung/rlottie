@@ -108,7 +108,18 @@ public:
         if (!fileName || !jsonFile(fileName) ) return help();
 
         baseName = absoloutePath;
+#ifdef _WIN32
+        char *base = strchr(baseName.data(), '/');
+        if (base)
+        {
+            base++;
+            base = strchr(baseName.data(), '\\');
+            if (base) base++;
+            else return 1;
+        }
+#else
         char *base = basename(baseName.data());
+#endif
         snprintf(baseName.data(), baseName.size(), "%s.gif",base);
         return 0;
     }
