@@ -9,6 +9,7 @@
 #include<libgen.h>
 #else
 #include <windows.h>
+#include <stdlib.h>
 #endif
 
 class GifBuilder {
