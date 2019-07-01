@@ -92,7 +92,6 @@ public:
         return result();
     }
 
-#ifndef _WIN32
     int setup(int argc, char **argv)
     {
         if (argc > 1) fileName = argv[1];
@@ -100,7 +99,11 @@ public:
 
         if (!fileName) return help();
 
+#ifdef _WIN32
         fileName = realpath(fileName, absoloutePath.data());
+#else
+        fileName = _fullpath(absoloutePath.data(), fileName);
+#endif
 
         if (!fileName || !jsonFile(fileName) ) return help();
 
@@ -109,13 +112,6 @@ public:
         snprintf(baseName.data(), baseName.size(), "%s.gif",base);
         return 0;
     }
-#else
-    int setup(int argc, char **argv)
-    {
-        std::cout<<"Yet to implement in Windows\m";
-        return 1;
-    }
-#endif
 
 private:
 
