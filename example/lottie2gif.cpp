@@ -84,7 +84,7 @@ public:
         auto buffer = std::unique_ptr<uint32_t[]>(new uint32_t[w * h]);
         size_t frameCount = player->totalFrame();
 
-        GifBuilder builder(baseName.data(), w, h, bgColor);
+        GifBuilder builder(gifName.data(), w, h, bgColor);
         for (size_t i = 0; i < frameCount ; i++) {
             rlottie::Surface surface(buffer.get(), w, h, w * 4);
             player->renderSync(i, surface);
@@ -95,46 +95,48 @@ public:
 
     int setup(int argc, char **argv)
     {
-        if (argc > 1) fileName = argv[1];
+        char *path{nullptr};
+
+        if (argc > 1) path = argv[1];
         if (argc > 2) bgColor = strtol(argv[2], NULL, 16);
 
-        if (!fileName) return help();
+        if (!path) return help();
+
+        std::array<char, 5000> memory;
 
 #ifdef _WIN32
-        fileName = _fullpath(absoloutePath.data(), fileName, absoloutePath.size());
+        path = _fullpath(memory.data(), path, memory.size());
 #else
-        fileName = realpath(fileName, absoloutePath.data());
+        path = realpath(path, memory.data());
 #endif
+        if (!path) return help();
 
-        if (!fileName || !jsonFile(fileName) ) return help();
+        fileName = std::string(path);
 
-        baseName = absoloutePath;
-#ifdef _WIN32
-        char *base = strrchr(baseName.data(), '\\');
-        if (base)
-        {
-            base++;
-            base = strrchr(baseName.data(), '\\');
-            if (base) base++;
-            else return 1;
-        }
-#else
-        char *base = basename(baseName.data());
-#endif
-        snprintf(baseName.data(), baseName.size(), "%s.gif",base);
+        if (!jsonFile()) return help();
+
+        gifName = basename(fileName);
+        gifName.append(".gif");
         return 0;
     }
 
 private:
+    std::string basename(const std::string &str)
+    {
+        return str.substr(str.find_last_of("/\\") + 1);
+    }
 
-    bool jsonFile(const char *filename) {
-      const char *dot = strrchr(filename, '.');
-      if(!dot || dot == filename) return false;
-      return !strcmp(dot + 1, "json");
+    bool jsonFile() {
+        std::string extn = ".json";
+        if ( fileName.size() <= extn.size() ||
+             fileName.substr(fileName.size()- extn.size()) != extn )
+            return false;
+
+        return true;
     }
 
     int result() {
-        std::cout<<"Generated GIF file : "<<baseName.data()<<std::endl;
+        std::cout<<"Generated GIF file : "<<gifName<<std::endl;
         return 0;
     }
 
@@ -144,10 +146,9 @@ private:
     }
 
 private:
-    char *fileName{nullptr};
     int bgColor = 0xffffffff;
-    std::array<char, 5000> absoloutePath;
-    std::array<char, 5000> baseName;
+    std::string fileName;
+    std::string gifName;
 };
 
 int
