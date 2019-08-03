@@ -73,7 +73,7 @@ public:
 
     void visit(LOTData *obj)
     {
-        switch (obj->mType) {
+        switch (obj->type()) {
         case LOTData::Type::Repeater:
         case LOTData::Type::ShapeGroup:
         case LOTData::Type::Layer: {
