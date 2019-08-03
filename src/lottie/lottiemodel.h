@@ -24,6 +24,7 @@
 #include<unordered_map>
 #include<algorithm>
 #include <cmath>
+#include <cstring>
 #include"vpoint.h"
 #include"vrect.h"
 #include"vinterpolator.h"
@@ -356,7 +357,7 @@ class LOTDataVisitor;
 class LOTData
 {
 public:
-    enum class Type :short {
+    enum class Type :unsigned char {
         Composition = 1,
         Layer,
         ShapeGroup,
@@ -372,19 +373,52 @@ public:
         Trim,
         Repeater
     };
-    explicit LOTData(LOTData::Type  type): mType(type){}
-    inline LOTData::Type type() const {return mType;}
-    bool isStatic() const{return mStatic;}
-    void setStatic(bool value) {mStatic = value;}
-    bool hidden() const {return mHidden;}
-    void setHidden(bool value) {mHidden = value;}
-    void setName(const char *str) {mName = str;}
-    const char* name() const{ return mName.c_str();}
+
+    explicit LOTData(LOTData::Type type):mPtr(nullptr)
+    {
+       mData._type = type;
+       mData._static = true;
+       mData._shortString = true;
+       mData._hidden = false;
+    }
+    ~LOTData() { if (!shortString() && mPtr) free(mPtr); }
+
+    void setStatic(bool value) { mData._static = value;}
+    bool isStatic() const {return mData._static;}
+    bool hidden() const {return mData._hidden;}
+    void setHidden(bool value) {mData._hidden = value;}
+    void setType(LOTData::Type type) {mData._type = type;}
+    LOTData::Type type() const { return mData._type;}
+    void setName(const char *name)
+    {
+        if (name) {
+            auto len = strlen(name);
+            if (len < maxShortStringLength) {
+                setShortString(true);
+                strncpy ( mData._buffer, name, len+1);
+            } else {
+                setShortString(false);
+                mPtr = strdup(name);
+            }
+
+        }
+    }
+    const char* name() const {return shortString() ? mData._buffer : mPtr;}
 private:
-    std::string               mName;
-    bool                      mStatic{true};
-    bool                      mHidden{false};
-    LOTData::Type             mType;
+    static constexpr unsigned char maxShortStringLength = 14;
+    void setShortString(bool value) {mData._shortString = value;}
+    bool shortString() const {return mData._shortString;}
+    struct Data{
+      char           _buffer[14];
+      LOTData::Type  _type;
+      bool           _static      : 1;
+      bool           _hidden      : 1;
+      bool           _shortString : 1;
+    };
+    union {
+        Data  mData;
+        char *mPtr;
+    };
 };
 
 class LOTGroupData: public LOTData
@@ -648,9 +682,9 @@ public:
     FillRule fillRule() const {return mFillRule;}
 public:
     FillRule                       mFillRule{FillRule::Winding}; /* "r" */
+    bool                           mEnabled{true}; /* "fillEnabled" */
     LOTAnimatable<LottieColor>     mColor;   /* "c" */
     LOTAnimatable<float>           mOpacity{100};  /* "o" */
-    bool                           mEnabled{true}; /* "fillEnabled" */
 };
 
 struct LOTDashProperty
