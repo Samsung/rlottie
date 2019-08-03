@@ -118,7 +118,7 @@ public:
    bool visible() const;
    virtual void buildLayerNode();
    LOTLayerNode * layerNode() const {return mLayerCNode.get();}
-   const std::string & name() const {return mLayerData->name();}
+   const char* name() const {return mLayerData->name();}
    virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
    VBitmap& bitmap() {return mRenderBuffer;}
 protected:
@@ -289,9 +289,9 @@ public:
    void processPaintItems(std::vector<LOTPathDataItem *> &list);
    void renderList(std::vector<VDrawable *> &list) override;
    const VMatrix & matrix() const { return mMatrix;}
-   const std::string & name() const
+   const char* name() const
    {
-       static const std::string TAG = "__";
+       static const char* TAG = "__";
        return mData ? mData->name() : TAG;
    }
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;

@@ -379,7 +379,7 @@ public:
     bool hidden() const {return mHidden;}
     void setHidden(bool value) {mHidden = value;}
     void setName(const char *str) {mName = str;}
-    const std::string& name() const{ return mName;}
+    const char* name() const{ return mName.c_str();}
 private:
     std::string               mName;
     bool                      mStatic{true};

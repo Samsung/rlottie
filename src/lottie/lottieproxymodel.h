@@ -272,7 +272,7 @@ class LOTProxyModel
 public:
     LOTProxyModel(T *model): _modelData(model) {}
     LOTFilter& filter() {return mFilter;}
-    const std::string & name() const {return _modelData->name();}
+    const char* name() const {return _modelData->name();}
     LottieColor color(int frame) const
     {
         if (mFilter.hasFilter(rlottie::Property::StrokeColor)) {
@@ -313,7 +313,7 @@ class LOTProxyModel<LOTFillData>
 public:
     LOTProxyModel(LOTFillData *model): _modelData(model) {}
     LOTFilter& filter() {return mFilter;}
-    const std::string & name() const {return _modelData->name();}
+    const char* name() const {return _modelData->name();}
     LottieColor color(int frame) const
     {
         if (mFilter.hasFilter(rlottie::Property::FillColor)) {
