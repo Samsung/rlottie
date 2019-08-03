@@ -750,7 +750,7 @@ void LottieParserImpl::parseLayers(LOTCompositionData *comp)
 {
     comp->mRootLayer = std::make_shared<LOTLayerData>();
     comp->mRootLayer->mLayerType = LayerType::Precomp;
-    comp->mRootLayer->mName = std::string("__");
+    comp->mRootLayer->setName("__");
     bool staticFlag = true;
     RAPIDJSON_ASSERT(PeekType() == kArrayType);
     EnterArray();
@@ -860,7 +860,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
             layer->mLayerType = getLayerType();
         } else if (0 == strcmp(key, "nm")) { /*Layer name*/
             RAPIDJSON_ASSERT(PeekType() == kStringType);
-            layer->mName = GetString();
+            layer->setName(GetString());
         } else if (0 == strcmp(key, "ind")) { /*Layer index in AE. Used for
                                                  parenting and expressions.*/
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
@@ -919,7 +919,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
         } else if (0 == strcmp(key, "ao")) {
             layer->mAutoOrient = GetInt();
         } else if (0 == strcmp(key, "hd")) {
-            layer->mHidden = GetBool();
+            layer->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Layer Attribute Skipped : " << key;
@@ -961,7 +961,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
 
     if (record) {
         mLayerInfoList.push_back(
-            LayerInfo(layer->mName, layer->mInFrame, layer->mOutFrame));
+            LayerInfo(layer->name(), layer->mInFrame, layer->mOutFrame));
     }
     return sharedLayer;
 }
@@ -1097,7 +1097,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGroupObject()
     LOTShapeGroupData *group = sharedGroup.get();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            group->mName = GetString();
+            group->setName(GetString());
         } else if (0 == strcmp(key, "it")) {
             RAPIDJSON_ASSERT(PeekType() == kArrayType);
             EnterArray();
@@ -1105,7 +1105,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGroupObject()
                 RAPIDJSON_ASSERT(PeekType() == kObjectType);
                 parseObject(group);
             }
-            if (group->mChildren.back()->mType == LOTData::Type::Transform) {
+            if (group->mChildren.back()->type() == LOTData::Type::Transform) {
                 group->mTransform = std::static_pointer_cast<LOTTransformData>(
                     group->mChildren.back());
                 group->mChildren.pop_back();
@@ -1136,7 +1136,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseRectObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "p")) {
             parseProperty(obj->mPos);
         } else if (0 == strcmp(key, "s")) {
@@ -1146,7 +1146,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseRectObject()
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
             Skip(key);
         }
@@ -1167,7 +1167,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseEllipseObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "p")) {
             parseProperty(obj->mPos);
         } else if (0 == strcmp(key, "s")) {
@@ -1175,7 +1175,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseEllipseObject()
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
             Skip(key);
         }
@@ -1195,13 +1195,13 @@ std::shared_ptr<LOTData> LottieParserImpl::parseShapeObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "ks")) {
             parseShapeProperty(obj->mShape);
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Shape property ignored :" << key;
@@ -1225,7 +1225,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parsePolystarObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "p")) {
             parseProperty(obj->mPos);
         } else if (0 == strcmp(key, "pt")) {
@@ -1247,7 +1247,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parsePolystarObject()
         } else if (0 == strcmp(key, "d")) {
             obj->mDirection = GetInt();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Polystar property ignored :" << key;
@@ -1291,7 +1291,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseTrimObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "s")) {
             parseProperty(obj->mStart);
         } else if (0 == strcmp(key, "e")) {
@@ -1301,7 +1301,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseTrimObject()
         } else if (0 == strcmp(key, "m")) {
             obj->mTrimType = getTrimType();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Trim property ignored :" << key;
@@ -1345,7 +1345,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseReapeaterObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "c")) {
             parseProperty(obj->mCopies);
             float maxCopy = 0.0;
@@ -1365,7 +1365,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseReapeaterObject()
         } else if (0 == strcmp(key, "tr")) {
             getValue(obj->mTransform);
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vDebug << "Repeater property ignored :" << key;
@@ -1396,7 +1396,7 @@ std::shared_ptr<LOTTransformData> LottieParserImpl::parseTransformObject(
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            sharedTransform->mName = GetString();
+            sharedTransform->setName(GetString());
         } else if (0 == strcmp(key, "a")) {
             parseProperty(obj->mAnchor);
         } else if (0 == strcmp(key, "p")) {
@@ -1424,7 +1424,7 @@ std::shared_ptr<LOTTransformData> LottieParserImpl::parseTransformObject(
         } else if (0 == strcmp(key, "o")) {
             parseProperty(obj->mOpacity);
         } else if (0 == strcmp(key, "hd")) {
-            sharedTransform->mHidden = GetBool();
+            sharedTransform->setHidden(GetBool());
         } else if (0 == strcmp(key, "rx")) {
             parseProperty(obj->mExtra->m3DRx);
         } else if (0 == strcmp(key, "ry")) {
@@ -1462,7 +1462,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseFillObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "c")) {
             parseProperty(obj->mColor);
         } else if (0 == strcmp(key, "o")) {
@@ -1472,7 +1472,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseFillObject()
         } else if (0 == strcmp(key, "r")) {
             obj->mFillRule = getFillRule();
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Fill property skipped = " << key;
@@ -1550,7 +1550,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseStrokeObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "c")) {
             parseProperty(obj->mColor);
         } else if (0 == strcmp(key, "o")) {
@@ -1569,7 +1569,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseStrokeObject()
         } else if (0 == strcmp(key, "d")) {
             parseDashProperty(obj->mDash);
         } else if (0 == strcmp(key, "hd")) {
-            obj->mHidden = GetBool();
+            obj->setHidden(GetBool());
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Stroke property skipped = " << key;
@@ -1609,7 +1609,7 @@ void LottieParserImpl::parseGradientProperty(LOTGradient *obj, const char *key)
             }
         }
     } else if (0 == strcmp(key, "hd")) {
-        obj->mHidden = GetBool();
+        obj->setHidden(GetBool());
     } else {
 #ifdef DEBUG_PARSER
         vWarning << "Gradient property skipped = " << key;
@@ -1633,7 +1633,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGFillObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "r")) {
             obj->mFillRule = getFillRule();
         } else {
@@ -1672,7 +1672,7 @@ std::shared_ptr<LOTData> LottieParserImpl::parseGStrokeObject()
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            obj->mName = GetString();
+            obj->setName(GetString());
         } else if (0 == strcmp(key, "w")) {
             parseProperty(obj->mWidth);
         } else if (0 == strcmp(key, "lc")) {

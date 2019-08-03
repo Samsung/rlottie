@@ -377,8 +377,10 @@ public:
     bool isStatic() const{return mStatic;}
     void setStatic(bool value) {mStatic = value;}
     bool hidden() const {return mHidden;}
+    void setHidden(bool value) {mHidden = value;}
+    void setName(const char *str) {mName = str;}
     const std::string& name() const{ return mName;}
-public:
+private:
     std::string               mName;
     bool                      mStatic{true};
     bool                      mHidden{false};
