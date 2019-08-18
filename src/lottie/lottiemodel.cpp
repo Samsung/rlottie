@@ -74,7 +74,6 @@ public:
     void visit(LOTData *obj)
     {
         switch (obj->type()) {
-        case LOTData::Type::Repeater:
         case LOTData::Type::ShapeGroup:
         case LOTData::Type::Layer: {
             visitChildren(static_cast<LOTGroupData *>(obj));
@@ -86,9 +85,70 @@ public:
     }
 };
 
+class LottieUpdateStatVisitor {
+    LOTModelStat *stat;
+public:
+    explicit LottieUpdateStatVisitor(LOTModelStat *s):stat(s){}
+    void visitChildren(LOTGroupData *obj)
+    {
+        for (const auto &child : obj->mChildren) {
+            if (child) visit(child.get());
+        }
+    }
+    void visitLayer(LOTLayerData *layer)
+    {
+        switch (layer->mLayerType) {
+        case LayerType::Precomp:
+            stat->precompLayerCount++;
+            break;
+        case LayerType::Null:
+            stat->nullLayerCount++;
+            break;
+        case LayerType::Shape:
+            stat->shapeLayerCount++;
+            break;
+        case LayerType::Solid:
+            stat->solidLayerCount++;
+            break;
+        case LayerType::Image:
+            stat->imageLayerCount++;
+            break;
+        default:
+            break;
+        }
+        visitChildren(layer);
+    }
+    void visit(LOTData *obj)
+    {
+        switch (obj->type()) {
+        case LOTData::Type::Layer: {
+            visitLayer(static_cast<LOTLayerData *>(obj));
+            break;
+        }
+        case LOTData::Type::Repeater: {
+            visitChildren(static_cast<LOTRepeaterData *>(obj)->content());
+            break;
+        }
+        case LOTData::Type::ShapeGroup: {
+            visitChildren(static_cast<LOTGroupData *>(obj));
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+};
+
 void LOTCompositionData::processRepeaterObjects()
 {
     LottieRepeaterProcesser visitor;
+    visitor.visit(mRootLayer.get());
+}
+
+void LOTCompositionData::updateStats()
+{
+    LottieUpdateStatVisitor visitor(&mStats);
     visitor.visit(mRootLayer.get());
 }
 

@@ -53,6 +53,16 @@ class LottieShapeData;
 class LOTPolystarData;
 class LOTMaskData;
 
+struct LOTModelStat
+{
+    uint16_t precompLayerCount{0};
+    uint16_t solidLayerCount{0};
+    uint16_t shapeLayerCount{0};
+    uint16_t imageLayerCount{0};
+    uint16_t nullLayerCount{0};
+
+};
+
 enum class MatteType: uchar
 {
     None = 0,
@@ -382,6 +392,8 @@ public:
        mData._hidden = false;
     }
     ~LOTData() { if (!shortString() && mPtr) free(mPtr); }
+    LOTData(const LOTData&) = delete;
+    LOTData& operator =(const LOTData&) = delete;
 
     void setStatic(bool value) { mData._static = value;}
     bool isStatic() const {return mData._static;}
@@ -409,7 +421,7 @@ private:
     void setShortString(bool value) {mData._shortString = value;}
     bool shortString() const {return mData._shortString;}
     struct Data{
-      char           _buffer[14];
+      char           _buffer[maxShortStringLength];
       LOTData::Type  _type;
       bool           _static      : 1;
       bool           _hidden      : 1;
@@ -631,6 +643,7 @@ public:
     long endFrame() const {return mEndFrame;}
     VSize size() const {return mSize;}
     void processRepeaterObjects();
+    void updateStats();
 public:
     std::string          mVersion;
     VSize                mSize;
@@ -643,7 +656,7 @@ public:
                        std::shared_ptr<LOTAsset>>    mAssets;
 
     std::vector<LayerInfo>  mLayerInfoList;
-
+    LOTModelStat            mStats;
 };
 
 /**
