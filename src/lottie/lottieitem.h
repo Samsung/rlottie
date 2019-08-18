@@ -98,6 +98,14 @@ public:
 
 typedef vFlag<DirtyFlagBit> DirtyFlag;
 
+struct LOTCApiData
+{
+    LOTCApiData();
+    LOTLayerNode                  mLayer;
+    std::vector<LOTMask>          mMasks;
+    std::vector<LOTLayerNode *>   mLayers;
+};
+
 class LOTLayerItem
 {
 public:
@@ -117,7 +125,9 @@ public:
    MatteType matteType() const { return mLayerData->mMatteType;}
    bool visible() const;
    virtual void buildLayerNode();
-   LOTLayerNode * layerNode() const {return mLayerCNode.get();}
+   LOTLayerNode& clayer() {return mCApiData->mLayer;}
+   std::vector<LOTLayerNode *>& clayers() {return mCApiData->mLayers;}
+   std::vector<LOTMask>& cmasks() {return mCApiData->mMasks;}
    const char* name() const {return mLayerData->name();}
    virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
    VBitmap& bitmap() {return mRenderBuffer;}
@@ -130,8 +140,6 @@ protected:
    float opacity(int frameNo) const {return mLayerData->opacity(frameNo);}
    inline DirtyFlag flag() const {return mDirtyFlag;}
 protected:
-   std::vector<LOTMask>                        mMasksCNode;
-   std::unique_ptr<LOTLayerNode>               mLayerCNode;
    std::vector<VDrawable *>                    mDrawableList;
    std::unique_ptr<LOTLayerMaskItem>           mLayerMask;
    LOTLayerData                               *mLayerData{nullptr};
@@ -142,6 +150,7 @@ protected:
    int                                         mFrameNo{-1};
    DirtyFlag                                   mDirtyFlag{DirtyFlagBit::All};
    bool                                        mComplexContent{false};
+   std::unique_ptr<LOTCApiData>                mCApiData;
 };
 
 class LOTCompLayerItem: public LOTLayerItem
@@ -159,7 +168,6 @@ private:
     void renderMatteLayer(VPainter *painter, const VRle &inheritMask, const VRle &matteRle,
                           LOTLayerItem *layer, LOTLayerItem *src);
 private:
-   std::vector<LOTLayerNode *>                  mLayersCNode;
    std::vector<std::unique_ptr<LOTLayerItem>>   mLayers;
    std::unique_ptr<LOTClipperItem>              mClipper;
 };

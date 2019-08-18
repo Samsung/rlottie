@@ -149,7 +149,7 @@ void LOTCompItem::buildRenderTree()
 
 const LOTLayerNode *LOTCompItem::renderTree() const
 {
-    return mRootLayer->layerNode();
+    return &mRootLayer->clayer();
 }
 
 bool LOTCompItem::render(const rlottie::Surface &surface)
@@ -210,82 +210,87 @@ VRle LOTMaskItem::rle()
     return mRasterizer.rle();
 }
 
+LOTCApiData::LOTCApiData()
+{
+    mLayer.mMaskList.ptr = nullptr;
+    mLayer.mMaskList.size = 0;
+    mLayer.mLayerList.ptr = nullptr;
+    mLayer.mLayerList.size = 0;
+    mLayer.mNodeList.ptr = nullptr;
+    mLayer.mNodeList.size = 0;
+    mLayer.mMatte = MatteNone;
+    mLayer.mVisible = 0;
+    mLayer.mAlpha = 255;
+    mLayer.mClipPath.ptPtr = nullptr;
+    mLayer.mClipPath.elmPtr = nullptr;
+    mLayer.mClipPath.ptCount = 0;
+    mLayer.mClipPath.elmCount = 0;
+    mLayer.keypath = nullptr;
+}
+
 void LOTLayerItem::buildLayerNode()
 {
-    if (!mLayerCNode) {
-        mLayerCNode = std::make_unique<LOTLayerNode>();
-        mLayerCNode->mMaskList.ptr = nullptr;
-        mLayerCNode->mMaskList.size = 0;
-        mLayerCNode->mLayerList.ptr = nullptr;
-        mLayerCNode->mLayerList.size = 0;
-        mLayerCNode->mNodeList.ptr = nullptr;
-        mLayerCNode->mNodeList.size = 0;
-        mLayerCNode->mMatte = MatteNone;
-        mLayerCNode->mVisible = 0;
-        mLayerCNode->mAlpha = 255;
-        mLayerCNode->mClipPath.ptPtr = nullptr;
-        mLayerCNode->mClipPath.elmPtr = nullptr;
-        mLayerCNode->mClipPath.ptCount = 0;
-        mLayerCNode->mClipPath.elmCount = 0;
-        mLayerCNode->keypath = name();
+    if (!mCApiData) {
+        mCApiData = std::make_unique<LOTCApiData>();
+        clayer().keypath = name();
     }
-    if (complexContent()) mLayerCNode->mAlpha = uchar(combinedAlpha() * 255.f);
-    mLayerCNode->mVisible = visible();
+    if (complexContent()) clayer().mAlpha = uchar(combinedAlpha() * 255.f);
+    clayer().mVisible = visible();
     // update matte
     if (hasMatte()) {
         switch (mLayerData->mMatteType) {
         case MatteType::Alpha:
-            mLayerCNode->mMatte = MatteAlpha;
+            clayer().mMatte = MatteAlpha;
             break;
         case MatteType::AlphaInv:
-            mLayerCNode->mMatte = MatteAlphaInv;
+            clayer().mMatte = MatteAlphaInv;
             break;
         case MatteType::Luma:
-            mLayerCNode->mMatte = MatteLuma;
+            clayer().mMatte = MatteLuma;
             break;
         case MatteType::LumaInv:
-            mLayerCNode->mMatte = MatteLumaInv;
+            clayer().mMatte = MatteLumaInv;
             break;
         default:
-            mLayerCNode->mMatte = MatteNone;
+            clayer().mMatte = MatteNone;
             break;
         }
     }
     if (mLayerMask) {
-        mMasksCNode.clear();
-        mMasksCNode.resize(mLayerMask->mMasks.size());
+        cmasks().clear();
+        cmasks().resize(mLayerMask->mMasks.size());
         size_t i = 0;
         for (const auto &mask : mLayerMask->mMasks) {
-            LOTMask *                          cNode = &mMasksCNode[i++];
-            const std::vector<VPath::Element> &elm = mask.mFinalPath.elements();
-            const std::vector<VPointF> &       pts = mask.mFinalPath.points();
+            auto       &cNode = cmasks()[i++];
+            const auto &elm = mask.mFinalPath.elements();
+            const auto &pts = mask.mFinalPath.points();
             auto ptPtr = reinterpret_cast<const float *>(pts.data());
             auto elmPtr = reinterpret_cast<const char *>(elm.data());
-            cNode->mPath.ptPtr = ptPtr;
-            cNode->mPath.ptCount = pts.size();
-            cNode->mPath.elmPtr = elmPtr;
-            cNode->mPath.elmCount = elm.size();
-            cNode->mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
+            cNode.mPath.ptPtr = ptPtr;
+            cNode.mPath.ptCount = pts.size();
+            cNode.mPath.elmPtr = elmPtr;
+            cNode.mPath.elmCount = elm.size();
+            cNode.mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
             switch (mask.maskMode()) {
             case LOTMaskData::Mode::Add:
-                cNode->mMode = MaskAdd;
+                cNode.mMode = MaskAdd;
                 break;
             case LOTMaskData::Mode::Substarct:
-                cNode->mMode = MaskSubstract;
+                cNode.mMode = MaskSubstract;
                 break;
             case LOTMaskData::Mode::Intersect:
-                cNode->mMode = MaskIntersect;
+                cNode.mMode = MaskIntersect;
                 break;
             case LOTMaskData::Mode::Difference:
-                cNode->mMode = MaskDifference;
+                cNode.mMode = MaskDifference;
                 break;
             default:
-                cNode->mMode = MaskAdd;
+                cNode.mMode = MaskAdd;
                 break;
             }
         }
-        mLayerCNode->mMaskList.ptr = mMasksCNode.data();
-        mLayerCNode->mMaskList.size = mMasksCNode.size();
+        clayer().mMaskList.ptr = cmasks().data();
+        clayer().mMaskList.size = cmasks().size();
     }
 }
 
@@ -540,22 +545,22 @@ void LOTCompLayerItem::buildLayerNode()
 {
     LOTLayerItem::buildLayerNode();
     if (mClipper) {
-        const std::vector<VPath::Element> &elm = mClipper->mPath.elements();
-        const std::vector<VPointF> &       pts = mClipper->mPath.points();
+        const auto &elm = mClipper->mPath.elements();
+        const auto &pts = mClipper->mPath.points();
         auto ptPtr = reinterpret_cast<const float *>(pts.data());
         auto elmPtr = reinterpret_cast<const char *>(elm.data());
-        layerNode()->mClipPath.ptPtr = ptPtr;
-        layerNode()->mClipPath.elmPtr = elmPtr;
-        layerNode()->mClipPath.ptCount = 2 * pts.size();
-        layerNode()->mClipPath.elmCount = elm.size();
+        clayer().mClipPath.ptPtr = ptPtr;
+        clayer().mClipPath.elmPtr = elmPtr;
+        clayer().mClipPath.ptCount = 2 * pts.size();
+        clayer().mClipPath.elmCount = elm.size();
     }
-    if (mLayers.size() != mLayersCNode.size()) {
+    if (mLayers.size() != clayers().size()) {
         for (const auto &layer : mLayers) {
             layer->buildLayerNode();
-            mLayersCNode.push_back(layer->layerNode());
+            clayers().push_back(&layer->clayer());
         }
-        layerNode()->mLayerList.ptr = mLayersCNode.data();
-        layerNode()->mLayerList.size = mLayersCNode.size();
+        clayer().mLayerList.ptr = clayers().data();
+        clayer().mLayerList.size = clayers().size();
     } else {
         for (const auto &layer : mLayers) {
             layer->buildLayerNode();
@@ -766,8 +771,8 @@ void LOTSolidLayerItem::buildLayerNode()
         lotDrawable->sync();
         mCNodeList.push_back(lotDrawable->mCNode.get());
     }
-    layerNode()->mNodeList.ptr = mCNodeList.data();
-    layerNode()->mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = mCNodeList.data();
+    clayer().mNodeList.size = mCNodeList.size();
 }
 
 void LOTSolidLayerItem::renderList(std::vector<VDrawable *> &list)
@@ -845,8 +850,8 @@ void LOTImageLayerItem::buildLayerNode()
 
         mCNodeList.push_back(lotDrawable->mCNode.get());
     }
-    layerNode()->mNodeList.ptr = mCNodeList.data();
-    layerNode()->mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = mCNodeList.data();
+    clayer().mNodeList.size = mCNodeList.size();
 }
 
 LOTNullLayerItem::LOTNullLayerItem(LOTLayerData *layerData)
@@ -946,8 +951,8 @@ void LOTShapeLayerItem::buildLayerNode()
         lotDrawable->sync();
         mCNodeList.push_back(lotDrawable->mCNode.get());
     }
-    layerNode()->mNodeList.ptr = mCNodeList.data();
-    layerNode()->mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = mCNodeList.data();
+    clayer().mNodeList.size = mCNodeList.size();
 }
 
 void LOTShapeLayerItem::renderList(std::vector<VDrawable *> &list)
