@@ -2270,6 +2270,8 @@ std::shared_ptr<LOTModel> LottieParser::model()
     std::shared_ptr<LOTModel> model = std::make_shared<LOTModel>();
     model->mRoot = d->composition();
     model->mRoot->processRepeaterObjects();
+    model->mRoot->updateStats();
+
 
 #ifdef LOTTIE_DUMP_TREE_SUPPORT
     LOTDataInspector inspector;
