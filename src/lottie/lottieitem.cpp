@@ -511,9 +511,14 @@ bool LOTLayerItem::visible() const
 LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel)
     : LOTLayerItem(layerModel)
 {
-    // 1. create layer item
-    for (auto &i : mLayerData->mChildren) {
-        auto model = static_cast<LOTLayerData *>(i.get());
+    if (!mLayerData->mChildren.empty())
+        mLayers.reserve(mLayerData->mChildren.size());
+
+    // 1. keep the layer in back-to-front order.
+    // as lottie model keeps the data in front-toback-order.
+    for (auto it = mLayerData->mChildren.crbegin();
+         it != mLayerData->mChildren.rend(); ++it ) {
+        auto model = static_cast<LOTLayerData *>((*it).get());
         auto item = LOTCompItem::createLayerItem(model);
         if (item) mLayers.push_back(std::move(item));
     }
@@ -528,10 +533,6 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel)
             if (search != mLayers.end()) layer->setParentLayer((*search).get());
         }
     }
-
-    // 3. keep the layer in back-to-front order.
-    // as lottie model keeps the data in front-toback-order.
-    std::reverse(mLayers.begin(), mLayers.end());
 
     // 4. check if its a nested composition
     if (!layerModel->layerSize().empty()) {
@@ -1024,16 +1025,18 @@ void LOTContentGroupItem::addChildren(LOTGroupData *data)
 {
     if (!data) return;
 
-    for (auto &i : data->mChildren) {
-        auto content = LOTShapeLayerItem::createContentItem(i.get());
+    if (!data->mChildren.empty()) mContents.reserve(data->mChildren.size());
+
+    // keep the content in back-to-front order.
+    // as lottie model keeps it in front-to-back order.
+    for (auto it = data->mChildren.crbegin(); it != data->mChildren.rend();
+         ++it ) {
+        auto content = LOTShapeLayerItem::createContentItem((*it).get());
         if (content) {
             content->setParent(this);
             mContents.push_back(std::move(content));
         }
     }
-
-    // keep the content in back-to-front order.
-    std::reverse(mContents.begin(), mContents.end());
 }
 
 void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
