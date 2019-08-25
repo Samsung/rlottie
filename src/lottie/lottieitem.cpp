@@ -22,7 +22,6 @@
 #include <iterator>
 #include "lottiekeypath.h"
 #include "vbitmap.h"
-#include "vdasher.h"
 #include "vpainter.h"
 #include "vraster.h"
 
@@ -142,16 +141,6 @@ bool LOTCompItem::update(int frameNo, const VSize &size, bool keepAspectRatio)
     return true;
 }
 
-void LOTCompItem::buildRenderTree()
-{
-    mRootLayer->buildLayerNode();
-}
-
-const LOTLayerNode *LOTCompItem::renderTree() const
-{
-    return &mRootLayer->clayer();
-}
-
 bool LOTCompItem::render(const rlottie::Surface &surface)
 {
     VBitmap bitmap(reinterpret_cast<uchar *>(surface.buffer()),
@@ -208,90 +197,6 @@ VRle LOTMaskItem::rle()
         if (mData->mInv) mRasterizer.rle().invert();
     }
     return mRasterizer.rle();
-}
-
-LOTCApiData::LOTCApiData()
-{
-    mLayer.mMaskList.ptr = nullptr;
-    mLayer.mMaskList.size = 0;
-    mLayer.mLayerList.ptr = nullptr;
-    mLayer.mLayerList.size = 0;
-    mLayer.mNodeList.ptr = nullptr;
-    mLayer.mNodeList.size = 0;
-    mLayer.mMatte = MatteNone;
-    mLayer.mVisible = 0;
-    mLayer.mAlpha = 255;
-    mLayer.mClipPath.ptPtr = nullptr;
-    mLayer.mClipPath.elmPtr = nullptr;
-    mLayer.mClipPath.ptCount = 0;
-    mLayer.mClipPath.elmCount = 0;
-    mLayer.keypath = nullptr;
-}
-
-void LOTLayerItem::buildLayerNode()
-{
-    if (!mCApiData) {
-        mCApiData = std::make_unique<LOTCApiData>();
-        clayer().keypath = name();
-    }
-    if (complexContent()) clayer().mAlpha = uchar(combinedAlpha() * 255.f);
-    clayer().mVisible = visible();
-    // update matte
-    if (hasMatte()) {
-        switch (mLayerData->mMatteType) {
-        case MatteType::Alpha:
-            clayer().mMatte = MatteAlpha;
-            break;
-        case MatteType::AlphaInv:
-            clayer().mMatte = MatteAlphaInv;
-            break;
-        case MatteType::Luma:
-            clayer().mMatte = MatteLuma;
-            break;
-        case MatteType::LumaInv:
-            clayer().mMatte = MatteLumaInv;
-            break;
-        default:
-            clayer().mMatte = MatteNone;
-            break;
-        }
-    }
-    if (mLayerMask) {
-        cmasks().clear();
-        cmasks().resize(mLayerMask->mMasks.size());
-        size_t i = 0;
-        for (const auto &mask : mLayerMask->mMasks) {
-            auto       &cNode = cmasks()[i++];
-            const auto &elm = mask.mFinalPath.elements();
-            const auto &pts = mask.mFinalPath.points();
-            auto ptPtr = reinterpret_cast<const float *>(pts.data());
-            auto elmPtr = reinterpret_cast<const char *>(elm.data());
-            cNode.mPath.ptPtr = ptPtr;
-            cNode.mPath.ptCount = pts.size();
-            cNode.mPath.elmPtr = elmPtr;
-            cNode.mPath.elmCount = elm.size();
-            cNode.mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
-            switch (mask.maskMode()) {
-            case LOTMaskData::Mode::Add:
-                cNode.mMode = MaskAdd;
-                break;
-            case LOTMaskData::Mode::Substarct:
-                cNode.mMode = MaskSubstract;
-                break;
-            case LOTMaskData::Mode::Intersect:
-                cNode.mMode = MaskIntersect;
-                break;
-            case LOTMaskData::Mode::Difference:
-                cNode.mMode = MaskDifference;
-                break;
-            default:
-                cNode.mMode = MaskAdd;
-                break;
-            }
-        }
-        clayer().mMaskList.ptr = cmasks().data();
-        clayer().mMaskList.size = cmasks().size();
-    }
 }
 
 void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
@@ -542,33 +447,6 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel)
     if (mLayers.size() > 1) setComplexContent(true);
 }
 
-void LOTCompLayerItem::buildLayerNode()
-{
-    LOTLayerItem::buildLayerNode();
-    if (mClipper) {
-        const auto &elm = mClipper->mPath.elements();
-        const auto &pts = mClipper->mPath.points();
-        auto ptPtr = reinterpret_cast<const float *>(pts.data());
-        auto elmPtr = reinterpret_cast<const char *>(elm.data());
-        clayer().mClipPath.ptPtr = ptPtr;
-        clayer().mClipPath.elmPtr = elmPtr;
-        clayer().mClipPath.ptCount = 2 * pts.size();
-        clayer().mClipPath.elmCount = elm.size();
-    }
-    if (mLayers.size() != clayers().size()) {
-        for (const auto &layer : mLayers) {
-            layer->buildLayerNode();
-            clayers().push_back(&layer->clayer());
-        }
-        clayer().mLayerList.ptr = clayers().data();
-        clayer().mLayerList.size = clayers().size();
-    } else {
-        for (const auto &layer : mLayers) {
-            layer->buildLayerNode();
-        }
-    }
-}
-
 void LOTCompLayerItem::render(VPainter *painter, const VRle &inheritMask,
                               const VRle &matteRle)
 {
@@ -759,23 +637,6 @@ void LOTSolidLayerItem::updateContent()
     }
 }
 
-void LOTSolidLayerItem::buildLayerNode()
-{
-    LOTLayerItem::buildLayerNode();
-
-    mDrawableList.clear();
-    renderList(mDrawableList);
-
-    cnodes().clear();
-    for (auto &i : mDrawableList) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
-        lotDrawable->sync();
-        cnodes().push_back(lotDrawable->mCNode.get());
-    }
-    clayer().mNodeList.ptr = cnodes().data();
-    clayer().mNodeList.size = cnodes().size();
-}
-
 void LOTSolidLayerItem::renderList(std::vector<VDrawable *> &list)
 {
     if (!visible() || vIsZero(combinedAlpha())) return;
@@ -816,43 +677,6 @@ void LOTImageLayerItem::renderList(std::vector<VDrawable *> &list)
     if (!visible() || vIsZero(combinedAlpha())) return;
 
     list.push_back(&mRenderNode);
-}
-
-void LOTImageLayerItem::buildLayerNode()
-{
-    LOTLayerItem::buildLayerNode();
-
-    mDrawableList.clear();
-    renderList(mDrawableList);
-
-    cnodes().clear();
-    for (auto &i : mDrawableList) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
-        lotDrawable->sync();
-
-        lotDrawable->mCNode->mImageInfo.data =
-            lotDrawable->mBrush.mTexture.data();
-        lotDrawable->mCNode->mImageInfo.width =
-            int(lotDrawable->mBrush.mTexture.width());
-        lotDrawable->mCNode->mImageInfo.height =
-            int(lotDrawable->mBrush.mTexture.height());
-
-        lotDrawable->mCNode->mImageInfo.mMatrix.m11 = combinedMatrix().m_11();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m12 = combinedMatrix().m_12();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m13 = combinedMatrix().m_13();
-
-        lotDrawable->mCNode->mImageInfo.mMatrix.m21 = combinedMatrix().m_21();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m22 = combinedMatrix().m_22();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m23 = combinedMatrix().m_23();
-
-        lotDrawable->mCNode->mImageInfo.mMatrix.m31 = combinedMatrix().m_tx();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m32 = combinedMatrix().m_ty();
-        lotDrawable->mCNode->mImageInfo.mMatrix.m33 = combinedMatrix().m_33();
-
-        cnodes().push_back(lotDrawable->mCNode.get());
-    }
-    clayer().mNodeList.ptr = cnodes().data();
-    clayer().mNodeList.size = cnodes().size();
 }
 
 LOTNullLayerItem::LOTNullLayerItem(LOTLayerData *layerData)
@@ -937,23 +761,6 @@ void LOTShapeLayerItem::updateContent()
     if (mLayerData->hasPathOperator()) {
         mRoot->applyTrim();
     }
-}
-
-void LOTShapeLayerItem::buildLayerNode()
-{
-    LOTLayerItem::buildLayerNode();
-
-    mDrawableList.clear();
-    renderList(mDrawableList);
-
-    cnodes().clear();
-    for (auto &i : mDrawableList) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
-        lotDrawable->sync();
-        cnodes().push_back(lotDrawable->mCNode.get());
-    }
-    clayer().mNodeList.ptr = cnodes().data();
-    clayer().mNodeList.size = cnodes().size();
 }
 
 void LOTShapeLayerItem::renderList(std::vector<VDrawable *> &list)
@@ -1379,18 +1186,6 @@ void LOTStrokeItem::updateContent(int frameNo)
     if (mModel.hasDashInfo()) mModel.getDashInfo(frameNo, mDashInfo);
 }
 
-static float getScale(const VMatrix &matrix)
-{
-    constexpr float SQRT_2 = 1.41421f;
-    VPointF         p1(0, 0);
-    VPointF         p2(SQRT_2, SQRT_2);
-    p1 = matrix.map(p1);
-    p2 = matrix.map(p2);
-    VPointF final = p2 - p1;
-
-    return std::sqrt(final.x() * final.x() + final.y() * final.y()) / 2.0f;
-}
-
 void LOTStrokeItem::updateRenderNode()
 {
     VColor color = mColor;
@@ -1399,7 +1194,7 @@ void LOTStrokeItem::updateRenderNode()
     VBrush brush(color);
     mDrawable.setBrush(brush);
     float scale =
-        getScale(static_cast<LOTContentGroupItem *>(parent())->matrix());
+        static_cast<LOTContentGroupItem *>(parent())->matrix().scale();
     mDrawable.setStrokeInfo(mModel.capStyle(), mModel.joinStyle(),
                             mModel.miterLimit(), mWidth * scale);
 
@@ -1427,7 +1222,7 @@ void LOTGStrokeItem::updateContent(int frameNo)
 
 void LOTGStrokeItem::updateRenderNode()
 {
-    float scale = getScale(mGradient->mMatrix);
+    float scale = mGradient->mMatrix.scale();
     mGradient->setAlpha(mAlpha * parentAlpha());
     mDrawable.setBrush(VBrush(mGradient.get()));
     mDrawable.setStrokeInfo(mCap, mJoin, mMiterLimit, mWidth * scale);
@@ -1591,140 +1386,4 @@ void LOTRepeaterItem::renderList(std::vector<VDrawable *> &list)
 {
     if (mHidden) return;
     return LOTContentGroupItem::renderList(list);
-}
-
-static void updateGStops(LOTNode *n, const VGradient *grad)
-{
-    if (grad->mStops.size() != n->mGradient.stopCount) {
-        if (n->mGradient.stopCount) free(n->mGradient.stopPtr);
-        n->mGradient.stopCount = grad->mStops.size();
-        n->mGradient.stopPtr = (LOTGradientStop *)malloc(
-            n->mGradient.stopCount * sizeof(LOTGradientStop));
-    }
-
-    LOTGradientStop *ptr = n->mGradient.stopPtr;
-    for (const auto &i : grad->mStops) {
-        ptr->pos = i.first;
-        ptr->a = uchar(i.second.alpha() * grad->alpha());
-        ptr->r = i.second.red();
-        ptr->g = i.second.green();
-        ptr->b = i.second.blue();
-        ptr++;
-    }
-}
-
-void LOTDrawable::sync()
-{
-    if (!mCNode) {
-        mCNode = std::make_unique<LOTNode>();
-        mCNode->mGradient.stopPtr = nullptr;
-        mCNode->mGradient.stopCount = 0;
-    }
-
-    mCNode->mFlag = ChangeFlagNone;
-    if (mFlag & DirtyState::None) return;
-
-    if (mFlag & DirtyState::Path) {
-        if (!mStroke.mDash.empty()) {
-            VDasher dasher(mStroke.mDash.data(), mStroke.mDash.size());
-            mPath = dasher.dashed(mPath);
-        }
-        const std::vector<VPath::Element> &elm = mPath.elements();
-        const std::vector<VPointF> &       pts = mPath.points();
-        const float *ptPtr = reinterpret_cast<const float *>(pts.data());
-        const char * elmPtr = reinterpret_cast<const char *>(elm.data());
-        mCNode->mPath.elmPtr = elmPtr;
-        mCNode->mPath.elmCount = elm.size();
-        mCNode->mPath.ptPtr = ptPtr;
-        mCNode->mPath.ptCount = 2 * pts.size();
-        mCNode->mFlag |= ChangeFlagPath;
-    }
-
-    if (mStroke.enable) {
-        mCNode->mStroke.width = mStroke.width;
-        mCNode->mStroke.miterLimit = mStroke.miterLimit;
-        mCNode->mStroke.enable = 1;
-
-        switch (mStroke.cap) {
-        case CapStyle::Flat:
-            mCNode->mStroke.cap = LOTCapStyle::CapFlat;
-            break;
-        case CapStyle::Square:
-            mCNode->mStroke.cap = LOTCapStyle::CapSquare;
-            break;
-        case CapStyle::Round:
-            mCNode->mStroke.cap = LOTCapStyle::CapRound;
-            break;
-        }
-
-        switch (mStroke.join) {
-        case JoinStyle::Miter:
-            mCNode->mStroke.join = LOTJoinStyle::JoinMiter;
-            break;
-        case JoinStyle::Bevel:
-            mCNode->mStroke.join = LOTJoinStyle::JoinBevel;
-            break;
-        case JoinStyle::Round:
-            mCNode->mStroke.join = LOTJoinStyle::JoinRound;
-            break;
-        default:
-            mCNode->mStroke.join = LOTJoinStyle::JoinMiter;
-            break;
-        }
-    } else {
-        mCNode->mStroke.enable = 0;
-    }
-
-    switch (mFillRule) {
-    case FillRule::EvenOdd:
-        mCNode->mFillRule = LOTFillRule::FillEvenOdd;
-        break;
-    default:
-        mCNode->mFillRule = LOTFillRule::FillWinding;
-        break;
-    }
-
-    switch (mBrush.type()) {
-    case VBrush::Type::Solid:
-        mCNode->mBrushType = LOTBrushType::BrushSolid;
-        mCNode->mColor.r = mBrush.mColor.r;
-        mCNode->mColor.g = mBrush.mColor.g;
-        mCNode->mColor.b = mBrush.mColor.b;
-        mCNode->mColor.a = mBrush.mColor.a;
-        break;
-    case VBrush::Type::LinearGradient: {
-        mCNode->mBrushType = LOTBrushType::BrushGradient;
-        mCNode->mGradient.type = LOTGradientType::GradientLinear;
-        VPointF s = mBrush.mGradient->mMatrix.map(
-            {mBrush.mGradient->linear.x1, mBrush.mGradient->linear.y1});
-        VPointF e = mBrush.mGradient->mMatrix.map(
-            {mBrush.mGradient->linear.x2, mBrush.mGradient->linear.y2});
-        mCNode->mGradient.start.x = s.x();
-        mCNode->mGradient.start.y = s.y();
-        mCNode->mGradient.end.x = e.x();
-        mCNode->mGradient.end.y = e.y();
-        updateGStops(mCNode.get(), mBrush.mGradient);
-        break;
-    }
-    case VBrush::Type::RadialGradient: {
-        mCNode->mBrushType = LOTBrushType::BrushGradient;
-        mCNode->mGradient.type = LOTGradientType::GradientRadial;
-        VPointF c = mBrush.mGradient->mMatrix.map(
-            {mBrush.mGradient->radial.cx, mBrush.mGradient->radial.cy});
-        VPointF f = mBrush.mGradient->mMatrix.map(
-            {mBrush.mGradient->radial.fx, mBrush.mGradient->radial.fy});
-        mCNode->mGradient.center.x = c.x();
-        mCNode->mGradient.center.y = c.y();
-        mCNode->mGradient.focal.x = f.x();
-        mCNode->mGradient.focal.y = f.y();
-
-        float scale = getScale(mBrush.mGradient->mMatrix);
-        mCNode->mGradient.cradius = mBrush.mGradient->radial.cradius * scale;
-        mCNode->mGradient.fradius = mBrush.mGradient->radial.fradius * scale;
-        updateGStops(mCNode.get(), mBrush.mGradient);
-        break;
-    }
-    default:
-        break;
-    }
 }
