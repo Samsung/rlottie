@@ -6,6 +6,7 @@ source_file = [
     'lottieproxymodel.cpp',
     'lottieanimation.cpp',
     'lottieitem.cpp',
+    'lottieitem_capi.cpp',
     'lottiekeypath.cpp'
 ]
 
