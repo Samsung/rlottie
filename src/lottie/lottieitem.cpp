@@ -766,14 +766,14 @@ void LOTSolidLayerItem::buildLayerNode()
     mDrawableList.clear();
     renderList(mDrawableList);
 
-    mCNodeList.clear();
+    cnodes().clear();
     for (auto &i : mDrawableList) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
-        mCNodeList.push_back(lotDrawable->mCNode.get());
+        cnodes().push_back(lotDrawable->mCNode.get());
     }
-    clayer().mNodeList.ptr = mCNodeList.data();
-    clayer().mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = cnodes().data();
+    clayer().mNodeList.size = cnodes().size();
 }
 
 void LOTSolidLayerItem::renderList(std::vector<VDrawable *> &list)
@@ -825,7 +825,7 @@ void LOTImageLayerItem::buildLayerNode()
     mDrawableList.clear();
     renderList(mDrawableList);
 
-    mCNodeList.clear();
+    cnodes().clear();
     for (auto &i : mDrawableList) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
@@ -849,10 +849,10 @@ void LOTImageLayerItem::buildLayerNode()
         lotDrawable->mCNode->mImageInfo.mMatrix.m32 = combinedMatrix().m_ty();
         lotDrawable->mCNode->mImageInfo.mMatrix.m33 = combinedMatrix().m_33();
 
-        mCNodeList.push_back(lotDrawable->mCNode.get());
+        cnodes().push_back(lotDrawable->mCNode.get());
     }
-    clayer().mNodeList.ptr = mCNodeList.data();
-    clayer().mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = cnodes().data();
+    clayer().mNodeList.size = cnodes().size();
 }
 
 LOTNullLayerItem::LOTNullLayerItem(LOTLayerData *layerData)
@@ -946,14 +946,14 @@ void LOTShapeLayerItem::buildLayerNode()
     mDrawableList.clear();
     renderList(mDrawableList);
 
-    mCNodeList.clear();
+    cnodes().clear();
     for (auto &i : mDrawableList) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
-        mCNodeList.push_back(lotDrawable->mCNode.get());
+        cnodes().push_back(lotDrawable->mCNode.get());
     }
-    clayer().mNodeList.ptr = mCNodeList.data();
-    clayer().mNodeList.size = mCNodeList.size();
+    clayer().mNodeList.ptr = cnodes().data();
+    clayer().mNodeList.size = cnodes().size();
 }
 
 void LOTShapeLayerItem::renderList(std::vector<VDrawable *> &list)

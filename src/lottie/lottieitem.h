@@ -104,6 +104,7 @@ struct LOTCApiData
     LOTLayerNode                  mLayer;
     std::vector<LOTMask>          mMasks;
     std::vector<LOTLayerNode *>   mLayers;
+    std::vector<LOTNode *>        mCNodeList;
 };
 
 class LOTLayerItem
@@ -128,6 +129,7 @@ public:
    LOTLayerNode& clayer() {return mCApiData->mLayer;}
    std::vector<LOTLayerNode *>& clayers() {return mCApiData->mLayers;}
    std::vector<LOTMask>& cmasks() {return mCApiData->mMasks;}
+   std::vector<LOTNode *>& cnodes() {return mCApiData->mCNodeList;}
    const char* name() const {return mLayerData->name();}
    virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
    VBitmap& bitmap() {return mRenderBuffer;}
@@ -181,7 +183,6 @@ protected:
    void updateContent() final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
-   std::vector<LOTNode *>       mCNodeList;
    LOTDrawable                  mRenderNode;
 };
 
@@ -197,7 +198,6 @@ public:
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
    void updateContent() final;
-   std::vector<LOTNode *>               mCNodeList;
    std::unique_ptr<LOTContentGroupItem> mRoot;
 };
 
@@ -218,7 +218,6 @@ protected:
    void updateContent() final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
-   std::vector<LOTNode *>       mCNodeList;
    LOTDrawable                  mRenderNode;
 };
 
