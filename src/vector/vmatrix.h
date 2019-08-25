@@ -58,9 +58,9 @@ public:
     float        m_ty() const { return mty;}
     float        m_33() const { return m33;}
 
-    VMatrix &translate(VPointF pos) { return translate(pos.x(), pos.y()); };
+    VMatrix &translate(VPointF pos) { return translate(pos.x(), pos.y()); }
     VMatrix &translate(float dx, float dy);
-    VMatrix &scale(VPointF s) { return scale(s.x(), s.y()); };
+    VMatrix &scale(VPointF s) { return scale(s.x(), s.y()); }
     VMatrix &scale(float sx, float sy);
     VMatrix &shear(float sh, float sv);
     VMatrix &rotate(float a, Axis axis = VMatrix::Axis::Z);
@@ -81,6 +81,7 @@ public:
     bool                 operator==(const VMatrix &) const;
     bool                 operator!=(const VMatrix &) const;
     bool                 fuzzyCompare(const VMatrix &) const;
+    float                scale() const;
 private:
     friend struct VSpanData;
     float              m11{1}, m12{0}, m13{0};
@@ -89,6 +90,18 @@ private:
     mutable MatrixType mType{MatrixType::None};
     mutable MatrixType dirty{MatrixType::None};
 };
+
+inline float VMatrix::scale() const
+{
+    constexpr float SQRT_2 = 1.41421f;
+    VPointF         p1(0, 0);
+    VPointF         p2(SQRT_2, SQRT_2);
+    p1 = map(p1);
+    p2 = map(p2);
+    VPointF final = p2 - p1;
+
+    return std::sqrt(final.x() * final.x() + final.y() * final.y()) / 2.0f;
+}
 
 inline VPointF VMatrix::map(float x, float y) const
 {
