@@ -20,7 +20,7 @@
 #define VBITMAP_H
 
 #include "vrect.h"
-#include <memory>
+#include <vsharedptr.h>
 
 V_BEGIN_NAMESPACE
 
@@ -51,8 +51,36 @@ public:
     void    fill(uint pixel);
     void    updateLuma();
 private:
-    struct Impl;
-    std::shared_ptr<Impl> mImpl;
+    struct Impl {
+        std::unique_ptr<uchar[]> mOwnData{nullptr};
+        uchar *         mRoData{nullptr};
+        uint            mWidth{0};
+        uint            mHeight{0};
+        uint            mStride{0};
+        uchar           mDepth{0};
+        VBitmap::Format mFormat{VBitmap::Format::Invalid};
+
+        explicit Impl(size_t width, size_t height, VBitmap::Format format)
+        {
+            reset(width, height, format);
+        }
+        explicit Impl(uchar *data, size_t w, size_t h, size_t bytesPerLine, VBitmap::Format format)
+            : mRoData(data), mWidth(uint(w)), mHeight(uint(h)), mStride(uint(bytesPerLine)),
+              mDepth(depth(format)), mFormat(format){}
+        VRect   rect() const { return VRect(0, 0, mWidth, mHeight);}
+        VSize   size() const { return VSize(mWidth, mHeight); }
+        size_t  stride() const { return mStride; }
+        size_t  width() const { return mWidth; }
+        size_t  height() const { return mHeight; }
+        uchar * data() { return mRoData ? mRoData : mOwnData.get(); }
+        VBitmap::Format format() const { return mFormat; }
+        void reset(size_t, size_t, VBitmap::Format);
+        static uchar depth(VBitmap::Format format);
+        void fill(uint);
+        void updateLuma();
+    };
+
+    rc_ptr<Impl> mImpl;
 };
 
 V_END_NAMESPACE
