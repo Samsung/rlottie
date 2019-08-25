@@ -24,103 +24,76 @@
 
 V_BEGIN_NAMESPACE
 
-struct VBitmap::Impl {
-    std::unique_ptr<uchar[]> mOwnData{nullptr};
-    uchar *         mRoData{nullptr};
-    uint            mWidth{0};
-    uint            mHeight{0};
-    uint            mStride{0};
-    uchar           mDepth{0};
-    VBitmap::Format mFormat{VBitmap::Format::Invalid};
+void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
+{
+    mRoData = nullptr;
+    mWidth = uint(width);
+    mHeight = uint(height);
+    mFormat = format;
 
-    explicit Impl(size_t width, size_t height, VBitmap::Format format)
-    {
-        reset(width, height, format);
+    mDepth = depth(format);
+    mStride = ((mWidth * mDepth + 31) >> 5)
+                  << 2;  // bytes per scanline (must be multiple of 4)
+    mOwnData = std::make_unique<uchar[]>(mStride * mHeight);
+}
+
+uchar VBitmap::Impl::depth(VBitmap::Format format)
+{
+    uchar depth = 1;
+    switch (format) {
+    case VBitmap::Format::Alpha8:
+        depth = 8;
+        break;
+    case VBitmap::Format::ARGB32:
+    case VBitmap::Format::ARGB32_Premultiplied:
+        depth = 32;
+        break;
+    default:
+        break;
     }
+    return depth;
+}
 
-    explicit Impl(uchar *data, size_t w, size_t h, size_t bytesPerLine, VBitmap::Format format)
-        : mRoData(data), mWidth(uint(w)), mHeight(uint(h)), mStride(uint(bytesPerLine)),
-          mDepth(depth(format)), mFormat(format){}
+void VBitmap::Impl::fill(uint /*pixel*/)
+{
+    //@TODO
+}
 
-    VRect   rect() const { return VRect(0, 0, mWidth, mHeight);}
-    VSize   size() const { return VSize(mWidth, mHeight); }
-    size_t  stride() const { return mStride; }
-    size_t  width() const { return mWidth; }
-    size_t  height() const { return mHeight; }
-    uchar * data() { return mRoData ? mRoData : mOwnData.get(); }
-
-    VBitmap::Format format() const { return mFormat; }
-
-    void reset(size_t width, size_t height, VBitmap::Format format)
-    {
-        mRoData = nullptr;
-        mWidth = uint(width);
-        mHeight = uint(height);
-        mFormat = format;
-
-        mDepth = depth(format);
-        mStride = ((mWidth * mDepth + 31) >> 5)
-                      << 2;  // bytes per scanline (must be multiple of 4)
-        mOwnData = std::make_unique<uchar[]>(mStride * mHeight);
-    }
-
-    static uchar depth(VBitmap::Format format)
-    {
-        uchar depth = 1;
-        switch (format) {
-        case VBitmap::Format::Alpha8:
-            depth = 8;
-            break;
-        case VBitmap::Format::ARGB32:
-        case VBitmap::Format::ARGB32_Premultiplied:
-            depth = 32;
-            break;
-        default:
-            break;
-        }
-        return depth;
-    }
-    void fill(uint /*pixel*/)
-    {
-        //@TODO
-    }
-
-    void updateLuma()
-    {
-        if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
-        auto dataPtr = data();
-        for (uint col = 0; col < mHeight; col++) {
-            uint *pixel = (uint *)(dataPtr + mStride * col);
-            for (uint row = 0; row < mWidth; row++) {
-                int alpha = vAlpha(*pixel);
-                if (alpha == 0) {
-                    pixel++;
-                    continue;
-                }
-
-                int red = vRed(*pixel);
-                int green = vGreen(*pixel);
-                int blue = vBlue(*pixel);
-
-                if (alpha != 255) {
-                    // un multiply
-                    red = (red * 255) / alpha;
-                    green = (green * 255) / alpha;
-                    blue = (blue * 255) / alpha;
-                }
-                int luminosity = int(0.299f * red + 0.587f * green + 0.114f * blue);
-                *pixel = luminosity << 24;
+void VBitmap::Impl::updateLuma()
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+    auto dataPtr = data();
+    for (uint col = 0; col < mHeight; col++) {
+        uint *pixel = (uint *)(dataPtr + mStride * col);
+        for (uint row = 0; row < mWidth; row++) {
+            int alpha = vAlpha(*pixel);
+            if (alpha == 0) {
                 pixel++;
+                continue;
             }
+
+            int red = vRed(*pixel);
+            int green = vGreen(*pixel);
+            int blue = vBlue(*pixel);
+
+            if (alpha != 255) {
+                // un multiply
+                red = (red * 255) / alpha;
+                green = (green * 255) / alpha;
+                blue = (blue * 255) / alpha;
+            }
+            int luminosity = int(0.299f * red + 0.587f * green + 0.114f * blue);
+            *pixel = luminosity << 24;
+            pixel++;
         }
     }
-};
+}
 
 VBitmap::VBitmap(size_t width, size_t height, VBitmap::Format format)
 {
     if (width <= 0 || height <= 0 || format == Format::Invalid) return;
 
-    mImpl = std::make_shared<Impl>(width, height, format);
+    mImpl = rc_ptr<Impl>(width, height, format);
 }
 
 VBitmap::VBitmap(uchar *data, size_t width, size_t height, size_t bytesPerLine,
@@ -130,7 +103,7 @@ VBitmap::VBitmap(uchar *data, size_t width, size_t height, size_t bytesPerLine,
         format == Format::Invalid)
         return;
 
-    mImpl = std::make_shared<Impl>(data, width, height, bytesPerLine, format);
+    mImpl = rc_ptr<Impl>(data, width, height, bytesPerLine, format);
 }
 
 void VBitmap::reset(size_t w, size_t h, VBitmap::Format format)
@@ -142,7 +115,7 @@ void VBitmap::reset(size_t w, size_t h, VBitmap::Format format)
         }
         mImpl->reset(w, h, format);
     } else {
-        mImpl = std::make_shared<Impl>(w, h, format);
+        mImpl = rc_ptr<Impl>(w, h, format);
     }
 }
 
@@ -188,7 +161,7 @@ VSize VBitmap::size() const
 
 bool VBitmap::valid() const
 {
-    return (mImpl != nullptr);
+    return mImpl;
 }
 
 VBitmap::Format VBitmap::format() const
