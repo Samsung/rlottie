@@ -94,12 +94,24 @@ public:
         return result();
     }
 
-    int setup(int argc, char **argv)
+    int setup(int argc, char **argv, size_t *width, size_t *height)
     {
         char *path{nullptr};
 
+        *width = *height = 200;   //default gif size
+
         if (argc > 1) path = argv[1];
-        if (argc > 2) bgColor = strtol(argv[2], NULL, 16);
+        if (argc > 2) {
+            char tmp[20];
+            char *x = strstr(argv[2], "x");
+            if (x) {
+                snprintf(tmp, x - argv[2] + 1, "%s", argv[2]);
+                *width = atoi(tmp);
+                snprintf(tmp, sizeof(tmp), "%s", x + 1);
+                *height = atoi(tmp);
+            }
+        }
+        if (argc > 3) bgColor = strtol(argv[3], NULL, 16);
 
         if (!path) return help();
 
@@ -142,7 +154,7 @@ private:
     }
 
     int help() {
-        std::cout<<"Usage: \n   lottie2gif [lottieFileName] [bgColor]\n\nExamples: \n    $ lottie2gif input.json\n    $ lottie2gif input.json ff00ff\n\n";
+        std::cout<<"Usage: \n   lottie2gif [lottieFileName] [Resolution] [bgColor]\n\nExamples: \n    $ lottie2gif input.json\n    $ lottie2gif input.json 200x200\n    $ lottie2gif input.json 200x200 ff00ff\n\n";
         return 1;
     }
 
@@ -156,10 +168,11 @@ int
 main(int argc, char **argv)
 {
     App app;
+    size_t w, h;
 
-    if (app.setup(argc, argv)) return 1;
+    if (app.setup(argc, argv, &w, &h)) return 1;
 
-    app.render(200, 200);
+    app.render(w, h);
 
     return 0;
 }
