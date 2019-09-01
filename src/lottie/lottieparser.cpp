@@ -589,7 +589,7 @@ void LottieParserImpl::parseComposition()
         }
     }
 
-    if (comp->mVersion.empty()) {
+    if (comp->mVersion.empty() || !comp->mRootLayer) {
         // don't have a valid bodymovin header
         return;
     }
