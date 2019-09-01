@@ -1712,13 +1712,16 @@ void LottieParserImpl::getValue(std::vector<VPointF> &v)
 
 void LottieParserImpl::getValue(VPointF &pt)
 {
-    float val[4];
+    float val[4] = {0.f};
     int   i = 0;
 
     if (PeekType() == kArrayType) EnterArray();
 
     while (NextArrayValue()) {
-        val[i++] = GetDouble();
+        const auto value = GetDouble();
+        if (i < 4) {
+            val[i++] = value;
+        }
     }
     pt.setX(val[0]);
     pt.setY(val[1]);
@@ -1742,12 +1745,15 @@ void LottieParserImpl::getValue(float &val)
 
 void LottieParserImpl::getValue(LottieColor &color)
 {
-    float val[4];
+    float val[4] = {0.f};
     int   i = 0;
     if (PeekType() == kArrayType) EnterArray();
 
     while (NextArrayValue()) {
-        val[i++] = GetDouble();
+        const auto value = GetDouble();
+        if (i < 4) {
+            val[i++] = value;
+        }
     }
     color.r = val[0];
     color.g = val[1];
