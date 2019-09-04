@@ -7208,7 +7208,7 @@ STBIDEF int stbi_is_16_bit_from_file(FILE *f)
    long pos = ftell(f);
    stbi__start_file(&s, f);
    r = stbi__is_16_main(&s);
-   fseek(f,pos,SEEK_SET);
+   if (pos >= 0) fseek(f,pos,SEEK_SET);
    return r;
 }
 #endif // !STBI_NO_STDIO
