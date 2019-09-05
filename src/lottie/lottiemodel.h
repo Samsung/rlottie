@@ -574,6 +574,7 @@ public:
     bool hasRepeater() const noexcept {return mHasRepeater;}
     int id() const noexcept{ return mId;}
     int parentId() const noexcept{ return mParentId;}
+    bool hasParent() const noexcept {return mParentId != -1;}
     int inFrame() const noexcept{return mInFrame;}
     int outFrame() const noexcept{return mOutFrame;}
     int startFrame() const noexcept{return mStartFrame;}

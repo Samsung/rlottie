@@ -933,6 +933,9 @@ std::shared_ptr<LOTData> LottieParserImpl::parseLayer(bool record)
         return nullptr;
     }
 
+    // make sure layer data is not corrupted.
+    if (layer->hasParent() && (layer->id() == layer->parentId())) return nullptr;
+
     if (layer->mExtra) layer->mExtra->mCompRef = compRef;
 
     if (layer->hidden()) {
@@ -2120,7 +2123,7 @@ public:
 
     void visit(LOTData *obj, std::string level)
     {
-        switch (obj->mType) {
+        switch (obj->type()) {
         case LOTData::Type::Repeater: {
             auto r = static_cast<LOTRepeaterData *>(obj);
             vDebug << level << "{ Repeater: name: " << obj->name()
