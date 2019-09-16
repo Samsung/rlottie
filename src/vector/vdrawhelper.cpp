@@ -111,6 +111,12 @@ public:
         return info;
     }
 
+    static VGradientCache &instance()
+      {
+         static VGradientCache CACHE;
+         return CACHE;
+      }
+
 protected:
     uint       maxCacheSize() const { return 60; }
     VCacheData addCacheElement(VCacheKey hash_val, const VGradient &gradient)
@@ -186,8 +192,6 @@ bool VGradientCache::generateGradientColorTable(const VGradientStops &stops,
     colorTable[size - 1] = curColor;
     return alpha;
 }
-
-static VGradientCache VGradientCacheInstance;
 
 void VRasterBuffer::clear()
 {
@@ -759,7 +763,7 @@ void VSpanData::setup(const VBrush &brush, VPainter::CompositionMode /*mode*/,
         break;
     case VBrush::Type::LinearGradient: {
         mType = VSpanData::Type::LinearGradient;
-        mColorTable = VGradientCacheInstance.getBuffer(*brush.mGradient);
+        mColorTable = VGradientCache::instance().getBuffer(*brush.mGradient);
         mGradient.mColorTable = mColorTable->buffer32;
         mGradient.mColorTableAlpha = mColorTable->alpha;
         mGradient.linear.x1 = brush.mGradient->linear.x1;
@@ -772,7 +776,7 @@ void VSpanData::setup(const VBrush &brush, VPainter::CompositionMode /*mode*/,
     }
     case VBrush::Type::RadialGradient: {
         mType = VSpanData::Type::RadialGradient;
-        mColorTable = VGradientCacheInstance.getBuffer(*brush.mGradient);
+        mColorTable = VGradientCache::instance().getBuffer(*brush.mGradient);
         mGradient.mColorTable = mColorTable->buffer32;
         mGradient.mColorTableAlpha = mColorTable->alpha;
         mGradient.radial.cx = brush.mGradient->radial.cx;
