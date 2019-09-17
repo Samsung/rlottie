@@ -135,6 +135,9 @@ protected:
         return cache_entry;
     }
 
+private:
+    VGradientCache() = default;
+
     VGradientColorTableHash mCache;
     std::mutex              mMutex;
 };
