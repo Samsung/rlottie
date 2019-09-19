@@ -484,11 +484,8 @@ void LOTCompLayerItem::renderHelper(VPainter *painter, const VRle &inheritMask,
     }
 
     if (mClipper) {
-        if (mask.empty()) {
-            mask = mClipper->rle();
-        } else {
-            mask = mClipper->rle() & mask;
-        }
+        mask = mClipper->rle(mask);
+        if (mask.empty()) return;
     }
 
     LOTLayerItem *matte = nullptr;
@@ -570,9 +567,14 @@ void LOTClipperItem::update(const VMatrix &matrix)
     mRasterizer.rasterize(mPath);
 }
 
-VRle LOTClipperItem::rle()
+VRle LOTClipperItem::rle(const VRle& mask)
 {
-    return mRasterizer.rle();
+    if (mask.empty())
+        return mRasterizer.rle();
+
+    mMaskedRle.clone(mask);
+    mMaskedRle &= mRasterizer.rle();
+    return mMaskedRle;
 }
 
 void LOTCompLayerItem::updateContent()
