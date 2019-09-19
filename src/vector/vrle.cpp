@@ -728,4 +728,26 @@ VRle VRle::toRle(const VRect &rect)
     return result;
 }
 
+/*
+ * this api makes use of thread_local temporary
+ * buffer to avoid creating intermediate temporary rle buffer
+ * the scratch buffer object will grow its size on demand
+ * so that future call won't need any more memory allocation.
+ * this function is thread safe as it uses thread_local variable
+ * which is unique per thread.
+ */
+static thread_local VRle::VRleData Scratch_Object;
+
+void VRle::operator&=(const VRle &o)
+{
+    if (empty()) return;
+    if (o.empty()) {
+        reset();
+        return;
+    }
+    Scratch_Object.reset();
+    Scratch_Object.opIntersect(d.read(), o.d.read());
+    d.write() = Scratch_Object;
+}
+
 V_END_NAMESPACE

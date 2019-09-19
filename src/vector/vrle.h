@@ -51,6 +51,7 @@ public:
     void intersect(const VRect &r, VRleSpanCb cb, void *userData) const;
     void intersect(const VRle &rle, VRleSpanCb cb, void *userData) const;
 
+    void operator&=(const VRle &o);
     VRle operator&(const VRle &o) const;
     VRle operator-(const VRle &o) const;
     VRle operator+(const VRle &o) const;
@@ -62,7 +63,7 @@ public:
     size_t refCount() const { return d.refCount();}
     void clone(const VRle &o);
 
-private:
+public:
     struct VRleData {
         enum class OpCode {
             Add,
@@ -88,6 +89,7 @@ private:
         mutable VRect           mBbox;
         mutable bool            mBboxDirty = true;
     };
+private:
     friend void opIntersectHelper(const VRle::VRleData &obj1,
                                   const VRle::VRleData &obj2,
                                   VRle::VRleSpanCb cb, void *userData);
