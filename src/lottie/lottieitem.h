@@ -89,10 +89,11 @@ class LOTClipperItem
 public:
     explicit LOTClipperItem(VSize size): mSize(size){}
     void update(const VMatrix &matrix);
-    VRle rle();
+    VRle rle(const VRle& mask);
 public:
     VSize                    mSize;
     VPath                    mPath;
+    VRle                     mMaskedRle;
     VRasterizer              mRasterizer;
 };
 
