@@ -173,10 +173,10 @@ void LOTMaskItem::update(int frameNo, const VMatrix &            parentMatrix,
 
     if (mData->mShape.isStatic()) {
         if (mLocalPath.empty()) {
-            mData->mShape.value(frameNo).toPath(mLocalPath);
+            mData->mShape.updatePath(frameNo, mLocalPath);
         }
     } else {
-        mData->mShape.value(frameNo).toPath(mLocalPath);
+        mData->mShape.updatePath(frameNo, mLocalPath);
     }
     /* mask item dosen't inherit opacity */
     mCombinedAlpha = mData->opacity(frameNo);
@@ -1044,7 +1044,7 @@ LOTShapeItem::LOTShapeItem(LOTShapeData *data)
 
 void LOTShapeItem::updatePath(VPath &path, int frameNo)
 {
-    mData->mShape.value(frameNo).toPath(path);
+    mData->mShape.updatePath(frameNo, path);
 }
 
 LOTPolystarItem::LOTPolystarItem(LOTPolystarData *data)

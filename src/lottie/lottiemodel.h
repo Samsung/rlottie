@@ -120,7 +120,24 @@ public:
     void reserve(size_t size) {
         mPoints.reserve(mPoints.size() + size);
     }
-    void toPath(VPath& path) {
+    static void lerp(const LottieShapeData& start, const LottieShapeData& end, float t, VPath& result)
+    {
+        result.reset();
+        auto size = std::min(start.mPoints.size(), end.mPoints.size());
+        /* reserve exact memory requirement at once
+         * ptSize = size + 1(size + close)
+         * elmSize = size/3 cubic + 1 move + 1 close
+         */
+        result.reserve(size + 1 , size/3 + 2);
+        result.moveTo(start.mPoints[0] + t * (end.mPoints[0] - start.mPoints[0]));
+        for (size_t i = 1 ; i < size; i+=3) {
+           result.cubicTo(start.mPoints[i] + t * (end.mPoints[i] - start.mPoints[i]),
+                          start.mPoints[i+1] + t * (end.mPoints[i+1] - start.mPoints[i+1]),
+                          start.mPoints[i+2] + t * (end.mPoints[i+2] - start.mPoints[i+2]));
+        }
+        if (start.mClosed) result.close();
+    }
+    void toPath(VPath& path) const {
         path.reset();
 
         if (mPoints.empty()) return;
@@ -150,19 +167,6 @@ template<typename T>
 inline T lerp(const T& start, const T& end, float t)
 {
     return start + t * (end - start);
-}
-
-inline LottieShapeData lerp(const LottieShapeData& start, const LottieShapeData& end, float t)
-{
-    // Usal case both start and end path has same size
-    // In case its different then truncate the larger path and do the interpolation.
-    LottieShapeData result;
-    auto size = std::min(start.mPoints.size(), end.mPoints.size());
-    result.reserve(size);
-    for (unsigned int i = 0 ; i < size; i++) {
-       result.mPoints.push_back(start.mPoints[i] + t * (end.mPoints[i] - start.mPoints[i]));
-    }
-   return result;
 }
 
 template <typename T>
@@ -354,6 +358,33 @@ private:
     }impl;
     bool                                 mStatic{true};
 };
+
+
+class LOTAnimatableShape : public LOTAnimatable<LottieShapeData>
+{
+public:
+    void updatePath(int frameNo, VPath &path) const {
+        if (isStatic()) {
+            value().toPath(path);
+        } else {
+            const auto &vec = animation().mKeyFrames;
+            if (vec.front().mStartFrame >= frameNo)
+                return vec.front().mValue.mStartValue.toPath(path);
+            if(vec.back().mEndFrame <= frameNo)
+                return vec.back().mValue.mEndValue.toPath(path);
+
+            for(const auto &keyFrame : vec) {
+                if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame) {
+                    LottieShapeData::lerp(keyFrame.mValue.mStartValue,
+                                          keyFrame.mValue.mEndValue,
+                                          keyFrame.progress(frameNo),
+                                          path);
+                }
+            }
+        }
+    }
+};
+
 
 enum class LottieBlendMode: uchar
 {
@@ -863,9 +894,8 @@ class LOTShapeData : public LOTPath
 {
 public:
     LOTShapeData():LOTPath(LOTData::Type::Shape){}
-    void process();
 public:
-    LOTAnimatable<LottieShapeData>    mShape;
+    LOTAnimatableShape    mShape;
 };
 
 class LOTMaskData
@@ -881,7 +911,7 @@ public:
     float opacity(int frameNo) const {return mOpacity.value(frameNo)/100.0f;}
     bool isStatic() const {return mIsStatic;}
 public:
-    LOTAnimatable<LottieShapeData>    mShape;
+    LOTAnimatableShape                mShape;
     LOTAnimatable<float>              mOpacity{100};
     bool                              mInv{false};
     bool                              mIsStatic{true};
