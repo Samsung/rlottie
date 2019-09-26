@@ -1278,10 +1278,8 @@ void LOTTrimItem::update()
 
     if (mData->type() == LOTTrimData::TrimType::Simultaneously) {
         for (auto &i : mPathItems) {
-            VPathMesure pm;
-            pm.setStart(mCache.mSegment.start);
-            pm.setEnd(mCache.mSegment.end);
-            i->updatePath(pm.trim(i->localPath()));
+            mPathMesure.setRange(mCache.mSegment.start, mCache.mSegment.end);
+            i->updatePath(mPathMesure.trim(i->localPath()));
         }
     } else {  // LOTTrimData::TrimType::Individually
         float totalLength = 0.0;
@@ -1315,11 +1313,8 @@ void LOTTrimItem::update()
                     local_start /= len;
                     float local_end = curLen + len < end ? len : end - curLen;
                     local_end /= len;
-                    VPathMesure pm;
-                    pm.setStart(local_start);
-                    pm.setEnd(local_end);
-                    VPath p = pm.trim(i->localPath());
-                    i->updatePath(p);
+                    mPathMesure.setRange(local_start, local_end);
+                    i->updatePath(mPathMesure.trim(i->localPath()));
                     curLen += len;
                 }
             }

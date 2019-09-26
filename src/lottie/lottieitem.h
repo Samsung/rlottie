@@ -509,6 +509,7 @@ private:
    Cache                            mCache;
    std::vector<LOTPathDataItem *>   mPathItems;
    LOTTrimData                     *mData;
+   VPathMesure                      mPathMesure;
    bool                             mDirty{true};
 };
 
