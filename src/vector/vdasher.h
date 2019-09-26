@@ -26,6 +26,7 @@ class VDasher {
 public:
     VDasher(const float *dashArray, size_t size);
     VPath dashed(const VPath &path);
+    void dashed(const VPath &path, VPath &result);
 
 private:
     void moveTo(const VPointF &p);
@@ -37,6 +38,7 @@ private:
     void updateActiveSegment();
 
 private:
+    void dashHelper(const VPath &path, VPath &result);
     struct Dash {
         float length;
         float gap;
@@ -47,7 +49,7 @@ private:
     size_t               mIndex{0}; /* index to the dash Array */
     float                mCurrentLength;
     float                mDashOffset{0};
-    VPath                mResult;
+    VPath               *mResult;
     bool                 mDiscard{false};
     bool                 mStartNewSegment{true};
     bool                 mNoLength{true};

@@ -89,10 +89,10 @@ void VDasher::addLine(const VPointF &p)
     if (mDiscard) return;
 
     if (mStartNewSegment) {
-        mResult.moveTo(mCurPt);
+        mResult->moveTo(mCurPt);
         mStartNewSegment = false;
     }
-    mResult.lineTo(p);
+    mResult->lineTo(p);
 }
 
 void VDasher::updateActiveSegment()
@@ -147,10 +147,10 @@ void VDasher::addCubic(const VPointF &cp1, const VPointF &cp2, const VPointF &e)
     if (mDiscard) return;
 
     if (mStartNewSegment) {
-        mResult.moveTo(mCurPt);
+        mResult->moveTo(mCurPt);
         mStartNewSegment = false;
     }
-    mResult.cubicTo(cp1, cp2, e);
+    mResult->cubicTo(cp1, cp2, e);
 }
 
 void VDasher::cubicTo(const VPointF &cp1, const VPointF &cp2, const VPointF &e)
@@ -185,16 +185,10 @@ void VDasher::cubicTo(const VPointF &cp1, const VPointF &cp2, const VPointF &e)
     mCurPt = e;
 }
 
-VPath VDasher::dashed(const VPath &path)
+void VDasher::dashHelper(const VPath &path, VPath &result)
 {
-    if (mNoLength && mNoGap) return path;
-
-    if (path.empty() || mNoLength) return VPath();
-
-    if (mNoGap) return path;
-
-    mResult = {};
-    mResult.reserve(path.points().size(), path.elements().size());
+    mResult = &result;
+    mResult->reserve(path.points().size(), path.elements().size());
     mIndex = 0;
     const std::vector<VPath::Element> &elms = path.elements();
     const std::vector<VPointF> &       pts = path.points();
@@ -222,7 +216,35 @@ VPath VDasher::dashed(const VPath &path)
         }
         }
     }
-    return std::move(mResult);
+    mResult = nullptr;
+}
+
+void VDasher::dashed(const VPath &path, VPath &result)
+{
+    if (mNoLength && mNoGap) return result.reset();
+
+    if (path.empty() || mNoLength) return result.reset();
+
+    if (mNoGap) return result.clone(path);
+
+    result.reset();
+
+    dashHelper(path, result);
+}
+
+VPath VDasher::dashed(const VPath &path)
+{
+    if (mNoLength && mNoGap) return path;
+
+    if (path.empty() || mNoLength) return VPath();
+
+    if (mNoGap) return path;
+
+    VPath result;
+
+    dashHelper(path, result);
+
+    return result;
 }
 
 V_END_NAMESPACE
