@@ -46,7 +46,8 @@ VPath VPathMesure::trim(const VPath &path)
             std::numeric_limits<float>::max(),  // 2nd segment
         };
         VDasher dasher(array, 4);
-        return dasher.dashed(path);
+        dasher.dashed(path, mScratchObject);
+        return mScratchObject;
     } else {
         float array[4] = {
             length * mEnd, (mStart - mEnd) * length,  // 1st segment
@@ -54,7 +55,8 @@ VPath VPathMesure::trim(const VPath &path)
             std::numeric_limits<float>::max(),  // 2nd segment
         };
         VDasher dasher(array, 4);
-        return dasher.dashed(path);
+        dasher.dashed(path, mScratchObject);
+        return mScratchObject;
     }
 }
 
