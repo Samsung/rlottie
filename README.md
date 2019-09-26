@@ -151,11 +151,93 @@ rlottie::Surface surface = handle.get();
 
 [Back to contents](#contents)
 
-#
+
 ## Dynamic Property
 
-Update me.
+You can update properties dynamically at runtime. This can be used for a variety of purposes such as:
+- Theming (day and night or arbitrary themes).
+- Responding to events such as an error or a success.
+- Animating a single part of an animation in response to an event.
+- Responding to view sizes or other values not known at design time.
 
+### Understanding After Effects
+
+To understand how to change animation properties in Lottie, you should first understand how animation properties are stored in Lottie. Animation properties are stored in a data tree that mimics the information heirarchy of After Effects. In After Effects a Composition is a collection of Layers that each have their own timelines. Layer objects have string names, and their contents can be an image, shape layers, fills, strokes, or just about anything that is drawable. Each object in After Effects has a name. Lottie can find these objects and properties by their name using a KeyPath.
+
+### Usage
+
+To update a property at runtime, you need 3 things:
+1. KeyPath
+2. rLottie::Property
+3. setValue()
+
+### KeyPath
+
+A KeyPath is used to target a specific content or a set of contents that will be updated. A KeyPath is specified by a list of strings that correspond to the hierarchy of After Effects contents in the original animation.
+KeyPaths can include the specific name of the contents or wildcards:
+- Wildcard *
+	- Wildcards match any single content name in its position in the keypath.
+- Globstar **
+	- Globstars match zero or more layers.
+
+### rLottie::Property
+
+`rLottie::Property` is an enumeration of properties that can be set. They correspond to the animatable value in After Effects and the available properties are listed below.
+```cpp
+enum class Property {
+    FillColor,     /*!< Color property of Fill object , value type is rlottie::Color */
+    FillOpacity,   /*!< Opacity property of Fill object , value type is float [ 0 .. 100] */
+    StrokeColor,   /*!< Color property of Stroke object , value type is rlottie::Color */
+    StrokeOpacity, /*!< Opacity property of Stroke object , value type is float [ 0 .. 100] */
+    StrokeWidth,   /*!< stroke with property of Stroke object , value type is float */
+    ...
+};
+```
+
+### setValue()
+
+`setValue()` requires a keypath of string and value. The value can be `Color`, `Size` and `Point` structure or a function that returns them. `Color`, `Size`, and `Point` vary depending on the type of `rLottie::Property`. This value or function(callback) is called and applied to every frame. This value can be set differently for each frame by using the `FrameInfo` argument passed to the function.
+
+
+### Usage (CPP API)
+```cpp
+LottieView->player()->setValue<rlottie::Property::FillColor>("**",rlottie::Color(0, 1, 0));
+```
+
+```cpp
+Lottie_View->player()->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
+    [](const rlottie::FrameInfo& info) {
+         if (info.curFrame() < 15 )
+             return rlottie::Color(0, 1, 0);
+         else {
+             return rlottie::Color(1, 0, 0);
+         }
+     });
+```
+
+### +) Usage ( C API)
+To change fillcolor property of fill1 object in the layer1->group1->fill1 hirarchy to RED color :
+```c
+    lottie_animation_property_override(animation, LOTTIE_ANIMATION_PROPERTY_FILLCOLOR, "layer1.group1.fill1", 1.0, 0.0, 0.0);
+```
+If all the color property inside group1 needs to be changed to GREEN color :
+```c
+    lottie_animation_property_override(animation, LOTTIE_ANIMATION_PROPERTY_FILLCOLOR, "**.group1.**", 0.0, 1.0, 0.0);
+```
+Lottie_Animation_Property enumeration.
+```c
+typedef enum {
+    LOTTIE_ANIMATION_PROPERTY_FILLCOLOR,      /*!< Color property of Fill object , value type is float [0 ... 1] */
+    LOTTIE_ANIMATION_PROPERTY_FILLOPACITY,    /*!< Opacity property of Fill object , value type is float [ 0 .. 100] */
+    LOTTIE_ANIMATION_PROPERTY_STROKECOLOR,    /*!< Color property of Stroke object , value type is float [0 ... 1] */
+    LOTTIE_ANIMATION_PROPERTY_STROKEOPACITY,  /*!< Opacity property of Stroke object , value type is float [ 0 .. 100] */
+    LOTTIE_ANIMATION_PROPERTY_STROKEWIDTH,    /*!< stroke with property of Stroke object , value type is float */
+    ...
+}Lottie_Animation_Property;
+```
+[Back to contents](#contents)
+
+#
 #
 ## Supported After Effects Features
 
