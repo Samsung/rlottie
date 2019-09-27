@@ -72,6 +72,8 @@ public:
    bool render(const rlottie::Surface &surface);
    void setValue(const std::string &keypath, LOTVariant &value);
 private:
+   VPainter                                    mPainter;
+   VBitmap                                     mSurface;
    VMatrix                                     mScaleMatrix;
    VSize                                       mViewSize;
    LOTCompositionData                         *mCompData;
