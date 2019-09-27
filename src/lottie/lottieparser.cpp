@@ -597,7 +597,10 @@ void LottieParserImpl::parseComposition()
     resolveLayerRefs();
     comp->setStatic(comp->mRootLayer->isStatic());
     comp->mRootLayer->mInFrame = comp->mStartFrame;
-    comp->mRootLayer->mOutFrame = comp->mEndFrame;
+    // increment outframe of the root layer by 1
+    // so that we can run the animation till endframe.
+    // the behaviour is consistant with the bodymovin player.
+    comp->mRootLayer->mOutFrame = comp->mEndFrame + 1;
 
     comp->mLayerInfoList = std::move(mLayerInfoList);
 
