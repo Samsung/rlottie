@@ -36,7 +36,7 @@ public:
     VBitmap() = default;
     VBitmap(size_t w, size_t h, VBitmap::Format format);
     VBitmap(uchar *data, size_t w, size_t h, size_t bytesPerLine, VBitmap::Format format);
-
+    void reset(uchar *data, size_t w, size_t h, size_t stride, VBitmap::Format format);
     void reset(size_t w, size_t h, VBitmap::Format format=Format::ARGB32_Premultiplied);
     size_t          stride() const;
     size_t          width() const;
@@ -65,8 +65,9 @@ private:
             reset(width, height, format);
         }
         explicit Impl(uchar *data, size_t w, size_t h, size_t bytesPerLine, VBitmap::Format format)
-            : mRoData(data), mWidth(uint(w)), mHeight(uint(h)), mStride(uint(bytesPerLine)),
-              mDepth(depth(format)), mFormat(format){}
+        {
+            reset(data, w, h, bytesPerLine, format);
+        }
         VRect   rect() const { return VRect(0, 0, mWidth, mHeight);}
         VSize   size() const { return VSize(mWidth, mHeight); }
         size_t  stride() const { return mStride; }
@@ -74,6 +75,7 @@ private:
         size_t  height() const { return mHeight; }
         uchar * data() { return mRoData ? mRoData : mOwnData.get(); }
         VBitmap::Format format() const { return mFormat; }
+        void reset(uchar *, size_t, size_t, size_t, VBitmap::Format);
         void reset(size_t, size_t, VBitmap::Format);
         static uchar depth(VBitmap::Format format);
         void fill(uint);

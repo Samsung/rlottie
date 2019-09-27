@@ -37,6 +37,18 @@ void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
     mOwnData = std::make_unique<uchar[]>(mStride * mHeight);
 }
 
+void VBitmap::Impl::reset(uchar *data, size_t width, size_t height, size_t bytesPerLine,
+                          VBitmap::Format format)
+{
+    mRoData = data;
+    mWidth = uint(width);
+    mHeight = uint(height);
+    mStride = uint(bytesPerLine);
+    mFormat = format;
+    mDepth = depth(format);
+    mOwnData = nullptr;
+}
+
 uchar VBitmap::Impl::depth(VBitmap::Format format)
 {
     uchar depth = 1;
@@ -104,6 +116,16 @@ VBitmap::VBitmap(uchar *data, size_t width, size_t height, size_t bytesPerLine,
         return;
 
     mImpl = rc_ptr<Impl>(data, width, height, bytesPerLine, format);
+}
+
+void VBitmap::reset(uchar *data, size_t w, size_t h, size_t bytesPerLine,
+                    VBitmap::Format format)
+{
+    if (mImpl) {
+        mImpl->reset(data, w, h, bytesPerLine, format);
+    } else {
+        mImpl = rc_ptr<Impl>(data, w, h, bytesPerLine, format);
+    }
 }
 
 void VBitmap::reset(size_t w, size_t h, VBitmap::Format format)
