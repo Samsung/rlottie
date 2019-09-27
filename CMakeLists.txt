@@ -68,6 +68,13 @@ target_link_libraries(rlottie
                         "${CMAKE_THREAD_LIBS_INIT}"
                      )
 
+if (NOT APPLE AND NOT WIN32)
+    target_link_libraries(rlottie
+                        PRIVATE
+                            "-Wl,--version-script=${CMAKE_SOURCE_DIR}/rlottie.expmap"
+                          )
+endif()
+
 if (LOTTIE_MODULE)
     # for dlopen, dlsym and dlclose dependancy
     target_link_libraries(rlottie PRIVATE ${CMAKE_DL_LIBS})

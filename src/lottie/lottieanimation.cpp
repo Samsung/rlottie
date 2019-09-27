@@ -25,7 +25,7 @@
 
 using namespace rlottie;
 
-LOT_EXPORT void configureModelCacheSize(size_t cacheSize)
+LOT_EXPORT void rlottie::configureModelCacheSize(size_t cacheSize)
 {
     LottieLoader::configureModelCacheSize(cacheSize);
 }

@@ -1,0 +1,8 @@
+/* This version script for ld exposes only (r)lottie namespace. */
+{
+global:
+    lottie_*;
+    extern "C++" { rlottie::* };
+local:
+    *;
+};

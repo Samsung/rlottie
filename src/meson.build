@@ -7,6 +7,11 @@ if (cc.get_id() != 'msvc')
                        '-Woverloaded-virtual', '-Wno-unused-parameter']
 endif
 
+linker_flags = []
+if (host_machine.system() not in ['darwin', 'windows'])
+    linker_flags += ['-Wl,--version-script=@0@/../rlottie.expmap'.format(meson.current_source_dir())]
+endif
+
 subdir('vector')
 subdir('lottie')
 subdir('binding')
@@ -19,6 +24,7 @@ rlottie_lib = library('rlottie',
                       dependencies          : rlottie_lib_dep,
                       install               : true,
                       cpp_args              : compiler_flags,
+                      link_args             : linker_flags,
                       gnu_symbol_visibility : 'hidden',
                      )
 
