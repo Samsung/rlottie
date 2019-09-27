@@ -143,7 +143,7 @@ bool LOTCompItem::update(int frameNo, const VSize &size, bool keepAspectRatio)
 
 bool LOTCompItem::render(const rlottie::Surface &surface)
 {
-    VBitmap bitmap(reinterpret_cast<uchar *>(surface.buffer()),
+    mSurface.reset(reinterpret_cast<uchar *>(surface.buffer()),
                    uint(surface.width()), uint(surface.height()), uint(surface.bytesPerLine()),
                    VBitmap::Format::ARGB32_Premultiplied);
 
@@ -156,13 +156,13 @@ bool LOTCompItem::render(const rlottie::Surface &surface)
         e->preprocess(clip);
     }
 
-    VPainter painter(&bitmap);
+    mPainter.begin(&mSurface);
     // set sub surface area for drawing.
-    painter.setDrawRegion(
+    mPainter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
-    mRootLayer->render(&painter, {}, {});
-
+    mRootLayer->render(&mPainter, {}, {});
+    mPainter.end();
     return true;
 }
 
