@@ -34,35 +34,75 @@ onExitCb(void *data, void */*extra*/)
 int
 main(void)
 {
-   EvasApp *app = new EvasApp(800, 800);
+   EvasApp *app = new EvasApp(900, 300);
    app->setup();
 
    std::string filePath = DEMO_DIR;
-   filePath +="circuit.json";
+   filePath +="done.json";
 
+   /* Fill Color */
    LottieView *view = new LottieView(app->evas());
    view->setFilePath(filePath.c_str());
    if (view->player()) {
-       view->player()->setValue<rlottie::Property::FillColor>("**",
+       view->player()->setValue<rlottie::Property::FillColor>("Shape Layer 1.Ellipse 1.Fill 1",
            [](const rlottie::FrameInfo& info) {
-                if (info.curFrame() < 15 )
-                    return rlottie::Color(0, 1, 0);
+                if (info.curFrame() < 60 )
+                    return rlottie::Color(0, 0, 1);
                 else {
                     return rlottie::Color(1, 0, 0);
                 }
             });
    }
    view->setPos(0, 0);
-   view->setSize(800, 800);
+   view->setSize(300, 300);
    view->show();
-//   view->setMinProgress(0.5);
-//   view->setMaxProgress(0.0);
    view->play();
    view->loop(true);
    view->setRepeatMode(LottieView::RepeatMode::Reverse);
 
+
+   /* Stroke Opacity */
+   view = new LottieView(app->evas());
+   view->setFilePath(filePath.c_str());
+   if (view->player()) {
+       view->player()->setValue<rlottie::Property::StrokeOpacity>("Shape Layer 2.Shape 1.Stroke 1",
+           [](const rlottie::FrameInfo& info) {
+                if (info.curFrame() < 60 )
+                    return 20;
+                else {
+                    return 100;
+                }
+            });
+   }
+   view->setPos(300, 0);
+   view->setSize(300, 300);
+   view->show();
+   view->play();
+   view->loop(true);
+   view->setRepeatMode(LottieView::RepeatMode::Reverse);
+
+   /* Stroke Width and Globstar path (All Content) */
+   view = new LottieView(app->evas());
+   view->setFilePath(filePath.c_str());
+   if (view->player()) {
+       view->player()->setValue<rlottie::Property::StrokeWidth>("**",
+           [](const rlottie::FrameInfo& info) {
+                if (info.curFrame() < 60 )
+                    return 1.0;
+                else {
+                    return 5.0;
+                }
+            });
+   }
+   view->setPos(600, 0);
+   view->setSize(300, 300);
+   view->show();
+   view->play();
+   view->loop(true);
+   view->setRepeatMode(LottieView::RepeatMode::Reverse);
    app->addExitCb(onExitCb, view);
    app->run();
+
    delete app;
    return 0;
 }
