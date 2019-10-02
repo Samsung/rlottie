@@ -269,6 +269,9 @@ protected:
     std::vector<std::shared_ptr<LOTLayerData>> mLayersToUpdate;
     std::string                                mDirPath;
     std::vector<LayerInfo>                     mLayerInfoList;
+    std::vector<VPointF>                       mInPoint;  /* "i" */
+    std::vector<VPointF>                       mOutPoint; /* "o" */
+    std::vector<VPointF>                       mVertices;
     void                                       SkipOut(int depth);
 };
 
@@ -1782,9 +1785,9 @@ void LottieParserImpl::getValue(int &val)
 
 void LottieParserImpl::getValue(LottieShapeData &obj)
 {
-    std::vector<VPointF> inPoint;  /* "i" */
-    std::vector<VPointF> outPoint; /* "o" */
-    std::vector<VPointF> vertices; /* "v" */
+    mInPoint.clear();
+    mOutPoint.clear();
+    mVertices.clear();
     std::vector<VPointF> points;
     bool                 closed = false;
 
@@ -1799,11 +1802,11 @@ void LottieParserImpl::getValue(LottieShapeData &obj)
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "i")) {
-            getValue(inPoint);
+            getValue(mInPoint);
         } else if (0 == strcmp(key, "o")) {
-            getValue(outPoint);
+            getValue(mOutPoint);
         } else if (0 == strcmp(key, "v")) {
-            getValue(vertices);
+            getValue(mVertices);
         } else if (0 == strcmp(key, "c")) {
             closed = GetBool();
         } else {
@@ -1815,7 +1818,7 @@ void LottieParserImpl::getValue(LottieShapeData &obj)
     if (arrayWrapper) NextArrayValue();
 
     // shape data could be empty.
-    if (inPoint.empty() || outPoint.empty() || vertices.empty()) return;
+    if (mInPoint.empty() || mOutPoint.empty() || mVertices.empty()) return;
 
     /*
      * Convert the AE shape format to
@@ -1823,28 +1826,28 @@ void LottieParserImpl::getValue(LottieShapeData &obj)
      * The final structure will be Move +size*Cubic + Cubic (if the path is
      * closed one)
      */
-    if (inPoint.size() != outPoint.size() ||
-        inPoint.size() != vertices.size()) {
+    if (mInPoint.size() != mOutPoint.size() ||
+        mInPoint.size() != mVertices.size()) {
         vCritical << "The Shape data are corrupted";
         points = std::vector<VPointF>();
     } else {
-        auto size = vertices.size();
+        auto size = mVertices.size();
         points.reserve(3 * size + 4);
-        points.push_back(vertices[0]);
+        points.push_back(mVertices[0]);
         for (size_t i = 1; i < size; i++) {
-            points.push_back(vertices[i - 1] +
-                             outPoint[i - 1]);  // CP1 = start + outTangent
-            points.push_back(vertices[i] +
-                             inPoint[i]);   // CP2 = end + inTangent
-            points.push_back(vertices[i]);  // end point
+            points.push_back(mVertices[i - 1] +
+                             mOutPoint[i - 1]);  // CP1 = start + outTangent
+            points.push_back(mVertices[i] +
+                             mInPoint[i]);   // CP2 = end + inTangent
+            points.push_back(mVertices[i]);  // end point
         }
 
         if (closed) {
-            points.push_back(vertices[size - 1] +
-                             outPoint[size - 1]);  // CP1 = start + outTangent
-            points.push_back(vertices[0] +
-                             inPoint[0]);   // CP2 = end + inTangent
-            points.push_back(vertices[0]);  // end point
+            points.push_back(mVertices[size - 1] +
+                             mOutPoint[size - 1]);  // CP1 = start + outTangent
+            points.push_back(mVertices[0] +
+                             mInPoint[0]);   // CP2 = end + inTangent
+            points.push_back(mVertices[0]);  // end point
         }
     }
     obj.mPoints = std::move(points);
@@ -1990,11 +1993,11 @@ void LottieParserImpl::parseKeyFrame(LOTAnimInfo<T> &obj)
     if (parsed.hold) {
         keyframe.mValue.mEndValue = keyframe.mValue.mStartValue;
         keyframe.mEndFrame = keyframe.mStartFrame;
-        obj.mKeyFrames.push_back(keyframe);
+        obj.mKeyFrames.push_back(std::move(keyframe));
     } else if (parsed.interpolator) {
         keyframe.mInterpolator = interpolator(
             inTangent, outTangent, std::move(parsed.interpolatorKey));
-        obj.mKeyFrames.push_back(keyframe);
+        obj.mKeyFrames.push_back(std::move(keyframe));
     } else {
         // its the last frame discard.
     }
