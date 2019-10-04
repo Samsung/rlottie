@@ -1176,7 +1176,8 @@ STBIDEF stbi_uc *stbi_load_from_file(FILE *f, int *x, int *y, int *comp, int req
    result = stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp);
    if (result) {
       // need to 'unget' all the characters in the IO buffer
-      fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR);
+      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1)
+         return stbi__errpuc("fseek() error", "File Seek Fail");
    }
    return result;
 }
@@ -1189,7 +1190,8 @@ STBIDEF stbi__uint16 *stbi_load_from_file_16(FILE *f, int *x, int *y, int *comp,
    result = stbi__load_and_postprocess_16bit(&s,x,y,comp,req_comp);
    if (result) {
       // need to 'unget' all the characters in the IO buffer
-      fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR);
+      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1)
+         return (stbi__uint16 *) stbi__errpuc("fseek() error", "File Seek Fail");
    }
    return result;
 }
@@ -1342,7 +1344,7 @@ STBIDEF int stbi_is_hdr_from_file(FILE *f)
    stbi__context s;
    stbi__start_file(&s,f);
    res = stbi__hdr_test(&s);
-   fseek(f, pos, SEEK_SET);
+   if (fseek(f, pos, SEEK_SET) == -1) return stbi__err("fseek() error", "File Seek Fail");
    return res;
    #else
    STBI_NOTUSED(f);
@@ -7187,7 +7189,9 @@ STBIDEF int stbi_info_from_file(FILE *f, int *x, int *y, int *comp)
    long pos = ftell(f);
    stbi__start_file(&s, f);
    r = stbi__info_main(&s,x,y,comp);
-   if (pos >= 0) fseek(f,pos,SEEK_SET);
+   if (pos >= 0) {
+      if (fseek(f,pos,SEEK_SET) == -1) return stbi__err("fseek() error", "File Seek Fail");
+   }
    return r;
 }
 
@@ -7208,7 +7212,9 @@ STBIDEF int stbi_is_16_bit_from_file(FILE *f)
    long pos = ftell(f);
    stbi__start_file(&s, f);
    r = stbi__is_16_main(&s);
-   if (pos >= 0) fseek(f,pos,SEEK_SET);
+   if (pos >= 0) {
+      if (fseek(f,pos,SEEK_SET) == -1) return stbi__err("fseek() error", "File Seek Fail");
+   }
    return r;
 }
 #endif // !STBI_NO_STDIO
