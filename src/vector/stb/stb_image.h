@@ -728,6 +728,26 @@ static void stbi__start_callbacks(stbi__context *s, stbi_io_callbacks *c, void *
    s->img_buffer_original_end = s->img_buffer_end;
 }
 
+// this is not threadsafe
+static const char *stbi__g_failure_reason;
+
+STBIDEF const char *stbi_failure_reason(void)
+{
+   return stbi__g_failure_reason;
+}
+
+static int stbi__err(const char *str)
+{
+   stbi__g_failure_reason = str;
+   return 0;
+}
+
+static void *stbi__malloc(size_t size)
+{
+    return STBI_MALLOC(size);
+}
+
+
 #ifndef STBI_NO_STDIO
 
 static int stbi__stdio_read(void *user, char *data, int size)
@@ -737,7 +757,8 @@ static int stbi__stdio_read(void *user, char *data, int size)
 
 static void stbi__stdio_skip(void *user, int n)
 {
-   fseek((FILE*) user, n, SEEK_CUR);
+   if (fseek((FILE*) user, n, SEEK_CUR) == -1)
+      stbi__err("fseek() error");
 }
 
 static int stbi__stdio_eof(void *user)
@@ -839,25 +860,6 @@ static int      stbi__pnm_test(stbi__context *s);
 static void    *stbi__pnm_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri);
 static int      stbi__pnm_info(stbi__context *s, int *x, int *y, int *comp);
 #endif
-
-// this is not threadsafe
-static const char *stbi__g_failure_reason;
-
-STBIDEF const char *stbi_failure_reason(void)
-{
-   return stbi__g_failure_reason;
-}
-
-static int stbi__err(const char *str)
-{
-   stbi__g_failure_reason = str;
-   return 0;
-}
-
-static void *stbi__malloc(size_t size)
-{
-    return STBI_MALLOC(size);
-}
 
 // stb_image uses ints pervasively, including for offset calculations.
 // therefore the largest decoded image size we can support with the
