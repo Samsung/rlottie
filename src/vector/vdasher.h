@@ -49,7 +49,7 @@ private:
     size_t               mIndex{0}; /* index to the dash Array */
     float                mCurrentLength;
     float                mDashOffset{0};
-    VPath               *mResult;
+    VPath               *mResult{nullptr};
     bool                 mDiscard{false};
     bool                 mStartNewSegment{true};
     bool                 mNoLength{true};
