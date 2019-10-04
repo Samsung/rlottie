@@ -152,7 +152,6 @@ void VRle::VRleData::invert()
 
 void VRle::VRleData::operator*=(uchar alpha)
 {
-    alpha &= 0xff;
     for (auto &i : mSpans) {
         i.coverage = divBy255(i.coverage * alpha);
     }
