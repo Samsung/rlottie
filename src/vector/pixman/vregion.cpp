@@ -1982,16 +1982,6 @@ int VRegion::rectCount() const
     return PREFIX(_n_rects)(d->rgn);
 }
 
-VRect VRegion::rectAt(int index) const
-{
-    VRegionPrivate *reg = d->rgn;
-    if (!reg) return {};
-
-    box_type_t *box = PIXREGION_RECTS(reg) + index;
-
-    return box_to_rect(box);
-}
-
 VRegion VRegion::operator+(const VRect &r) const
 {
     return united(r);
@@ -2069,19 +2059,4 @@ bool VRegion::intersects(const VRegion &r) const
 
     return PREFIX(_intersects)(d->rgn, r.d->rgn);
 }
-
-VDebug &operator<<(VDebug &os, const VRegion &o)
-{
-    os << "[REGION: "
-       << "[bbox = " << o.boundingRect() << "]";
-    os << "[rectCount = " << o.rectCount() << "]";
-    os << "[rects = ";
-    for (int i = 0; i < o.rectCount(); i++) {
-        os << o.rectAt(i);
-    }
-    os << "]"
-       << "]";
-    return os;
-}
-
 V_END_NAMESPACE
