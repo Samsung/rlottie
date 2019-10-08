@@ -205,6 +205,8 @@ public:
         return mComposition;
     }
     void                         parseComposition();
+    void                         parseMarkers();
+    void                         parseMarker();
     void                         parseAssets(LOTCompositionData *comp);
     std::shared_ptr<LOTAsset>    parseAsset();
     void                         parseLayers(LOTCompositionData *comp);
@@ -584,6 +586,8 @@ void LottieParserImpl::parseComposition()
             parseAssets(comp);
         } else if (0 == strcmp(key, "layers")) {
             parseLayers(comp);
+        } else if (0 == strcmp(key, "markers")) {
+            parseMarkers();
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Composition Attribute Skipped : " << key;
@@ -605,6 +609,44 @@ void LottieParserImpl::parseComposition()
     comp->mLayerInfoList = std::move(mLayerInfoList);
 
     mComposition = sharedComposition;
+}
+
+void LottieParserImpl::parseMarker()
+{
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
+    std::string comment;
+    int         timeframe{0};
+    int          duration{0};
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "cm")) {
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            comment = std::string(GetString());
+        } else if (0 == strcmp(key, "tm")) {
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            timeframe = GetDouble();
+        } else if (0 == strcmp(key, "dr")) {
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            duration = GetDouble();
+
+        } else {
+#ifdef DEBUG_PARSER
+            vWarning << "Marker Attribute Skipped : " << key;
+#endif
+            Skip(key);
+        }
+    }
+    compRef->mMarkers.emplace_back(std::move(comment), timeframe, timeframe + duration);
+}
+
+void LottieParserImpl::parseMarkers()
+{
+    RAPIDJSON_ASSERT(PeekType() == kArrayType);
+    EnterArray();
+    while (NextArrayValue()) {
+        parseMarker();
+    }
+    // update the precomp layers with the actual layer object
 }
 
 void LottieParserImpl::parseAssets(LOTCompositionData *composition)
