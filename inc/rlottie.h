@@ -251,6 +251,14 @@ private:
     }mDrawArea;
 };
 
+using MarkerList = std::vector<std::tuple<std::string, int , int>>;
+/**
+ *  @brief https://helpx.adobe.com/after-effects/using/layer-markers-composition-markers.html
+ *  Markers exported form AE are used to describe a segmnet of an animation {comment/tag , startFrame, endFrame}
+ *  Marker can be use to devide a resource in to separate animations by tagging the segment with comment string ,
+ *  start frame and duration of that segment.
+ */
+
 using LayerInfoList = std::vector<std::tuple<std::string, int , int>>;
 
 class LOT_EXPORT Animation {
@@ -402,6 +410,17 @@ public:
      *  @internal
      */
     const LOTLayerNode * renderTree(size_t frameNo, size_t width, size_t height) const;
+
+    /**
+     *  @brief Returns Composition Markers.
+     *
+     *
+     *  @return returns MarkerList of the Composition.
+     *
+     *  @see MarkerList
+     *  @internal
+     */
+    const MarkerList& markers() const;
 
     /**
      *  @brief Returns Layer information{name, inFrame, outFrame} of all the child layers  of the composition.

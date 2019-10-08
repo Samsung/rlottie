@@ -58,6 +58,10 @@ public:
     {
         return mModel->layerInfoList();
     }
+    const MarkerList &markers() const
+    {
+        return mModel->markers();
+    }
     void setValue(const std::string &keypath, LOTVariant &&value);
     void removeFilter(const std::string &keypath, Property prop);
 
@@ -321,6 +325,11 @@ void Animation::renderSync(size_t frameNo, Surface surface, bool keepAspectRatio
 const LayerInfoList &Animation::layers() const
 {
     return d->layerInfoList();
+}
+
+const MarkerList &Animation::markers() const
+{
+    return d->markers();
 }
 
 void Animation::setValue(Color_Type, Property prop, const std::string &keypath,

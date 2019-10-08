@@ -650,13 +650,15 @@ public:
     std::unique_ptr<ExtraLayerData> mExtra{nullptr};
 };
 
-using LayerInfo = std::tuple<std::string, int , int>;
+using Marker = std::tuple<std::string, int , int>;
+using LayerInfo = Marker;
 
 class LOTCompositionData : public LOTData
 {
 public:
     LOTCompositionData():LOTData(LOTData::Type::Composition){}
     const std::vector<LayerInfo> &layerInfoList() const { return  mLayerInfoList;}
+    const std::vector<Marker> &markers() const { return  mMarkers;}
     double duration() const {
         return frameDuration() / frameRate(); // in second
     }
@@ -688,6 +690,7 @@ public:
                        std::shared_ptr<LOTAsset>>    mAssets;
 
     std::vector<LayerInfo>  mLayerInfoList;
+    std::vector<Marker>     mMarkers;
     LOTModelStat            mStats;
 };
 
@@ -1087,6 +1090,7 @@ public:
    size_t endFrame() const {return mRoot->endFrame();}
    size_t frameAtPos(double pos) const {return mRoot->frameAtPos(pos);}
    const std::vector<LayerInfo> &layerInfoList() const { return mRoot->layerInfoList();}
+   const std::vector<Marker> &markers() const { return mRoot->markers();}
 public:
     std::shared_ptr<LOTCompositionData> mRoot;
 };
