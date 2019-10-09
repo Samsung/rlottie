@@ -600,6 +600,9 @@ void LottieParserImpl::parseComposition()
         // don't have a valid bodymovin header
         return;
     }
+    if (!IsValid()) {
+        return;
+    }
 
     resolveLayerRefs();
     comp->setStatic(comp->mRootLayer->isStatic());
@@ -2064,6 +2067,11 @@ void LottieParserImpl::parseShapeProperty(LOTAnimatable<LottieShapeData> &obj)
                     parseKeyFrame(obj.animation());
                 }
             } else {
+                if (!obj.isStatic()) {
+                    RAPIDJSON_ASSERT(false);
+                    st_ = kError;
+                    return;
+                }
                 getValue(obj.value());
             }
         } else {
@@ -2079,6 +2087,11 @@ template <typename T>
 void LottieParserImpl::parsePropertyHelper(LOTAnimatable<T> &obj)
 {
     if (PeekType() == kNumberType) {
+        if (!obj.isStatic()) {
+            RAPIDJSON_ASSERT(false);
+            st_ = kError;
+            return;
+        }
         /*single value property with no animation*/
         getValue(obj.value());
     } else {
@@ -2096,6 +2109,11 @@ void LottieParserImpl::parsePropertyHelper(LOTAnimatable<T> &obj)
                  * thats why this hack is there
                  */
                 RAPIDJSON_ASSERT(PeekType() == kNumberType);
+                if (!obj.isStatic()) {
+                    RAPIDJSON_ASSERT(false);
+                    st_ = kError;
+                    return;
+                }
                 /*multi value property with no animation*/
                 getValue(obj.value());
                 /*break here as we already reached end of array*/
