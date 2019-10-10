@@ -262,7 +262,7 @@ class LOTPathDataItem;
 class LOTPaintDataItem;
 class LOTTrimItem;
 
-enum class ContentType
+enum class ContentType : uchar
 {
     Unknown,
     Group,
@@ -271,21 +271,15 @@ enum class ContentType
     Trim
 };
 
+class LOTContentGroupItem;
 class LOTContentItem
 {
 public:
    virtual ~LOTContentItem() = default;
    LOTContentItem& operator=(LOTContentItem&&) noexcept = delete;
-   LOTContentItem(ContentType type=ContentType::Unknown):mType(type) {}
-   virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) = 0;
-   virtual void renderList(std::vector<VDrawable *> &){}
-   void setParent(LOTContentItem *parent) {mParent = parent;}
-   LOTContentItem *parent() const {return mParent;}
+   virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) = 0;   virtual void renderList(std::vector<VDrawable *> &){}
    virtual bool resolveKeyPath(LOTKeyPath &, uint, LOTVariant &) {return false;}
-   ContentType type() const {return mType;}
-private:
-   ContentType     mType{ContentType::Unknown};
-   LOTContentItem *mParent{nullptr};
+   virtual ContentType type() const {return ContentType::Unknown;}
 };
 
 class LOTContentGroupItem: public LOTContentItem
@@ -298,6 +292,7 @@ public:
    void processTrimItems(std::vector<LOTPathDataItem *> &list);
    void processPaintItems(std::vector<LOTPathDataItem *> &list);
    void renderList(std::vector<VDrawable *> &list) override;
+   ContentType type() const final {return ContentType::Group;}
    const VMatrix & matrix() const { return mMatrix;}
    const char* name() const
    {
@@ -314,13 +309,16 @@ protected:
 class LOTPathDataItem : public LOTContentItem
 {
 public:
-   LOTPathDataItem(bool staticPath): LOTContentItem(ContentType::Path), mStaticPath(staticPath){}
+   LOTPathDataItem(bool staticPath): mStaticPath(staticPath){}
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
+   ContentType type() const final {return ContentType::Path;}
    bool dirty() const {return mPathChanged;}
    const VPath &localPath() const {return mTemp;}
    const VPath &finalPath();
    void updatePath(const VPath &path) {mTemp = path; mPathChanged = true; mNeedUpdate = true;}
    bool staticPath() const { return mStaticPath; }
+   void setParent(LOTContentGroupItem *parent) {mParent = parent;}
+   LOTContentGroupItem *parent() const {return mParent;}
 protected:
    virtual void updatePath(VPath& path, int frameNo) = 0;
    virtual bool hasChanged(int prevFrame, int curFrame) = 0;
@@ -333,6 +331,7 @@ private:
            (prevFrame == frameNo)) return false;
        return hasChanged(prevFrame, frameNo);
    }
+   LOTContentGroupItem                    *mParent{nullptr};
    VPath                                   mLocalPath;
    VPath                                   mTemp;
    VPath                                   mFinalPath;
@@ -353,7 +352,7 @@ protected:
    bool hasChanged(int prevFrame, int curFrame) final {
        return (mData->mPos.changed(prevFrame, curFrame) ||
                mData->mSize.changed(prevFrame, curFrame) ||
-               mData->mRound.changed(prevFrame, curFrame)) ? true : false;
+               mData->mRound.changed(prevFrame, curFrame));
    }
 };
 
@@ -366,7 +365,7 @@ private:
    LOTEllipseData           *mData;
    bool hasChanged(int prevFrame, int curFrame) final {
        return (mData->mPos.changed(prevFrame, curFrame) ||
-               mData->mSize.changed(prevFrame, curFrame)) ? true : false;
+               mData->mSize.changed(prevFrame, curFrame));
    }
 };
 
@@ -397,7 +396,7 @@ private:
                mData->mOuterRadius.changed(prevFrame, curFrame) ||
                mData->mInnerRoundness.changed(prevFrame, curFrame) ||
                mData->mOuterRoundness.changed(prevFrame, curFrame) ||
-               mData->mRotation.changed(prevFrame, curFrame)) ? true : false;
+               mData->mRotation.changed(prevFrame, curFrame));
    }
 };
 
@@ -410,16 +409,15 @@ public:
    void addPathItems(std::vector<LOTPathDataItem *> &list, size_t startOffset);
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) override;
    void renderList(std::vector<VDrawable *> &list) final;
+   ContentType type() const final {return ContentType::Paint;}
 protected:
-   virtual void updateContent(int frameNo) = 0;
-   virtual void updateRenderNode();
-   inline float parentAlpha() const {return mParentAlpha;}
+   virtual void updateContent(int frameNo, const VMatrix &matrix, float alpha) = 0;
+private:
+   void updateRenderNode();
 protected:
    std::vector<LOTPathDataItem *>   mPathItems;
    LOTDrawable                      mDrawable;
    VPath                            mPath;
-   float                            mParentAlpha{1.0f};
-   int                              mFrameNo{-1};
    DirtyFlag                        mFlag;
    bool                             mStaticContent;
    bool                             mRenderNodeUpdate{true};
@@ -430,12 +428,10 @@ class LOTFillItem : public LOTPaintDataItem
 public:
    explicit LOTFillItem(LOTFillData *data);
 protected:
-   void updateContent(int frameNo) final;
-   void updateRenderNode() final;
+   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
 private:
    LOTProxyModel<LOTFillData> mModel;
-   VColor                     mColor;
 };
 
 class LOTGFillItem : public LOTPaintDataItem
@@ -443,13 +439,10 @@ class LOTGFillItem : public LOTPaintDataItem
 public:
    explicit LOTGFillItem(LOTGFillData *data);
 protected:
-   void updateContent(int frameNo) final;
-   void updateRenderNode() final;
+   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
    LOTGFillData                 *mData;
    std::unique_ptr<VGradient>    mGradient;
-   float                         mAlpha{1.0};
-   FillRule                      mFillRule{FillRule::Winding};
 };
 
 class LOTStrokeItem : public LOTPaintDataItem
@@ -457,14 +450,10 @@ class LOTStrokeItem : public LOTPaintDataItem
 public:
    explicit LOTStrokeItem(LOTStrokeData *data);
 protected:
-   void updateContent(int frameNo) final;
-   void updateRenderNode() final;
+   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
 private:
    LOTProxyModel<LOTStrokeData> mModel;
-   VColor                       mColor;
-   float                        mWidth{0};
-   std::vector<float>           mDashInfo;
 };
 
 class LOTGStrokeItem : public LOTPaintDataItem
@@ -472,18 +461,10 @@ class LOTGStrokeItem : public LOTPaintDataItem
 public:
    explicit LOTGStrokeItem(LOTGStrokeData *data);
 protected:
-   void updateContent(int frameNo) final;
-   void updateRenderNode() final;
+   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
    LOTGStrokeData               *mData;
    std::unique_ptr<VGradient>    mGradient;
-   CapStyle                      mCap{CapStyle::Flat};
-   JoinStyle                     mJoin{JoinStyle::Miter};
-   float                         mMiterLimit{0};
-   VColor                        mColor;
-   float                         mAlpha{1.0};
-   float                         mWidth{0};
-   std::vector<float>            mDashInfo;
 };
 
 
@@ -492,8 +473,9 @@ private:
 class LOTTrimItem : public LOTContentItem
 {
 public:
-   LOTTrimItem(LOTTrimData *data);
+   explicit LOTTrimItem(LOTTrimData *data);
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
+   ContentType type() const final {return ContentType::Trim;}
    void update();
    void addPathItems(std::vector<LOTPathDataItem *> &list, size_t startOffset);
 private:
