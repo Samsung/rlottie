@@ -201,11 +201,11 @@ enum class Property {
 
 ### Usage (CPP API)
 ```cpp
-LottieView->player()->setValue<rlottie::Property::FillColor>("**",rlottie::Color(0, 1, 0));
+animation->setValue<rlottie::Property::FillColor>("**",rlottie::Color(0, 1, 0));
 ```
 
 ```cpp
-Lottie_View->player()->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
+animation->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
     [](const rlottie::FrameInfo& info) {
          if (info.curFrame() < 15 )
              return rlottie::Color(0, 1, 0);
