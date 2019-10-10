@@ -795,9 +795,9 @@ void VSpanData::setup(const VBrush &brush, VPainter::CompositionMode /*mode*/,
     case VBrush::Type::Texture: {
         mType = VSpanData::Type::Texture;
         initTexture(
-            &brush.mTexture, 255, VBitmapData::Plain,
-            brush.mTexture.rect());
-        setupMatrix(brush.mMatrix);
+            &brush.mTexture->mBitmap, 255, VBitmapData::Plain,
+            brush.mTexture->mBitmap.rect());
+        setupMatrix(brush.mTexture->mMatrix);
         break;
     }
     default:

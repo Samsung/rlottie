@@ -178,11 +178,11 @@ void LOTImageLayerItem::buildLayerNode()
         lotDrawable->sync();
 
         lotDrawable->mCNode->mImageInfo.data =
-            lotDrawable->mBrush.mTexture.data();
+            lotDrawable->mBrush.mTexture->mBitmap.data();
         lotDrawable->mCNode->mImageInfo.width =
-            int(lotDrawable->mBrush.mTexture.width());
+            int(lotDrawable->mBrush.mTexture->mBitmap.width());
         lotDrawable->mCNode->mImageInfo.height =
-            int(lotDrawable->mBrush.mTexture.height());
+            int(lotDrawable->mBrush.mTexture->mBitmap.height());
 
         lotDrawable->mCNode->mImageInfo.mMatrix.m11 = combinedMatrix().m_11();
         lotDrawable->mCNode->mImageInfo.mMatrix.m12 = combinedMatrix().m_12();

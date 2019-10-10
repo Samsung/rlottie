@@ -222,6 +222,7 @@ protected:
    void renderList(std::vector<VDrawable *> &list) final;
 private:
    LOTDrawable                  mRenderNode;
+   VTexture                     mTexture;
 };
 
 class LOTMaskItem
