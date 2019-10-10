@@ -325,7 +325,7 @@ typedef enum {
 | Precomps | 👍 |
 | Time Stretch |  👍 |
 | Time remap |  👍 |
-| Markers | ⛔️ |
+| Markers | 👍  |
 
 #
 [Back to contents](#contents)
