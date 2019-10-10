@@ -651,7 +651,8 @@ LOTImageLayerItem::LOTImageLayerItem(LOTLayerData *layerData)
 {
     if (!mLayerData->asset()) return;
 
-    VBrush brush(mLayerData->asset()->bitmap());
+    mTexture.mBitmap = mLayerData->asset()->bitmap();
+    VBrush brush(&mTexture);
     mRenderNode.setBrush(brush);
 }
 
@@ -666,7 +667,7 @@ void LOTImageLayerItem::updateContent()
         path.transform(combinedMatrix());
         mRenderNode.mFlag |= VDrawable::DirtyState::Path;
         mRenderNode.mPath = path;
-        mRenderNode.mBrush.setMatrix(combinedMatrix());
+        mTexture.mMatrix = combinedMatrix();
     }
 
     if (flag() & DirtyFlagBit::Alpha) {

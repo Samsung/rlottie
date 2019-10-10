@@ -59,22 +59,27 @@ public:
     VMatrix mMatrix;
 };
 
+struct VTexture {
+    VBitmap  mBitmap;
+    VMatrix  mMatrix;
+};
+
 class VBrush {
 public:
     enum class Type { NoBrush, Solid, LinearGradient, RadialGradient, Texture };
-    VBrush() = default;
+    VBrush():mType(Type::NoBrush),mColor(){};
     explicit VBrush(const VColor &color);
     explicit VBrush(const VGradient *gradient);
     explicit VBrush(uchar r, uchar g, uchar b, uchar a);
-    explicit VBrush(const VBitmap &texture);
+    explicit VBrush(const VTexture *texture);
     inline VBrush::Type type() const { return mType; }
-    void setMatrix(const VMatrix &m);
 public:
     VBrush::Type     mType{Type::NoBrush};
-    VColor           mColor;
-    const VGradient *mGradient{nullptr};
-    VBitmap          mTexture;
-    VMatrix          mMatrix;
+    union {
+        VColor           mColor{};
+        const VGradient *mGradient;
+        const VTexture  *mTexture;
+    };
 };
 
 V_END_NAMESPACE

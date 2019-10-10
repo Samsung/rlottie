@@ -58,17 +58,8 @@ VBrush::VBrush(const VGradient *gradient)
     }
 }
 
-VBrush::VBrush(const VBitmap &texture)
+VBrush::VBrush(const VTexture *texture):mType(VBrush::Type::Texture), mTexture(texture)
 {
-    if (!texture.valid()) return;
-
-    mType = VBrush::Type::Texture;
-    mTexture = texture;
-}
-
-void VBrush::setMatrix(const VMatrix &m)
-{
-    mMatrix = m;
 }
 
 V_END_NAMESPACE
