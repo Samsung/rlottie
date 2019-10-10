@@ -825,7 +825,7 @@ bool LOTStrokeItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 }
 
 LOTContentGroupItem::LOTContentGroupItem(LOTGroupData *data)
-    : LOTContentItem(ContentType::Group), mData(data)
+    : mData(data)
 {
     addChildren(mData);
 }
@@ -842,7 +842,6 @@ void LOTContentGroupItem::addChildren(LOTGroupData *data)
          ++it ) {
         auto content = LOTShapeLayerItem::createContentItem((*it).get());
         if (content) {
-            content->setParent(this);
             mContents.push_back(std::move(content));
         }
     }
@@ -851,8 +850,8 @@ void LOTContentGroupItem::addChildren(LOTGroupData *data)
 void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
                                  float parentAlpha, const DirtyFlag &flag)
 {
-    float     alpha = parentAlpha;
     DirtyFlag newFlag = flag;
+    float alpha;
 
     if (mData && mData->mTransform) {
         VMatrix m = mData->mTransform->matrix(frameNo);
@@ -865,12 +864,13 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
 
         mMatrix = m;
 
-        alpha *= mData->mTransform->opacity(frameNo);
+        alpha = parentAlpha * mData->mTransform->opacity(frameNo);
         if (!vCompare(alpha, parentAlpha)) {
             newFlag |= DirtyFlagBit::Alpha;
         }
     } else {
         mMatrix = parentMatrix;
+        alpha = parentAlpha;
     }
 
     for (const auto &content : mContents) {
@@ -912,7 +912,9 @@ void LOTContentGroupItem::processPaintItems(
         auto content = (*i).get();
         switch (content->type()) {
         case ContentType::Path: {
-            list.push_back(static_cast<LOTPathDataItem *>(content));
+            auto pathItem = static_cast<LOTPathDataItem *>(content);
+            pathItem->setParent(this);
+            list.push_back(pathItem);
             break;
         }
         case ContentType::Paint: {
@@ -1083,19 +1085,15 @@ void LOTPolystarItem::updatePath(VPath &path, int frameNo)
  *
  */
 LOTPaintDataItem::LOTPaintDataItem(bool staticContent)
-    : LOTContentItem(ContentType::Paint), mStaticContent(staticContent)
+    : mStaticContent(staticContent)
 {
 }
 
-void LOTPaintDataItem::update(int   frameNo, const VMatrix & /*parentMatrix*/,
-                              float parentAlpha, const DirtyFlag &flag)
+void LOTPaintDataItem::update(int   frameNo, const VMatrix & parentMatrix,
+                              float parentAlpha, const DirtyFlag &/*flag*/)
 {
     mRenderNodeUpdate = true;
-    mParentAlpha = parentAlpha;
-    mFlag = flag;
-    mFrameNo = frameNo;
-
-    updateContent(frameNo);
+    updateContent(frameNo, parentMatrix, parentAlpha);
 }
 
 void LOTPaintDataItem::updateRenderNode()
@@ -1125,7 +1123,6 @@ void LOTPaintDataItem::renderList(std::vector<VDrawable *> &list)
 {
     if (mRenderNodeUpdate) {
         updateRenderNode();
-        LOTPaintDataItem::updateRenderNode();
         mRenderNodeUpdate = false;
     }
     list.push_back(&mDrawable);
@@ -1143,16 +1140,10 @@ LOTFillItem::LOTFillItem(LOTFillData *data)
 {
 }
 
-void LOTFillItem::updateContent(int frameNo)
+void LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
 {
-    mColor = mModel.color(frameNo).toColor(mModel.opacity(frameNo));
-}
-
-void LOTFillItem::updateRenderNode()
-{
-    VColor color = mColor;
-
-    color.setAlpha(uchar(color.a * parentAlpha()));
+    auto color = mModel.color(frameNo).toColor(mModel.opacity(frameNo));
+    color.setAlpha(uchar(color.a * alpha));
     VBrush brush(color);
     mDrawable.setBrush(brush);
     mDrawable.setFillRule(mModel.fillRule());
@@ -1163,80 +1154,65 @@ LOTGFillItem::LOTGFillItem(LOTGFillData *data)
 {
 }
 
-void LOTGFillItem::updateContent(int frameNo)
+void LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
-    mAlpha = mData->opacity(frameNo);
     mData->update(mGradient, frameNo);
-    mGradient->mMatrix = static_cast<LOTContentGroupItem *>(parent())->matrix();
-    mFillRule = mData->fillRule();
-}
-
-void LOTGFillItem::updateRenderNode()
-{
-    mGradient->setAlpha(mAlpha * parentAlpha());
+    mGradient->setAlpha(mData->opacity(frameNo) * alpha);
+    mGradient->mMatrix = matrix;
     mDrawable.setBrush(VBrush(mGradient.get()));
-    mDrawable.setFillRule(mFillRule);
+    mDrawable.setFillRule(mData->fillRule());
 }
 
 LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
     : LOTPaintDataItem(data->isStatic()), mModel(data){}
 
-void LOTStrokeItem::updateContent(int frameNo)
-{
-    mColor = mModel.color(frameNo).toColor(mModel.opacity(frameNo));
-    mWidth = mModel.strokeWidth(frameNo);
-    if (mModel.hasDashInfo()) mModel.getDashInfo(frameNo, mDashInfo);
-}
+static thread_local std::vector<float> Dash_Vector;
 
-void LOTStrokeItem::updateRenderNode()
+void LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
-    VColor color = mColor;
-
-    color.setAlpha(uchar(color.a * parentAlpha()));
+    VColor color = mModel.color(frameNo).toColor(mModel.opacity(frameNo));;
+    color.setAlpha(uchar(color.a * alpha));
     VBrush brush(color);
     mDrawable.setBrush(brush);
-    float scale =
-        static_cast<LOTContentGroupItem *>(parent())->matrix().scale();
+    float scale = matrix.scale();
     mDrawable.setStrokeInfo(mModel.capStyle(), mModel.joinStyle(),
-                            mModel.miterLimit(), mWidth * scale);
+                            mModel.miterLimit(), mModel.strokeWidth(frameNo) * scale);
 
-    if (!mDashInfo.empty()) {
-        for (auto &elm : mDashInfo) elm *= scale;
-        mDrawable.setDashInfo(mDashInfo);
+    if (mModel.hasDashInfo()) {
+        Dash_Vector.clear();
+        mModel.getDashInfo(frameNo, Dash_Vector);
+        if (!Dash_Vector.empty()) {
+            for (auto &elm : Dash_Vector) elm *= scale;
+            mDrawable.setDashInfo(Dash_Vector);
+        }
     }
 }
 
 LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
     : LOTPaintDataItem(data->isStatic()), mData(data){}
 
-void LOTGStrokeItem::updateContent(int frameNo)
+void LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
-    mAlpha = mData->opacity(frameNo);
     mData->update(mGradient, frameNo);
-    mGradient->mMatrix = static_cast<LOTContentGroupItem *>(parent())->matrix();
-    mCap = mData->capStyle();
-    mJoin = mData->joinStyle();
-    mMiterLimit = mData->miterLimit();
-    mWidth = mData->width(frameNo);
-
-    if (mData->hasDashInfo()) mData->getDashInfo(frameNo, mDashInfo);
-}
-
-void LOTGStrokeItem::updateRenderNode()
-{
-    float scale = mGradient->mMatrix.scale();
-    mGradient->setAlpha(mAlpha * parentAlpha());
+    mGradient->setAlpha(mData->opacity(frameNo) * alpha);
+    mGradient->mMatrix = matrix;
+    auto scale = mGradient->mMatrix.scale();
     mDrawable.setBrush(VBrush(mGradient.get()));
-    mDrawable.setStrokeInfo(mCap, mJoin, mMiterLimit, mWidth * scale);
+    mDrawable.setStrokeInfo(mData->capStyle(),  mData->joinStyle(),
+                            mData->miterLimit(), mData->width(frameNo) * scale);
 
-    if (!mDashInfo.empty()) {
-        for (auto &elm : mDashInfo) elm *= scale;
-        mDrawable.setDashInfo(mDashInfo);
+    if (mData->hasDashInfo()) {
+        Dash_Vector.clear();
+        mData->getDashInfo(frameNo, Dash_Vector);
+        if (!Dash_Vector.empty()) {
+            for (auto &elm : Dash_Vector) elm *= scale;
+            mDrawable.setDashInfo(Dash_Vector);
+        }
     }
 }
 
 LOTTrimItem::LOTTrimItem(LOTTrimData *data)
-    : LOTContentItem(ContentType::Trim), mData(data)
+    : mData(data)
 {
 }
 
@@ -1338,7 +1314,7 @@ LOTRepeaterItem::LOTRepeaterItem(LOTRepeaterData *data) : mRepeaterData(data)
     for (int i = 0; i < mCopies; i++) {
         auto content =
             std::make_unique<LOTContentGroupItem>(mRepeaterData->content());
-        content->setParent(this);
+        //content->setParent(this);
         mContents.push_back(std::move(content));
     }
 }
