@@ -215,7 +215,7 @@ animation->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
      });
 ```
 
-### +) Usage ( C API)
+### +) Usage (C API)
 To change fillcolor property of fill1 object in the layer1->group1->fill1 hierarchy to RED color :
 ```c
     lottie_animation_property_override(animation, LOTTIE_ANIMATION_PROPERTY_FILLCOLOR, "layer1.group1.fill1", 1.0, 0.0, 0.0);
