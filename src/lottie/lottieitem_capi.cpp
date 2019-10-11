@@ -196,6 +196,9 @@ void LOTImageLayerItem::buildLayerNode()
         lotDrawable->mCNode->mImageInfo.mMatrix.m32 = combinedMatrix().m_ty();
         lotDrawable->mCNode->mImageInfo.mMatrix.m33 = combinedMatrix().m_33();
 
+        // Alpha calculation already combined.
+        lotDrawable->mCNode->mImageInfo.mAlpha = uchar(lotDrawable->mBrush.mTexture->mAlpha);
+
         cnodes().push_back(lotDrawable->mCNode.get());
     }
     clayer().mNodeList.ptr = cnodes().data();
