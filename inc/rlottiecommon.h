@@ -161,6 +161,7 @@ typedef struct LOTNode {
         unsigned char *data;
         size_t width;
         size_t height;
+        unsigned char mAlpha;
         struct {
            float m11; float m12; float m13;
            float m21; float m22; float m23;
