@@ -62,6 +62,7 @@ public:
 struct VTexture {
     VBitmap  mBitmap;
     VMatrix  mMatrix;
+    int      mAlpha{255};
 };
 
 class VBrush {
