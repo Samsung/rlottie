@@ -412,7 +412,7 @@ public:
    void renderList(std::vector<VDrawable *> &list) final;
    ContentType type() const final {return ContentType::Paint;}
 protected:
-   virtual void updateContent(int frameNo, const VMatrix &matrix, float alpha) = 0;
+   virtual bool updateContent(int frameNo, const VMatrix &matrix, float alpha) = 0;
 private:
    void updateRenderNode();
 protected:
@@ -422,6 +422,7 @@ protected:
    DirtyFlag                        mFlag;
    bool                             mStaticContent;
    bool                             mRenderNodeUpdate{true};
+   bool                             mContentToRender{true};
 };
 
 class LOTFillItem : public LOTPaintDataItem
@@ -429,7 +430,7 @@ class LOTFillItem : public LOTPaintDataItem
 public:
    explicit LOTFillItem(LOTFillData *data);
 protected:
-   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
 private:
    LOTProxyModel<LOTFillData> mModel;
@@ -440,7 +441,7 @@ class LOTGFillItem : public LOTPaintDataItem
 public:
    explicit LOTGFillItem(LOTGFillData *data);
 protected:
-   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
    LOTGFillData                 *mData;
    std::unique_ptr<VGradient>    mGradient;
@@ -451,7 +452,7 @@ class LOTStrokeItem : public LOTPaintDataItem
 public:
    explicit LOTStrokeItem(LOTStrokeData *data);
 protected:
-   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
 private:
    LOTProxyModel<LOTStrokeData> mModel;
@@ -462,7 +463,7 @@ class LOTGStrokeItem : public LOTPaintDataItem
 public:
    explicit LOTGStrokeItem(LOTGStrokeData *data);
 protected:
-   void updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
    LOTGStrokeData               *mData;
    std::unique_ptr<VGradient>    mGradient;

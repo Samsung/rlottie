@@ -1094,7 +1094,7 @@ void LOTPaintDataItem::update(int   frameNo, const VMatrix & parentMatrix,
                               float parentAlpha, const DirtyFlag &/*flag*/)
 {
     mRenderNodeUpdate = true;
-    updateContent(frameNo, parentMatrix, parentAlpha);
+    mContentToRender = updateContent(frameNo, parentMatrix, parentAlpha);
 }
 
 void LOTPaintDataItem::updateRenderNode()
@@ -1107,7 +1107,7 @@ void LOTPaintDataItem::updateRenderNode()
         }
     }
 
-    if (dirty) {
+    if (dirty || mPath.empty()) {
         mPath.reset();
 
         for (auto &i : mPathItems) {
@@ -1122,6 +1122,8 @@ void LOTPaintDataItem::updateRenderNode()
 
 void LOTPaintDataItem::renderList(std::vector<VDrawable *> &list)
 {
+    if (!mContentToRender) return;
+
     if (mRenderNodeUpdate) {
         updateRenderNode();
         mRenderNodeUpdate = false;
@@ -1141,13 +1143,18 @@ LOTFillItem::LOTFillItem(LOTFillData *data)
 {
 }
 
-void LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
+bool LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
 {
-    auto color = mModel.color(frameNo).toColor(mModel.opacity(frameNo));
-    color.setAlpha(uchar(color.a * alpha));
+    auto combinedAlpha = alpha * mModel.opacity(frameNo);
+    auto color = mModel.color(frameNo).toColor(combinedAlpha);
+
+    if (color.isTransparent()) return false;
+
     VBrush brush(color);
     mDrawable.setBrush(brush);
     mDrawable.setFillRule(mModel.fillRule());
+
+    return true;
 }
 
 LOTGFillItem::LOTGFillItem(LOTGFillData *data)
@@ -1155,13 +1162,18 @@ LOTGFillItem::LOTGFillItem(LOTGFillData *data)
 {
 }
 
-void LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
+bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
+    float combinedAlpha = alpha * mData->opacity(frameNo);
+    if (vIsZero(combinedAlpha)) return false;
+
     mData->update(mGradient, frameNo);
-    mGradient->setAlpha(mData->opacity(frameNo) * alpha);
+    mGradient->setAlpha(combinedAlpha);
     mGradient->mMatrix = matrix;
     mDrawable.setBrush(VBrush(mGradient.get()));
     mDrawable.setFillRule(mData->fillRule());
+
+    return true;
 }
 
 LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
@@ -1169,10 +1181,13 @@ LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
 
 static thread_local std::vector<float> Dash_Vector;
 
-void LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
+bool LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
-    VColor color = mModel.color(frameNo).toColor(mModel.opacity(frameNo));;
-    color.setAlpha(uchar(color.a * alpha));
+    auto combinedAlpha = alpha * mModel.opacity(frameNo);
+    auto color = mModel.color(frameNo).toColor(combinedAlpha);
+
+    if (color.isTransparent()) return false;
+
     VBrush brush(color);
     mDrawable.setBrush(brush);
     float scale = matrix.scale();
@@ -1187,15 +1202,20 @@ void LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alph
             mDrawable.setDashInfo(Dash_Vector);
         }
     }
+
+    return true;
 }
 
 LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
     : LOTPaintDataItem(data->isStatic()), mData(data){}
 
-void LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
+bool LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
+    float combinedAlpha = alpha * mData->opacity(frameNo);
+    if (vIsZero(combinedAlpha)) return false;
+
     mData->update(mGradient, frameNo);
-    mGradient->setAlpha(mData->opacity(frameNo) * alpha);
+    mGradient->setAlpha(combinedAlpha);
     mGradient->mMatrix = matrix;
     auto scale = mGradient->mMatrix.scale();
     mDrawable.setBrush(VBrush(mGradient.get()));
@@ -1210,6 +1230,8 @@ void LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alp
             mDrawable.setDashInfo(Dash_Vector);
         }
     }
+
+    return true;
 }
 
 LOTTrimItem::LOTTrimItem(LOTTrimData *data)
