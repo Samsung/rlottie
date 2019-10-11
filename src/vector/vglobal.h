@@ -272,6 +272,7 @@ public:
     inline void setBlue(uchar blue) noexcept { b = blue; }
     inline void setAlpha(uchar alpha) noexcept { a = alpha; }
     inline bool isOpaque() const { return a == 255; }
+    inline bool isTransparent() const { return a == 0; }
     inline bool operator==(const VColor &o) const
     {
         return ((a == o.a) && (r == o.r) && (g == o.g) && (b == o.b));
