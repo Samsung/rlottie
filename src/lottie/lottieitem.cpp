@@ -671,7 +671,7 @@ void LOTImageLayerItem::updateContent()
     }
 
     if (flag() & DirtyFlagBit::Alpha) {
-        //@TODO handle alpha with the image.
+        mTexture.mAlpha = int(combinedAlpha() * 255);
     }
 }
 
