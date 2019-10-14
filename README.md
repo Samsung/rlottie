@@ -180,7 +180,7 @@ KeyPaths can include the specific name of the contents or wildcards:
 - Globstar **
 	- Globstars match zero or more layers.
 
-### rLottie::Property
+### Properties
 
 `rLottie::Property` is an enumeration of properties that can be set. They correspond to the animatable value in After Effects and the available properties are listed below.
 ```cpp
@@ -199,7 +199,7 @@ enum class Property {
 `setValue()` requires a keypath of string and value. The value can be `Color`, `Size` and `Point` structure or a function that returns them. `Color`, `Size`, and `Point` vary depending on the type of `rLottie::Property`. This value or function(callback) is called and applied to every frame. This value can be set differently for each frame by using the `FrameInfo` argument passed to the function.
 
 
-### Usage (CPP API)
+### Usage
 ```cpp
 animation->setValue<rlottie::Property::FillColor>("**",rlottie::Color(0, 1, 0));
 ```
@@ -215,26 +215,6 @@ animation->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
      });
 ```
 
-### +) Usage (C API)
-To change fillcolor property of fill1 object in the layer1->group1->fill1 hierarchy to RED color :
-```c
-    lottie_animation_property_override(animation, LOTTIE_ANIMATION_PROPERTY_FILLCOLOR, "layer1.group1.fill1", 1.0, 0.0, 0.0);
-```
-If all the color property inside group1 needs to be changed to GREEN color :
-```c
-    lottie_animation_property_override(animation, LOTTIE_ANIMATION_PROPERTY_FILLCOLOR, "**.group1.**", 0.0, 1.0, 0.0);
-```
-Lottie_Animation_Property enumeration.
-```c
-typedef enum {
-    LOTTIE_ANIMATION_PROPERTY_FILLCOLOR,      /*!< Color property of Fill object , value type is float [0 ... 1] */
-    LOTTIE_ANIMATION_PROPERTY_FILLOPACITY,    /*!< Opacity property of Fill object , value type is float [ 0 .. 100] */
-    LOTTIE_ANIMATION_PROPERTY_STROKECOLOR,    /*!< Color property of Stroke object , value type is float [0 ... 1] */
-    LOTTIE_ANIMATION_PROPERTY_STROKEOPACITY,  /*!< Opacity property of Stroke object , value type is float [ 0 .. 100] */
-    LOTTIE_ANIMATION_PROPERTY_STROKEWIDTH,    /*!< stroke with property of Stroke object , value type is float */
-    ...
-}Lottie_Animation_Property;
-```
 [Back to contents](#contents)
 
 #
