@@ -1178,8 +1178,10 @@ STBIDEF stbi_uc *stbi_load_from_file(FILE *f, int *x, int *y, int *comp, int req
    result = stbi__load_and_postprocess_8bit(&s,x,y,comp,req_comp);
    if (result) {
       // need to 'unget' all the characters in the IO buffer
-      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1)
+      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1) {
+         stbi_image_free(result);
          return stbi__errpuc("fseek() error", "File Seek Fail");
+      }
    }
    return result;
 }
@@ -1192,8 +1194,10 @@ STBIDEF stbi__uint16 *stbi_load_from_file_16(FILE *f, int *x, int *y, int *comp,
    result = stbi__load_and_postprocess_16bit(&s,x,y,comp,req_comp);
    if (result) {
       // need to 'unget' all the characters in the IO buffer
-      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1)
+      if (fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR) == -1) {
+         stbi_image_free(result);
          return (stbi__uint16 *) stbi__errpuc("fseek() error", "File Seek Fail");
+      }
    }
    return result;
 }
