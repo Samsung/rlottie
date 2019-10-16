@@ -18,6 +18,25 @@ endif
 
 if get_option('module') == true
     config_h.set10('LOTTIE_IMAGE_MODULE_SUPPORT', true)
+
+    if meson.get_compiler('cpp').get_id() != 'msvc'
+      lib_prefix = 'lib'
+    else
+      lib_prefix = ''
+    endif
+    if host_machine.system() == 'darwin'
+      lib_suffix = '.dylib'
+    elif host_machine.system() == 'windows'
+      lib_suffix = '.dll'
+    else
+      lib_suffix = '.so'
+    endif
+    if get_option('moduledir') != ''
+      config_h.set_quoted('LOTTIE_IMAGE_MODULE_PLUGIN',
+        get_option('prefix') / get_option('moduledir') / lib_prefix + 'rlottie-image-loader' + lib_suffix)
+    else
+      config_h.set_quoted('LOTTIE_IMAGE_MODULE_PLUGIN', lib_prefix + 'rlottie-image-loader' + lib_suffix)
+    endif
 endif
 
 if get_option('cache') == true

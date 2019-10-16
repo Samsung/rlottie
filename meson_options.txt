@@ -13,6 +13,10 @@ option('module',
    value: true,
    description: 'Enable module support in rlottie')
 
+option('moduledir',
+   type: 'string',
+   description: 'Dynamic plugins directory')
+
 option('log',
    type: 'boolean',
    value: false,
