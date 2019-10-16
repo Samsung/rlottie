@@ -1,12 +1,13 @@
 #include "vimageloader.h"
 #include "config.h"
 #include "vdebug.h"
-#ifndef _WIN32
-#include <dlfcn.h>
-#else
-#include <windows.h>
-#endif
 #include <cstring>
+
+#ifdef _WIN32
+# include <windows.h>
+#else
+# include <dlfcn.h>
+#endif  // _WIN32
 
 using lottie_image_load_f = unsigned char *(*)(const char *filename, int *x,
                                                int *y, int *comp, int req_comp);
@@ -36,11 +37,11 @@ struct VImageLoader::Impl {
     lottie_image_load_data_f imageFromData{nullptr};
 
 #ifdef LOTTIE_IMAGE_MODULE_SUPPORT
-#ifdef _WIN32
+# ifdef _WIN32
     HMODULE dl_handle{nullptr};
     bool    moduleLoad()
     {
-        dl_handle = LoadLibraryA("librlottie-image-loader.dll");
+        dl_handle = LoadLibraryA(LOTTIE_IMAGE_MODULE_PLUGIN);
         return (dl_handle == nullptr);
     }
     void moduleFree()
@@ -56,7 +57,7 @@ struct VImageLoader::Impl {
         imageFromData = reinterpret_cast<lottie_image_load_data_f>(
                         GetProcAddress(dl_handle, "lottie_image_load_from_data"));
     }
-#else
+# else  // _WIN32
     void *dl_handle{nullptr};
     void  init()
     {
@@ -72,22 +73,13 @@ struct VImageLoader::Impl {
     {
         if (dl_handle) dlclose(dl_handle);
     }
-#ifdef __APPLE__
     bool moduleLoad()
     {
-        dl_handle = dlopen("librlottie-image-loader.dylib", RTLD_LAZY);
+        dl_handle = dlopen(LOTTIE_IMAGE_MODULE_PLUGIN, RTLD_LAZY);
         return (dl_handle == nullptr);
     }
-#else
-    bool moduleLoad()
-    {
-        dl_handle = dlopen("librlottie-image-loader.so", RTLD_LAZY);
-        return (dl_handle == nullptr);
-    }
-#endif
-#endif
-#else
-    void *dl_handle{nullptr};
+# endif  // _WIN32
+#else  // LOTTIE_IMAGE_MODULE_SUPPORT
     void  init()
     {
         imageLoad = lottie_image_load;
@@ -96,7 +88,7 @@ struct VImageLoader::Impl {
     }
     void moduleFree() {}
     bool moduleLoad() { return false; }
-#endif
+#endif  // LOTTIE_IMAGE_MODULE_SUPPORT
 
     Impl()
     {

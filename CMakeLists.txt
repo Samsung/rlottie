@@ -36,7 +36,10 @@ option(LOTTIE_TEST "Build LOTTIE AUTOTESTS" OFF)
 option(LOTTIE_CCACHE "Enable LOTTIE ccache SUPPORT" OFF)
 option(LOTTIE_ASAN "Compile with asan" OFF)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in config.h)
+set(LOTTIE_MODULE_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}rlottie-image-loader${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    CACHE STRING "Absolute or relative path to dynamic loader plugin.")
+
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in config.h)
 
 target_include_directories(rlottie
     PRIVATE
