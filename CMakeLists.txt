@@ -33,6 +33,8 @@ option(LOTTIE_MODULE "Enable LOTTIE MODULE SUPPORT" ON)
 option(LOTTIE_THREAD "Enable LOTTIE THREAD SUPPORT" ON)
 option(LOTTIE_CACHE "Enable LOTTIE CACHE SUPPORT" ON)
 option(LOTTIE_TEST "Build LOTTIE AUTOTESTS" OFF)
+option(LOTTIE_CCACHE "Enable LOTTIE ccache SUPPORT" OFF)
+option(LOTTIE_ASAN "Compile with asan" OFF)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in config.h)
 
@@ -80,18 +82,35 @@ if (LOTTIE_MODULE)
     target_link_libraries(rlottie PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
-if(APPLE)
-    target_link_libraries(rlottie
-                        PUBLIC
-                             "-Wl, -undefined error"
-                          )
-else()
-    target_link_libraries(rlottie
-                        PUBLIC
-                             "-Wl,--no-undefined"
-                          )
+if (NOT LOTTIE_ASAN)
+    if(APPLE)
+        target_link_libraries(rlottie
+                            PUBLIC
+                                 "-Wl, -undefined error"
+                              )
+    else()
+        target_link_libraries(rlottie
+                            PUBLIC
+                                 "-Wl,--no-undefined"
+                              )
+    endif()
 endif()
 
+if (LOTTIE_CCACHE)
+    find_program(CCACHE_FOUND ccache)
+    if (CCACHE_FOUND)
+        message(STATUS "Found ccache")
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+    else()
+        message(STATUS "Could NOT find ccache (this is NOT an error)")
+    endif()
+endif()
+
+if (LOTTIE_ASAN)
+    target_compile_options(rlottie PUBLIC -fsanitize=address)
+    target_link_options(rlottie PUBLIC  -fsanitize=address)
+endif()
 
 if (NOT LIB_INSTALL_DIR)
     set (LIB_INSTALL_DIR "/usr/lib")
