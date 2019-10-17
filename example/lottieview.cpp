@@ -169,6 +169,32 @@ void LottieView::play()
     mPalying = true;
 }
 
+void LottieView::play(const std::string &marker)
+{
+    size_t totalframe = getTotalFrame();
+    size_t stframe = mRenderDelegate->findFrameAtMarker(marker);
+    size_t drframe = mRenderDelegate->findDurationFrameAtMarker(marker);
+
+    setMinProgress((float)stframe / (float)totalframe);
+    if (drframe != 0)
+      setMaxProgress((float)drframe / (float)totalframe);
+
+    this->play();
+}
+
+void LottieView::play(const std::string &startmarker, const std::string endmarker)
+{
+    size_t totalframe = getTotalFrame();
+    size_t stframe = mRenderDelegate->findFrameAtMarker(startmarker);
+    size_t edframe = mRenderDelegate->findFrameAtMarker(endmarker);
+
+    setMinProgress((float)stframe / (float)totalframe);
+    if (edframe != 0)
+      setMaxProgress((float)edframe / (float)totalframe);
+
+    this->play();
+}
+
 void LottieView::pause()
 {
 

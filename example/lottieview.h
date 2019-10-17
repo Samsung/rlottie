@@ -36,6 +36,7 @@
 #include "rlottie_capi.h"
 #include<future>
 #include <cmath>
+#include <algorithm>
 
 class RenderStrategy {
 public:
@@ -65,6 +66,8 @@ public:
     }
     virtual void resize(int width, int height) = 0;
     virtual void setPos(int x, int y) {evas_object_move(renderObject(), x, y);}
+    virtual size_t findFrameAtMarker(const std::string &markerName) = 0;
+    virtual size_t findDurationFrameAtMarker(const std::string &markerName) = 0;
     void show() {evas_object_show(_renderObject);}
     void hide() {evas_object_hide(_renderObject);}
     void addCallback();
@@ -93,6 +96,7 @@ public:
     void loadFromData(const std::string &jsonData, const std::string &key, const std::string &resourcePath)
     {
         mPlayer = rlottie::Animation::loadFromData(jsonData, key, resourcePath);
+
         if (!mPlayer) {
             printf("load failed from data\n");
         }
@@ -112,6 +116,30 @@ public:
 
     size_t frameAtPos(double pos) {
         return  mPlayer->frameAtPos(pos);
+    }
+
+    size_t findFrameAtMarker(const std::string &markerName)
+    {
+        auto markerList = mPlayer->markers();
+        auto marker = std::find_if(markerList.begin(), markerList.end()
+                                   , [&markerName](const auto& e) {
+                                        return std::get<0>(e) == markerName;
+                                     });
+        if (marker == markerList.end())
+           return 0;
+        return std::get<1>(*marker);
+    }
+
+    size_t findDurationFrameAtMarker(const std::string &markerName)
+    {
+        auto markerList = mPlayer->markers();
+        auto marker = std::find_if(markerList.begin(), markerList.end()
+                                   , [&markerName](const auto& e) {
+                                        return std::get<0>(e) == markerName;
+                                     });
+        if (marker == markerList.end())
+           return 0;
+        return std::get<2>(*marker);
     }
 protected:
    std::unique_ptr<rlottie::Animation>       mPlayer;
@@ -231,6 +259,17 @@ public:
     double duration() {
         return lottie_animation_get_duration(mPlayer);
     }
+    size_t findFrameAtMarker(const std::string &markerName)
+    {
+        printf("Can't not [%s] marker, CAPI isn't implements yet\n", markerName.c_str());
+        return 0;
+    }
+
+    size_t findDurationFrameAtMarker(const std::string &markerName)
+    {
+        printf("Can't not [%s] marker, CAPI isn't implements yet\n", markerName.c_str());
+        return 0;
+    }
 
     bool renderRequest(int frame) {
         int width , height;
@@ -318,6 +357,8 @@ public:
     float getPos();
     void finished();
     void play();
+    void play(const std::string &marker);
+    void play(const std::string &startmarker, const std::string endmarker);
     void pause();
     void stop();
     void initializeBufferObject(Evas *evas);
