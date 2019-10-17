@@ -22,6 +22,17 @@ executable('demo',
            link_with : rlottie_lib,
            dependencies : demo_dep)
 
+
+demo_marker_sources = files('demo_marker.cpp')
+demo_marker_sources += common_source
+
+executable('demo_marker',
+           demo_marker_sources,
+           include_directories : inc,
+           override_options : override_default,
+           link_with : rlottie_lib,
+           dependencies : demo_dep)
+
 lottieview_test_src  = files('lottieviewtest.cpp')
 lottieview_test_src += common_source
 
