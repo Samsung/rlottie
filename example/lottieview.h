@@ -66,8 +66,8 @@ public:
     }
     virtual void resize(int width, int height) = 0;
     virtual void setPos(int x, int y) {evas_object_move(renderObject(), x, y);}
-    virtual size_t findFrameAtMarker(const std::string &markerName) = 0;
-    virtual size_t findDurationFrameAtMarker(const std::string &markerName) = 0;
+    typedef std::tuple<size_t, size_t> MarkerFrame;
+    virtual MarkerFrame findFrameAtMarker(const std::string &markerName) = 0;
     void show() {evas_object_show(_renderObject);}
     void hide() {evas_object_hide(_renderObject);}
     void addCallback();
@@ -118,7 +118,7 @@ public:
         return  mPlayer->frameAtPos(pos);
     }
 
-    size_t findFrameAtMarker(const std::string &markerName)
+    MarkerFrame findFrameAtMarker(const std::string &markerName)
     {
         auto markerList = mPlayer->markers();
         auto marker = std::find_if(markerList.begin(), markerList.end()
@@ -126,21 +126,10 @@ public:
                                         return std::get<0>(e) == markerName;
                                      });
         if (marker == markerList.end())
-           return 0;
-        return std::get<1>(*marker);
+           return std::make_tuple(0, 0);
+        return std::make_tuple(std::get<1>(*marker), std::get<2>(*marker));
     }
 
-    size_t findDurationFrameAtMarker(const std::string &markerName)
-    {
-        auto markerList = mPlayer->markers();
-        auto marker = std::find_if(markerList.begin(), markerList.end()
-                                   , [&markerName](const auto& e) {
-                                        return std::get<0>(e) == markerName;
-                                     });
-        if (marker == markerList.end())
-           return 0;
-        return std::get<2>(*marker);
-    }
 protected:
    std::unique_ptr<rlottie::Animation>       mPlayer;
 };
@@ -259,16 +248,10 @@ public:
     double duration() {
         return lottie_animation_get_duration(mPlayer);
     }
-    size_t findFrameAtMarker(const std::string &markerName)
+    MarkerFrame findFrameAtMarker(const std::string &markerName)
     {
         printf("Can't not [%s] marker, CAPI isn't implements yet\n", markerName.c_str());
-        return 0;
-    }
-
-    size_t findDurationFrameAtMarker(const std::string &markerName)
-    {
-        printf("Can't not [%s] marker, CAPI isn't implements yet\n", markerName.c_str());
-        return 0;
+        return std::make_tuple(0, 0);
     }
 
     bool renderRequest(int frame) {
