@@ -155,6 +155,7 @@ create_layout(Evas_Object *parent, const char *file)
    //SLIDER
    slider = elm_slider_add(layout);
    elm_object_part_content_set(layout, "slider", slider);
+   elm_slider_step_set(slider, 0.01);
    evas_object_smart_callback_add(slider, "changed", _slider_cb, (void *)info);
 
    button = elm_button_add(layout);
