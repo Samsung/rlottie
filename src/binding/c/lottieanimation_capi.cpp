@@ -28,9 +28,10 @@ extern "C" {
 
 struct Lottie_Animation_S
 {
-    std::unique_ptr<Animation> mAnimation;
-    std::future<Surface>       mRenderTask;
-    uint32_t                  *mBufferRef;
+    std::unique_ptr<Animation>      mAnimation;
+    std::future<Surface>            mRenderTask;
+    uint32_t                       *mBufferRef;
+    LOTMarkerList                  *mMarkerList;
 };
 
 LOT_EXPORT Lottie_Animation_S *lottie_animation_from_file(const char *path)
@@ -58,6 +59,14 @@ LOT_EXPORT Lottie_Animation_S *lottie_animation_from_data(const char *data, cons
 LOT_EXPORT void lottie_animation_destroy(Lottie_Animation_S *animation)
 {
     if (animation) {
+        if (animation->mMarkerList) {
+            for(size_t i = 0; i < animation->mMarkerList->size; i++) {
+                if (animation->mMarkerList->ptr[i].name) free(animation->mMarkerList->ptr[i].name);
+            }
+            delete[] animation->mMarkerList->ptr;
+            delete animation->mMarkerList;
+        }
+
         if (animation->mRenderTask.valid()) {
             animation->mRenderTask.get();
         }
@@ -205,4 +214,26 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
     }
     va_end(prop);
 }
+
+LOT_EXPORT const LOTMarkerList*
+lottie_animation_get_markerlist(Lottie_Animation_S *animation)
+{
+   if (!animation) return nullptr;
+
+   auto markers = animation->mAnimation->markers();
+   if (markers.size() == 0) return nullptr;
+   if (animation->mMarkerList) return (const LOTMarkerList*)animation->mMarkerList;
+
+   animation->mMarkerList = new LOTMarkerList();
+   animation->mMarkerList->size = markers.size();
+   animation->mMarkerList->ptr = new LOTMarker[markers.size()]();
+
+   for(size_t i = 0; i < markers.size(); i++) {
+       animation->mMarkerList->ptr[i].name = strdup(std::get<0>(markers[i]).c_str());
+       animation->mMarkerList->ptr[i].startframe= std::get<1>(markers[i]);
+       animation->mMarkerList->ptr[i].endframe= std::get<2>(markers[i]);
+   }
+   return (const LOTMarkerList*)animation->mMarkerList;
+}
+
 }

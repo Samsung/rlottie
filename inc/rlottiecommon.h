@@ -118,6 +118,17 @@ typedef enum
     MatteLumaInv
 } LOTMatteType;
 
+typedef struct LOTMarker {
+   char *name;
+   size_t startframe;
+   size_t endframe;
+} LOTMarker;
+
+typedef struct LOTMarkerList {
+   LOTMarker *ptr;
+   size_t size;
+} LOTMarkerList;
+
 typedef struct LOTNode {
 
 #define ChangeFlagNone 0x0000

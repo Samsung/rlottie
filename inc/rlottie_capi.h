@@ -255,6 +255,21 @@ LOT_EXPORT uint32_t *lottie_animation_render_flush(Lottie_Animation *animation);
  * */
 LOT_EXPORT void lottie_animation_property_override(Lottie_Animation *animation, const Lottie_Animation_Property type, const char *keypath, ...);
 
+
+/**
+ *  @brief Returns list of markers in the Lottie resource
+ *  @p LOTMarkerList has a @p LOTMarker list and size of list
+ *  @p LOTMarker has the marker's name, start frame, and end frame.
+ *
+ *  @param[in] animation Animation object.
+ *
+ *  @return The list of marker. If there is no marker, return null.
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ * */
+LOT_EXPORT const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animation *animation);
+
 #ifdef __cplusplus
 }
 #endif
