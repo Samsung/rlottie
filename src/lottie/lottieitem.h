@@ -355,10 +355,10 @@ public:
    LOTPathDataItem(bool staticPath): mStaticPath(staticPath){}
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
    ContentType type() const final {return ContentType::Path;}
-   bool dirty() const {return mPathChanged;}
+   bool dirty() const {return mDirtyPath;}
    const VPath &localPath() const {return mTemp;}
-   const VPath &finalPath();
-   void updatePath(const VPath &path) {mTemp = path; mPathChanged = true; mNeedUpdate = true;}
+   void finalPath(VPath& result);
+   void updatePath(const VPath &path) {mTemp = path; mDirtyPath = true;}
    bool staticPath() const { return mStaticPath; }
    void setParent(LOTContentGroupItem *parent) {mParent = parent;}
    LOTContentGroupItem *parent() const {return mParent;}
@@ -377,10 +377,8 @@ private:
    LOTContentGroupItem                    *mParent{nullptr};
    VPath                                   mLocalPath;
    VPath                                   mTemp;
-   VPath                                   mFinalPath;
    int                                     mFrameNo{-1};
-   bool                                    mPathChanged{true};
-   bool                                    mNeedUpdate{true};
+   bool                                    mDirtyPath{true};
    bool                                    mStaticPath;
 };
 

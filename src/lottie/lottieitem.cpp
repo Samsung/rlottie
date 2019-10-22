@@ -1015,21 +1015,26 @@ void LOTContentGroupItem::processTrimItems(std::vector<LOTPathDataItem *> &list)
 }
 
 /*
- * LOTPathDataItem uses 3 path objects for path object reuse.
+ * LOTPathDataItem uses 2 path objects for path object reuse.
  * mLocalPath -  keeps track of the local path of the item before
  * applying path operation and transformation.
  * mTemp - keeps a referece to the mLocalPath and can be updated by the
  *          path operation objects(trim, merge path),
- *  mFinalPath - it takes a deep copy of the intermediate path(mTemp) each time
- *  when the path is dirty(so if path changes every frame we don't realloc just
- * copy to the final path). NOTE: As path objects are COW objects we have to be
+ * We update the DirtyPath flag if the path needs to be updated again
+ * beacuse of local path or matrix or some path operation has changed which
+ * affects the final path.
+ * The PaintObject queries the dirty flag to check if it needs to compute the
+ * final path again and calls finalPath() api to do the same.
+ * finalPath() api passes a result Object so that we keep only one copy of
+ * the path object in the paintItem (for memory efficiency).
+ *   NOTE: As path objects are COW objects we have to be
  * carefull about the refcount so that we don't generate deep copy while
  * modifying the path objects.
  */
 void LOTPathDataItem::update(int              frameNo, const VMatrix &, float,
                              const DirtyFlag &flag)
 {
-    mPathChanged = false;
+    mDirtyPath = false;
 
     // 1. update the local path if needed
     if (hasChanged(frameNo)) {
@@ -1038,30 +1043,24 @@ void LOTPathDataItem::update(int              frameNo, const VMatrix &, float,
         mTemp = VPath();
 
         updatePath(mLocalPath, frameNo);
-        mPathChanged = true;
-        mNeedUpdate = true;
+        mDirtyPath = true;
     }
     // 2. keep a reference path in temp in case there is some
     // path operation like trim which will update the path.
     // we don't want to update the local path.
     mTemp = mLocalPath;
 
-    // 3. compute the final path with parentMatrix
-    if ((flag & DirtyFlagBit::Matrix) || mPathChanged) {
-        mPathChanged = true;
+    // 3. mark the path dirty if matrix has changed.
+    if (flag & DirtyFlagBit::Matrix) {
+        mDirtyPath = true;
     }
 }
 
-const VPath &LOTPathDataItem::finalPath()
+void LOTPathDataItem::finalPath(VPath& result)
 {
-    if (mPathChanged || mNeedUpdate) {
-        mFinalPath.clone(mTemp);
-        mFinalPath.transform(
-            static_cast<LOTContentGroupItem *>(parent())->matrix());
-        mNeedUpdate = false;
-    }
-    return mFinalPath;
+    result.addPath(mTemp, static_cast<LOTContentGroupItem *>(parent())->matrix());
 }
+
 LOTRectItem::LOTRectItem(LOTRectData *data)
     : LOTPathDataItem(data->isStatic()), mData(data)
 {
@@ -1162,11 +1161,10 @@ void LOTPaintDataItem::updateRenderNode()
         }
     }
 
-    if (dirty || mPath.empty()) {
+    if (dirty) {
         mPath.reset();
-
-        for (auto &i : mPathItems) {
-            mPath.addPath(i->finalPath());
+        for (const auto &i : mPathItems) {
+            i->finalPath(mPath);
         }
         mDrawable.setPath(mPath);
     } else {

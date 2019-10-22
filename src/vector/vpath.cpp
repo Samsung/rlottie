@@ -676,7 +676,7 @@ void VPath::VPathData::addPolygon(float points, float radius, float roundness,
     close();
 }
 
-void VPath::VPathData::addPath(const VPathData &path)
+void VPath::VPathData::addPath(const VPathData &path, const VMatrix *m)
 {
     size_t segment = path.segments();
 
@@ -687,8 +687,15 @@ void VPath::VPathData::addPath(const VPathData &path)
     if (m_elements.capacity() < m_elements.size() + path.m_elements.size())
         m_elements.reserve(m_elements.size() + path.m_elements.size());
 
-    std::copy(path.m_points.begin(), path.m_points.end(),
-              back_inserter(m_points));
+    if (m) {
+        for (const auto &i : path.m_points) {
+            m_points.push_back(m->map(i));
+        }
+    } else {
+        std::copy(path.m_points.begin(), path.m_points.end(),
+                  back_inserter(m_points));
+    }
+
     std::copy(path.m_elements.begin(), path.m_elements.end(),
               back_inserter(m_elements));
 
