@@ -63,6 +63,7 @@ public:
                      float startAngle, float cx, float cy,
                      VPath::Direction dir = Direction::CW);
     void addPath(const VPath &path);
+    void  addPath(const VPath &path, const VMatrix &m);
     void  transform(const VMatrix &m);
     float length() const;
     const std::vector<VPath::Element> &elements() const;
@@ -98,7 +99,7 @@ private:
         void  addPolygon(float points, float radius, float roundness,
                          float startAngle, float cx, float cy,
                          VPath::Direction dir = Direction::CW);
-        void  addPath(const VPathData &path);
+        void  addPath(const VPathData &path, const VMatrix *m = nullptr);
         void  clone(const VPath::VPathData &o) { *this = o;}
         const std::vector<VPath::Element> &elements() const
         {
@@ -251,6 +252,13 @@ inline void VPath::addPath(const VPath &path)
     } else {
         d.write().addPath(path.d.read());
     }
+}
+
+inline void  VPath::addPath(const VPath &path, const VMatrix &m)
+{
+    if (path.empty()) return;
+
+    d.write().addPath(path.d.read(), &m);
 }
 
 inline const std::vector<VPath::Element> &VPath::elements() const
