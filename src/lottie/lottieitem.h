@@ -91,12 +91,14 @@ class LOTClipperItem
 public:
     explicit LOTClipperItem(VSize size): mSize(size){}
     void update(const VMatrix &matrix);
+    void preprocess(const VRect &clip);
     VRle rle(const VRle& mask);
 public:
     VSize                    mSize;
     VPath                    mPath;
     VRle                     mMaskedRle;
     VRasterizer              mRasterizer;
+    bool                     mRasterRequest{false};
 };
 
 typedef vFlag<DirtyFlagBit> DirtyFlag;
@@ -123,6 +125,7 @@ public:
    bool complexContent() const {return mComplexContent;}
    virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha);
    VMatrix matrix(int frameNo) const;
+   void preprocess(const VRect& clip);
    virtual void renderList(std::vector<VDrawable *> &){}
    virtual void render(VPainter *painter, const VRle &mask, const VRle &matteRle);
    bool hasMatte() { if (mLayerData->mMatteType == MatteType::None) return false; return true; }
@@ -137,6 +140,7 @@ public:
    virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
    VBitmap& bitmap() {return mRenderBuffer;}
 protected:
+   virtual void preprocessStage(const VRect& clip) = 0;
    virtual void updateContent() = 0;
    inline VMatrix combinedMatrix() const {return mCombinedMatrix;}
    inline int frameNo() const {return mFrameNo;}
@@ -144,6 +148,7 @@ protected:
    inline bool isStatic() const {return mLayerData->isStatic();}
    float opacity(int frameNo) const {return mLayerData->opacity(frameNo);}
    inline DirtyFlag flag() const {return mDirtyFlag;}
+   bool skipRendering() const {return (!visible() || vIsZero(combinedAlpha()));}
 protected:
    std::vector<VDrawable *>                    mDrawableList;
    std::unique_ptr<LOTLayerMaskItem>           mLayerMask;
@@ -162,11 +167,13 @@ class LOTCompLayerItem: public LOTLayerItem
 {
 public:
    explicit LOTCompLayerItem(LOTLayerData *layerData);
+
    void renderList(std::vector<VDrawable *> &list)final;
    void render(VPainter *painter, const VRle &mask, const VRle &matteRle) final;
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
+   void preprocessStage(const VRect& clip) final;
    void updateContent() final;
 private:
     void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle);
@@ -183,6 +190,7 @@ public:
    explicit LOTSolidLayerItem(LOTLayerData *layerData);
    void buildLayerNode() final;
 protected:
+   void preprocessStage(const VRect& clip) final;
    void updateContent() final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
@@ -200,6 +208,7 @@ public:
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
+   void preprocessStage(const VRect& clip) final;
    void updateContent() final;
    std::unique_ptr<LOTContentGroupItem> mRoot;
 };
@@ -209,6 +218,7 @@ class LOTNullLayerItem: public LOTLayerItem
 public:
    explicit LOTNullLayerItem(LOTLayerData *layerData);
 protected:
+   void preprocessStage(const VRect&) final {}
    void updateContent() final;
 };
 
@@ -218,6 +228,7 @@ public:
    explicit LOTImageLayerItem(LOTLayerData *layerData);
    void buildLayerNode() final;
 protected:
+   void preprocessStage(const VRect& clip) final;
    void updateContent() final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
@@ -232,6 +243,7 @@ public:
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag);
     LOTMaskData::Mode maskMode() const { return mData->mMode;}
     VRle rle();
+    void preprocess(const VRect &clip);
 public:
     LOTMaskData             *mData;
     float                    mCombinedAlpha{0};
@@ -252,6 +264,7 @@ public:
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag);
     bool isStatic() const {return mStatic;}
     VRle maskRle(const VRect &clipRect);
+    void preprocess(const VRect &clip);
 public:
     std::vector<LOTMaskItem>   mMasks;
     VRle                       mRle;
