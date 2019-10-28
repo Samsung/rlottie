@@ -149,12 +149,8 @@ bool LOTCompItem::render(const rlottie::Surface &surface)
 
     /* schedule all preprocess task for this frame at once.
      */
-    mDrawableList.clear();
-    mRootLayer->renderList(mDrawableList);
     VRect clip(0, 0, int(surface.drawRegionWidth()), int(surface.drawRegionHeight()));
-    for (auto &e : mDrawableList) {
-        e->preprocess(clip);
-    }
+    mRootLayer->preprocess(clip);
 
     mPainter.begin(&mSurface);
     // set sub surface area for drawing.
@@ -184,7 +180,6 @@ void LOTMaskItem::update(int frameNo, const VMatrix &            parentMatrix,
     mFinalPath.clone(mLocalPath);
     mFinalPath.transform(parentMatrix);
 
-    mRasterizer.rasterize(mFinalPath);
     mRasterRequest = true;
 }
 
@@ -197,6 +192,11 @@ VRle LOTMaskItem::rle()
         if (mData->mInv) mRasterizer.rle().invert();
     }
     return mRasterizer.rle();
+}
+
+void LOTMaskItem::preprocess(const VRect &clip)
+{
+    if (mRasterRequest) mRasterizer.rasterize(mFinalPath, FillRule::Winding, clip);
 }
 
 void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
@@ -241,6 +241,14 @@ void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
         }
     }
 }
+
+void LOTLayerMaskItem::preprocess(const VRect &clip)
+{
+    for (auto &i : mMasks) {
+        i.preprocess(clip);
+    }
+}
+
 
 LOTLayerMaskItem::LOTLayerMaskItem(LOTLayerData *layerData)
 {
@@ -413,6 +421,17 @@ bool LOTLayerItem::visible() const
             frameNo() < mLayerData->outFrame());
 }
 
+void LOTLayerItem::preprocess(const VRect& clip)
+{
+    // layer dosen't contribute to the frame
+    if (skipRendering()) return;
+
+    // preprocess layer masks
+    if (mLayerMask) mLayerMask->preprocess(clip);
+
+    preprocessStage(clip);
+}
+
 LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel)
     : LOTLayerItem(layerModel)
 {
@@ -564,7 +583,15 @@ void LOTClipperItem::update(const VMatrix &matrix)
     mPath.reset();
     mPath.addRect(VRectF(0, 0, mSize.width(), mSize.height()));
     mPath.transform(matrix);
-    mRasterizer.rasterize(mPath);
+    mRasterRequest = true;
+}
+
+void LOTClipperItem::preprocess(const VRect &clip)
+{
+    if (mRasterRequest)
+        mRasterizer.rasterize(mPath, FillRule::Winding, clip);
+
+    mRasterRequest = false;
 }
 
 VRle LOTClipperItem::rle(const VRle& mask)
@@ -590,9 +617,33 @@ void LOTCompLayerItem::updateContent()
     }
 }
 
+void LOTCompLayerItem::preprocessStage(const VRect &clip)
+{
+    // if layer has clipper
+    if (mClipper) mClipper->preprocess(clip);
+
+    LOTLayerItem *matte = nullptr;
+    for (const auto &layer : mLayers) {
+        if (layer->hasMatte()) {
+            matte = layer.get();
+        } else {
+            if (layer->visible()) {
+                if (matte) {
+                    if (matte->visible()) {
+                        layer->preprocess(clip);
+                        matte->preprocess(clip);
+                    }
+                } else {
+                    layer->preprocess(clip);
+                }
+            }
+            matte = nullptr;
+        }
+    }
+}
 void LOTCompLayerItem::renderList(std::vector<VDrawable *> &list)
 {
-    if (!visible() || vIsZero(combinedAlpha())) return;
+    if (skipRendering()) return;
 
     LOTLayerItem *matte = nullptr;
     for (const auto &layer : mLayers) {
@@ -639,9 +690,14 @@ void LOTSolidLayerItem::updateContent()
     }
 }
 
+void LOTSolidLayerItem::preprocessStage(const VRect& clip)
+{
+    mRenderNode.preprocess(clip);
+}
+
 void LOTSolidLayerItem::renderList(std::vector<VDrawable *> &list)
 {
-    if (!visible() || vIsZero(combinedAlpha())) return;
+    if (skipRendering()) return;
 
     list.push_back(&mRenderNode);
 }
@@ -675,9 +731,14 @@ void LOTImageLayerItem::updateContent()
     }
 }
 
+void LOTImageLayerItem::preprocessStage(const VRect& clip)
+{
+    mRenderNode.preprocess(clip);
+}
+
 void LOTImageLayerItem::renderList(std::vector<VDrawable *> &list)
 {
-    if (!visible() || vIsZero(combinedAlpha())) return;
+    if (skipRendering()) return;
 
     list.push_back(&mRenderNode);
 }
@@ -766,9 +827,18 @@ void LOTShapeLayerItem::updateContent()
     }
 }
 
+void LOTShapeLayerItem::preprocessStage(const VRect& clip)
+{
+    mDrawableList.clear();
+    mRoot->renderList(mDrawableList);
+
+    for (auto &drawable : mDrawableList) drawable->preprocess(clip);
+
+}
+
 void LOTShapeLayerItem::renderList(std::vector<VDrawable *> &list)
 {
-    if (!visible() || vIsZero(combinedAlpha())) return;
+    if (skipRendering()) return;
     mRoot->renderList(list);
 }
 
