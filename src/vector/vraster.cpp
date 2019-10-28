@@ -275,18 +275,27 @@ public:
         }
         _cv.notify_one();
     }
+    void wait()
+    {
+        if (!_pending) return;
+
+        {
+            std::unique_lock<std::mutex> lock(_mutex);
+            while (!_ready) _cv.wait(lock);
+        }
+
+        _pending = false;
+    }
+
     VRle &get()
     {
-        if (!_pending) return _rle;
-
-        std::unique_lock<std::mutex> lock(_mutex);
-        while (!_ready) _cv.wait(lock);
-        _pending = false;
+        wait();
         return _rle;
     }
 
     void reset()
     {
+        wait();
         _ready = false;
         _pending = true;
     }
