@@ -78,10 +78,8 @@ private:
    VSize                                       mViewSize;
    LOTCompositionData                         *mCompData;
    std::unique_ptr<LOTLayerItem>               mRootLayer;
-   bool                                        mKeepAspectRatio{true};
    int                                         mCurFrameNo;
-   std::vector<LOTNode *>                      mRenderList;
-   std::vector<VDrawable *>                    mDrawableList;
+   bool                                        mKeepAspectRatio{true};
 };
 
 class LOTLayerMaskItem;
@@ -112,6 +110,38 @@ struct LOTCApiData
     std::vector<LOTNode *>        mCNodeList;
 };
 
+template< class T>
+class VSpan
+{
+public:
+    using reference         = T &;
+    using pointer           = T *;
+    using const_pointer     = T const *;
+    using const_reference   = T const &;
+    using index_type        = size_t;
+
+    using iterator          = pointer;
+    using const_iterator    = const_pointer;
+
+    VSpan() = default;
+    VSpan(pointer data, index_type size):_data(data), _size(size){}
+
+    constexpr pointer data() const noexcept {return _data; }
+    constexpr index_type size() const noexcept {return _size; }
+    constexpr bool empty() const noexcept { return size() == 0 ;}
+    constexpr iterator begin() const noexcept { return data(); }
+    constexpr iterator end() const noexcept {return data() + size() ;}
+    constexpr const_iterator cbegin() const noexcept {return  data();}
+    constexpr const_iterator cend() const noexcept { return data() + size();}
+    constexpr reference operator[]( index_type idx ) const { return *( data() + idx );}
+
+private:
+    pointer      _data{nullptr};
+    index_type   _size{0};
+};
+
+using DrawableList = VSpan<VDrawable *>;
+
 class LOTLayerItem
 {
 public:
@@ -126,7 +156,7 @@ public:
    virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha);
    VMatrix matrix(int frameNo) const;
    void preprocess(const VRect& clip);
-   virtual void renderList(std::vector<VDrawable *> &){}
+   virtual DrawableList renderList(){ return {};}
    virtual void render(VPainter *painter, const VRle &mask, const VRle &matteRle);
    bool hasMatte() { if (mLayerData->mMatteType == MatteType::None) return false; return true; }
    MatteType matteType() const { return mLayerData->mMatteType;}
@@ -150,7 +180,6 @@ protected:
    inline DirtyFlag flag() const {return mDirtyFlag;}
    bool skipRendering() const {return (!visible() || vIsZero(combinedAlpha()));}
 protected:
-   std::vector<VDrawable *>                    mDrawableList;
    std::unique_ptr<LOTLayerMaskItem>           mLayerMask;
    LOTLayerData                               *mLayerData{nullptr};
    LOTLayerItem                               *mParentLayer{nullptr};
@@ -168,7 +197,6 @@ class LOTCompLayerItem: public LOTLayerItem
 public:
    explicit LOTCompLayerItem(LOTLayerData *layerData);
 
-   void renderList(std::vector<VDrawable *> &list)final;
    void render(VPainter *painter, const VRle &mask, const VRle &matteRle) final;
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
@@ -189,12 +217,13 @@ class LOTSolidLayerItem: public LOTLayerItem
 public:
    explicit LOTSolidLayerItem(LOTLayerData *layerData);
    void buildLayerNode() final;
+   DrawableList renderList() final;
 protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
-   void renderList(std::vector<VDrawable *> &list) final;
 private:
    LOTDrawable                  mRenderNode;
+   VDrawable                   *mDrawableList{nullptr}; //to work with the Span api
 };
 
 class LOTContentItem;
@@ -204,12 +233,13 @@ class LOTShapeLayerItem: public LOTLayerItem
 public:
    explicit LOTShapeLayerItem(LOTLayerData *layerData);
    static std::unique_ptr<LOTContentItem> createContentItem(LOTData *contentData);
-   void renderList(std::vector<VDrawable *> &list)final;
+   DrawableList renderList() final;
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
+   std::vector<VDrawable *>             mDrawableList;
    std::unique_ptr<LOTContentGroupItem> mRoot;
 };
 
@@ -227,13 +257,14 @@ class LOTImageLayerItem: public LOTLayerItem
 public:
    explicit LOTImageLayerItem(LOTLayerData *layerData);
    void buildLayerNode() final;
+   DrawableList renderList() final;
 protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
-   void renderList(std::vector<VDrawable *> &list) final;
 private:
    LOTDrawable                  mRenderNode;
    VTexture                     mTexture;
+   VDrawable                   *mDrawableList{nullptr}; //to work with the Span api
 };
 
 class LOTMaskItem
