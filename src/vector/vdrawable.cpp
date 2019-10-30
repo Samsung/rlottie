@@ -20,18 +20,52 @@
 #include "vdasher.h"
 #include "vraster.h"
 
+VDrawable::VDrawable(VDrawable::Type type)
+{
+    setType(type);
+}
+
+VDrawable::~VDrawable()
+{
+    if (mStrokeInfo) {
+        if (mType == Type::StrokeWithDash) {
+            delete static_cast<StrokeWithDashInfo *>(mStrokeInfo);
+        } else {
+            delete mStrokeInfo;
+        }
+    }
+}
+
+void VDrawable::setType(VDrawable::Type type)
+{
+    mType = type;
+    if (mType == VDrawable::Type::Stroke) {
+        mStrokeInfo = new StrokeInfo();
+    } else if (mType == VDrawable::Type::StrokeWithDash) {
+        mStrokeInfo = new StrokeWithDashInfo();
+    }
+}
+
+void VDrawable::applyDashOp()
+{
+    if (mStrokeInfo && (mType == Type::StrokeWithDash)) {
+        auto obj = static_cast<StrokeWithDashInfo *>(mStrokeInfo);
+        if (!obj->mDash.empty()) {
+            VDasher dasher(obj->mDash.data(), obj->mDash.size());
+            mPath.clone(dasher.dashed(mPath));
+        }
+    }
+}
+
 void VDrawable::preprocess(const VRect &clip)
 {
     if (mFlag & (DirtyState::Path)) {
-        if (mStroke.enable) {
-            if (mStroke.mDash.size()) {
-                VDasher dasher(mStroke.mDash.data(), mStroke.mDash.size());
-                mPath.clone(dasher.dashed(mPath));
-            }
-            mRasterizer.rasterize(std::move(mPath), mStroke.cap, mStroke.join,
-                                  mStroke.width, mStroke.miterLimit, clip);
-        } else {
+        if (mType == Type::Fill) {
             mRasterizer.rasterize(std::move(mPath), mFillRule, clip);
+        } else {
+            applyDashOp();
+            mRasterizer.rasterize(std::move(mPath), mStrokeInfo->cap, mStrokeInfo->join,
+                                  mStrokeInfo->width, mStrokeInfo->miterLimit, clip);
         }
         mPath = {};
         mFlag &= ~DirtyFlag(DirtyState::Path);
@@ -46,26 +80,30 @@ VRle VDrawable::rle()
 void VDrawable::setStrokeInfo(CapStyle cap, JoinStyle join, float miterLimit,
                               float strokeWidth)
 {
-    if ((mStroke.cap == cap) && (mStroke.join == join) &&
-        vCompare(mStroke.miterLimit, miterLimit) &&
-        vCompare(mStroke.width, strokeWidth))
+    assert(mStrokeInfo);
+    if ((mStrokeInfo->cap == cap) && (mStrokeInfo->join == join) &&
+        vCompare(mStrokeInfo->miterLimit, miterLimit) &&
+        vCompare(mStrokeInfo->width, strokeWidth))
         return;
 
-    mStroke.enable = true;
-    mStroke.cap = cap;
-    mStroke.join = join;
-    mStroke.miterLimit = miterLimit;
-    mStroke.width = strokeWidth;
+    mStrokeInfo->cap = cap;
+    mStrokeInfo->join = join;
+    mStrokeInfo->miterLimit = miterLimit;
+    mStrokeInfo->width = strokeWidth;
     mFlag |= DirtyState::Path;
 }
 
 void VDrawable::setDashInfo(std::vector<float> &dashInfo)
 {
+    assert(mStrokeInfo);
+    assert(mType == VDrawable::Type::StrokeWithDash);
+
+    auto obj = static_cast<StrokeWithDashInfo *>(mStrokeInfo);
     bool hasChanged = false;
 
-    if (mStroke.mDash.size() == dashInfo.size()) {
-        for (uint i = 0; i < dashInfo.size(); i++) {
-            if (!vCompare(mStroke.mDash[i], dashInfo[i])) {
+    if (obj->mDash.size() == dashInfo.size()) {
+        for (uint i = 0; i < dashInfo.size(); ++i) {
+            if (!vCompare(obj->mDash[i], dashInfo[i])) {
                 hasChanged = true;
                 break;
             }
@@ -76,7 +114,7 @@ void VDrawable::setDashInfo(std::vector<float> &dashInfo)
 
     if (!hasChanged) return;
 
-    mStroke.mDash = dashInfo;
+    obj->mDash = dashInfo;
 
     mFlag |= DirtyState::Path;
 }

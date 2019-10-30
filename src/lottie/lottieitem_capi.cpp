@@ -234,10 +234,7 @@ void LOTDrawable::sync()
     if (mFlag & DirtyState::None) return;
 
     if (mFlag & DirtyState::Path) {
-        if (!mStroke.mDash.empty()) {
-            VDasher dasher(mStroke.mDash.data(), mStroke.mDash.size());
-            mPath = dasher.dashed(mPath);
-        }
+        applyDashOp();
         const std::vector<VPath::Element> &elm = mPath.elements();
         const std::vector<VPointF> &       pts = mPath.points();
         const float *ptPtr = reinterpret_cast<const float *>(pts.data());
@@ -249,12 +246,12 @@ void LOTDrawable::sync()
         mCNode->mFlag |= ChangeFlagPath;
     }
 
-    if (mStroke.enable) {
-        mCNode->mStroke.width = mStroke.width;
-        mCNode->mStroke.miterLimit = mStroke.miterLimit;
+    if (mStrokeInfo) {
+        mCNode->mStroke.width = mStrokeInfo->width;
+        mCNode->mStroke.miterLimit = mStrokeInfo->miterLimit;
         mCNode->mStroke.enable = 1;
 
-        switch (mStroke.cap) {
+        switch (mStrokeInfo->cap) {
         case CapStyle::Flat:
             mCNode->mStroke.cap = LOTCapStyle::CapFlat;
             break;
@@ -266,7 +263,7 @@ void LOTDrawable::sync()
             break;
         }
 
-        switch (mStroke.join) {
+        switch (mStrokeInfo->join) {
         case JoinStyle::Miter:
             mCNode->mStroke.join = LOTJoinStyle::JoinMiter;
             break;
