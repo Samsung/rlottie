@@ -437,7 +437,7 @@ class RleTaskScheduler {
         while (true) {
             bool success = false;
 
-            for (unsigned n = 0; n != _count * 32; ++n) {
+            for (unsigned n = 0; n != _count * 2; ++n) {
                 if (_q[(i + n) % _count].try_pop(task)) {
                     success = true;
                     break;
