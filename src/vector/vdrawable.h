@@ -27,11 +27,11 @@
 class VDrawable {
 public:
     enum class DirtyState : unsigned char {
-        None = 1<<1,
-        Path = 1<<2,
-        Stroke = 1<<3,
-        Brush = 1<<4,
-        All = (None | Path | Stroke | Brush)
+        None = 1<<0,
+        Path = 1<<1,
+        Stroke = 1<<2,
+        Brush = 1<<3,
+        All = (Path | Stroke | Brush)
     };
 
     enum class Type : unsigned char{
