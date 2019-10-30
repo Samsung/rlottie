@@ -1234,7 +1234,14 @@ bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha
 }
 
 LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
-    : LOTPaintDataItem(data->isStatic()), mModel(data){}
+    : LOTPaintDataItem(data->isStatic()), mModel(data)
+{
+    if (mModel.hasDashInfo()) {
+        mDrawable.setType(VDrawable::Type::StrokeWithDash);
+    } else {
+        mDrawable.setType(VDrawable::Type::Stroke);
+    }
+}
 
 static thread_local std::vector<float> Dash_Vector;
 
@@ -1264,7 +1271,14 @@ bool LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alph
 }
 
 LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
-    : LOTPaintDataItem(data->isStatic()), mData(data){}
+    : LOTPaintDataItem(data->isStatic()), mData(data)
+{
+    if (mData->hasDashInfo()) {
+        mDrawable.setType(VDrawable::Type::StrokeWithDash);
+    } else {
+        mDrawable.setType(VDrawable::Type::Stroke);
+    }
+}
 
 bool LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
