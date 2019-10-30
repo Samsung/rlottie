@@ -202,8 +202,9 @@ void LOTMaskItem::preprocess(const VRect &clip)
 void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
                           const VRle &matteRle)
 {
-    mDrawableList.clear();
-    renderList(mDrawableList);
+    auto renderlist = renderList();
+
+    if (renderlist.empty()) return;
 
     VRle mask;
     if (mLayerMask) {
@@ -215,7 +216,7 @@ void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
         mask = inheritMask;
     }
 
-    for (auto &i : mDrawableList) {
+    for (auto &i : renderlist) {
         painter->setBrush(i->mBrush);
         VRle rle = i->rle();
         if (matteRle.empty()) {
@@ -641,33 +642,11 @@ void LOTCompLayerItem::preprocessStage(const VRect &clip)
         }
     }
 }
-void LOTCompLayerItem::renderList(std::vector<VDrawable *> &list)
-{
-    if (skipRendering()) return;
-
-    LOTLayerItem *matte = nullptr;
-    for (const auto &layer : mLayers) {
-        if (layer->hasMatte()) {
-            matte = layer.get();
-        } else {
-            if (layer->visible()) {
-                if (matte) {
-                    if (matte->visible()) {
-                        layer->renderList(list);
-                        matte->renderList(list);
-                    }
-                } else {
-                    layer->renderList(list);
-                }
-            }
-            matte = nullptr;
-        }
-    }
-}
 
 LOTSolidLayerItem::LOTSolidLayerItem(LOTLayerData *layerData)
     : LOTLayerItem(layerData)
 {
+    mDrawableList = &mRenderNode;
 }
 
 void LOTSolidLayerItem::updateContent()
@@ -695,16 +674,18 @@ void LOTSolidLayerItem::preprocessStage(const VRect& clip)
     mRenderNode.preprocess(clip);
 }
 
-void LOTSolidLayerItem::renderList(std::vector<VDrawable *> &list)
+DrawableList LOTSolidLayerItem::renderList()
 {
-    if (skipRendering()) return;
+    if (skipRendering()) return {};
 
-    list.push_back(&mRenderNode);
+    return {&mDrawableList , 1};
 }
 
 LOTImageLayerItem::LOTImageLayerItem(LOTLayerData *layerData)
     : LOTLayerItem(layerData)
 {
+    mDrawableList = &mRenderNode;
+
     if (!mLayerData->asset()) return;
 
     mTexture.mBitmap = mLayerData->asset()->bitmap();
@@ -736,11 +717,11 @@ void LOTImageLayerItem::preprocessStage(const VRect& clip)
     mRenderNode.preprocess(clip);
 }
 
-void LOTImageLayerItem::renderList(std::vector<VDrawable *> &list)
+DrawableList LOTImageLayerItem::renderList()
 {
-    if (skipRendering()) return;
+    if (skipRendering()) return {};
 
-    list.push_back(&mRenderNode);
+    return {&mDrawableList , 1};
 }
 
 LOTNullLayerItem::LOTNullLayerItem(LOTLayerData *layerData)
@@ -836,10 +817,16 @@ void LOTShapeLayerItem::preprocessStage(const VRect& clip)
 
 }
 
-void LOTShapeLayerItem::renderList(std::vector<VDrawable *> &list)
+DrawableList LOTShapeLayerItem::renderList()
 {
-    if (skipRendering()) return;
-    mRoot->renderList(list);
+    if (skipRendering()) return {};
+
+    mDrawableList.clear();
+    mRoot->renderList(mDrawableList);
+
+    if (mDrawableList.empty()) return {};
+
+    return {mDrawableList.data() , mDrawableList.size()};
 }
 
 bool LOTContentGroupItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,

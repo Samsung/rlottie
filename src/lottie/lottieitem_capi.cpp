@@ -69,11 +69,10 @@ void LOTShapeLayerItem::buildLayerNode()
 {
     LOTLayerItem::buildLayerNode();
 
-    mDrawableList.clear();
-    renderList(mDrawableList);
+    auto renderlist = renderList();
 
     cnodes().clear();
-    for (auto &i : mDrawableList) {
+    for (auto &i : renderlist) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
         cnodes().push_back(lotDrawable->mCNode.get());
@@ -152,11 +151,10 @@ void LOTSolidLayerItem::buildLayerNode()
 {
     LOTLayerItem::buildLayerNode();
 
-    mDrawableList.clear();
-    renderList(mDrawableList);
+    auto renderlist = renderList();
 
     cnodes().clear();
-    for (auto &i : mDrawableList) {
+    for (auto &i : renderlist) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
         cnodes().push_back(lotDrawable->mCNode.get());
@@ -169,11 +167,10 @@ void LOTImageLayerItem::buildLayerNode()
 {
     LOTLayerItem::buildLayerNode();
 
-    mDrawableList.clear();
-    renderList(mDrawableList);
+    auto renderlist = renderList();
 
     cnodes().clear();
-    for (auto &i : mDrawableList) {
+    for (auto &i : renderlist) {
         auto lotDrawable = static_cast<LOTDrawable *>(i);
         lotDrawable->sync();
 
