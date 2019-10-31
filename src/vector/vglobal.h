@@ -70,47 +70,6 @@ using uchar  = uint8_t;
 #define VECTOR_FALLTHROUGH
 #endif
 
-#include <atomic>
-class RefCount {
-public:
-    explicit RefCount(int i) : atomic(i) {}
-    inline bool ref()
-    {
-        int count = atomic.load();
-        if (count == 0)  // !isSharable
-            return false;
-        if (count != -1)  // !isStatic
-            atomic.fetch_add(1);
-        return true;
-    }
-    inline bool deref()
-    {
-        int count = atomic.load();
-        if (count == 0)  // !isSharable
-            return false;
-        if (count == -1)  // isStatic
-            return true;
-        atomic.fetch_sub(1);
-        return (--count == 0);
-    }
-    bool isShared() const
-    {
-        int count = atomic.load();
-        return (count != 1) && (count != 0);
-    }
-    bool isStatic() const
-    {
-        // Persistent object, never deleted
-        int count = atomic.load();
-        return count == -1;
-    }
-    inline int count() const { return atomic; }
-    void       setOwned() { atomic.store(1); }
-
-private:
-    std::atomic<int> atomic;
-};
-
 template <typename T>
 V_CONSTEXPR inline const T &vMin(const T &a, const T &b)
 {

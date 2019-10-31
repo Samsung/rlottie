@@ -24,7 +24,6 @@
 #include <vector>
 #include "vdebug.h"
 #include "vglobal.h"
-#include "vregion.h"
 
 V_BEGIN_NAMESPACE
 
@@ -316,11 +315,7 @@ void VRle::VRleData::opGeneric(const VRle::VRleData &a, const VRle::VRleData &b,
         if (aObj.size) copyArrayToVector(aObj.spans, aObj.size, mSpans);
     }
 
-    // update result bounding box
-    VRegion reg(a.bbox());
-    reg += b.bbox();
-    mBbox = reg.boundingRect();
-    mBboxDirty = false;
+    mBboxDirty = true;
 }
 
 static void rle_cb(size_t count, const VRle::Span *spans, void *userData)

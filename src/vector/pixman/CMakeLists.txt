@@ -1,7 +1,3 @@
-target_sources(rlottie
-    PRIVATE
-        "${CMAKE_CURRENT_LIST_DIR}/vregion.cpp"
-    )
 
 IF("${ARCH}" STREQUAL "arm")
 SET(CMAKE_ASM_FLAGS "${CFLAGS} -x assembler-with-cpp")

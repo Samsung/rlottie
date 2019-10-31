@@ -642,24 +642,6 @@ VRect VMatrix::map(const VRect &rect) const
     }
 }
 
-VRegion VMatrix::map(const VRegion &r) const
-{
-    VMatrix::MatrixType t = type();
-    if (t == MatrixType::None) return r;
-
-    if (t == MatrixType::Translate) {
-        VRegion copy(r);
-        copy.translate(std::lround(mtx), std::lround(mty));
-        return copy;
-    }
-
-    if (t == MatrixType::Scale && r.rectCount() == 1)
-        return VRegion(map(r.boundingRect()));
-    // handle mapping of region properly
-    assert(0);
-    return r;
-}
-
 VPointF VMatrix::map(const VPointF &p) const
 {
     float fx = p.x();
