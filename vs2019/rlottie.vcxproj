@@ -176,7 +176,6 @@
     <ClInclude Include="..\src\vector\freetype\v_ft_stroker.h" />
     <ClInclude Include="..\src\vector\freetype\v_ft_types.h" />
     <ClInclude Include="..\src\vector\pixman\pixman-arm-neon-asm.h" />
-    <ClInclude Include="..\src\vector\pixman\vregion.h" />
     <ClInclude Include="..\src\vector\stb\stb_image.h" />
     <ClInclude Include="..\src\vector\vbezier.h" />
     <ClInclude Include="..\src\vector\vbitmap.h" />
@@ -215,7 +214,6 @@
     <ClCompile Include="..\src\vector\freetype\v_ft_math.cpp" />
     <ClCompile Include="..\src\vector\freetype\v_ft_raster.cpp" />
     <ClCompile Include="..\src\vector\freetype\v_ft_stroker.cpp" />
-    <ClCompile Include="..\src\vector\pixman\vregion.cpp" />
     <ClCompile Include="..\src\vector\stb\stb_image.cpp" />
     <ClCompile Include="..\src\vector\vbezier.cpp" />
     <ClCompile Include="..\src\vector\vbitmap.cpp" />

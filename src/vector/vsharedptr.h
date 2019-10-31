@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <memory>
+#include <atomic>
 
 template <typename T, typename Rc>
 class vshared_ptr {

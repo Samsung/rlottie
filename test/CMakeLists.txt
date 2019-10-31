@@ -8,8 +8,7 @@ add_executable(vectorTestSuite testsuite.cpp test_vrect.cpp test_vpath.cpp
     ${CMAKE_SOURCE_DIR}/src/vector/vbezier.cpp
     ${CMAKE_SOURCE_DIR}/src/vector/vdebug.cpp
     ${CMAKE_SOURCE_DIR}/src/vector/vmatrix.cpp
-    ${CMAKE_SOURCE_DIR}/src/vector/vpath.cpp
-    ${CMAKE_SOURCE_DIR}/src/vector/pixman/vregion.cpp)
+    ${CMAKE_SOURCE_DIR}/src/vector/vpath.cpp)
 target_include_directories(vectorTestSuite PRIVATE ${CMAKE_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/src/vector ${CMAKE_SOURCE_DIR}/src/vector/pixman)
 gtest_add_tests(vectorTestSuite "" AUTO)

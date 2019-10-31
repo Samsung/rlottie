@@ -194,9 +194,6 @@
     <ClInclude Include="..\src\vector\pixman\pixman-arm-neon-asm.h">
       <Filter>src\vector\pixman</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\vector\pixman\vregion.h">
-      <Filter>src\vector\pixman</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\vector\stb\stb_image.h">
       <Filter>src\vector\stb</Filter>
     </ClInclude>
@@ -306,9 +303,6 @@
     </ClCompile>
     <ClCompile Include="..\src\vector\freetype\v_ft_stroker.cpp">
       <Filter>src\vector\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\vector\pixman\vregion.cpp">
-      <Filter>src\vector\pixman</Filter>
     </ClCompile>
     <ClCompile Include="..\src\vector\stb\stb_image.cpp">
       <Filter>src\vector\stb</Filter>

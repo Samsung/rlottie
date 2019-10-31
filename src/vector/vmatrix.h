@@ -20,7 +20,7 @@
 #define VMATRIX_H
 #include "vglobal.h"
 #include "vpoint.h"
-#include "vregion.h"
+#include "vrect.h"
 
 V_BEGIN_NAMESPACE
 
@@ -69,7 +69,6 @@ public:
     VPointF        map(const VPointF &p) const;
     inline VPointF map(float x, float y) const;
     VRect          map(const VRect &r) const;
-    VRegion        map(const VRegion &r) const;
 
     V_REQUIRED_RESULT VMatrix inverted(bool *invertible = nullptr) const;
     V_REQUIRED_RESULT VMatrix adjoint() const;

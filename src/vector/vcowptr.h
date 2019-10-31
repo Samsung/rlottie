@@ -20,7 +20,7 @@
 #define VCOWPTR_H
 
 #include <cassert>
-#include "vglobal.h"
+#include <atomic>
 
 template <typename T>
 class vcow_ptr {
