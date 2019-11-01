@@ -277,11 +277,10 @@ public:
     void preprocess(const VRect &clip);
 public:
     LOTMaskData             *mData;
-    float                    mCombinedAlpha{0};
-    VMatrix                  mCombinedMatrix;
     VPath                    mLocalPath;
     VPath                    mFinalPath;
     VRasterizer              mRasterizer;
+    float                    mCombinedAlpha{0};
     bool                     mRasterRequest{false};
 };
 
