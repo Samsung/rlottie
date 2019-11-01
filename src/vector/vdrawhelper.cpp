@@ -531,12 +531,12 @@ static inline Operator getOperator(const VSpanData *data, const VRle::Span *,
         break;
     }
 
-    op.mode = data->mCompositionMode;
-    if (op.mode == VPainter::CompModeSrcOver && solidSource)
-        op.mode = VPainter::CompModeSrc;
+    op.mode = data->mBlendMode;
+    if (op.mode == BlendMode::SrcOver && solidSource)
+        op.mode = BlendMode::Src;
 
-    op.funcSolid = functionForModeSolid[op.mode];
-    op.func = functionForMode[op.mode];
+    op.funcSolid = functionForModeSolid[uint(op.mode)];
+    op.func = functionForMode[uint(op.mode)];
 
     return op;
 }
@@ -548,7 +548,7 @@ static void blendColorARGB(size_t count, const VRle::Span *spans,
     Operator   op = getOperator(data, spans, count);
     const uint color = data->mSolid;
 
-    if (op.mode == VPainter::CompModeSrc) {
+    if (op.mode == BlendMode::Src) {
         // inline for performance
         while (count--) {
             uint *target = data->buffer(spans->x, spans->y);
@@ -751,7 +751,7 @@ static void blend_untransformed_argb(size_t count, const VRle::Span *spans,
     }
 }
 
-void VSpanData::setup(const VBrush &brush, VPainter::CompositionMode /*mode*/,
+void VSpanData::setup(const VBrush &brush, BlendMode /*mode*/,
                       int /*alpha*/)
 {
     transformType = VMatrix::MatrixType::None;
@@ -924,7 +924,7 @@ void vInitDrawhelperFunctions()
     extern void Vcomp_func_solid_SourceOver_neon(
         uint32_t * dest, int length, uint32_t color, uint32_t const_alpha);
 
-    COMP_functionForModeSolid_C[VPainter::CompModeSrcOver] =
+    COMP_functionForModeSolid_C[uint(BlendMode::SrcOver)] =
         Vcomp_func_solid_SourceOver_neon;
 #endif
 
@@ -939,13 +939,13 @@ void vInitDrawhelperFunctions()
     extern void Vcomp_func_SourceOver_sse2(uint32_t * dest, const uint32_t *src,
                                           int length, uint32_t const_alpha);
 
-    COMP_functionForModeSolid_C[VPainter::CompModeSrc] =
+    COMP_functionForModeSolid_C[uint(BlendMode::Src)] =
         Vcomp_func_solid_Source_sse2;
-    COMP_functionForModeSolid_C[VPainter::CompModeSrcOver] =
+    COMP_functionForModeSolid_C[uint(BlendMode::SrcOver)] =
         Vcomp_func_solid_SourceOver_sse2;
 
-    COMP_functionForMode_C[VPainter::CompModeSrc] = Vcomp_func_Source_sse2;
-    // COMP_functionForMode_C[VPainter::CompModeSrcOver] =
+    COMP_functionForMode_C[uint(BlendMode::Src)] = Vcomp_func_Source_sse2;
+    // COMP_functionForMode_C[uint(BlendMode::SrcOver)] =
     // Vcomp_func_SourceOver_sse2;
 #endif
 }

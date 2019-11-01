@@ -264,6 +264,13 @@ enum class FillRule: unsigned char { EvenOdd, Winding };
 enum class JoinStyle: unsigned char { Miter, Bevel, Round };
 enum class CapStyle: unsigned char { Flat, Square, Round };
 
+enum class BlendMode {
+    Src,
+    SrcOver,
+    DestIn,
+    DestOut
+};
+
 #ifndef V_CONSTRUCTOR_FUNCTION
 #define V_CONSTRUCTOR_FUNCTION0(AFUNC)            \
     namespace {                                   \

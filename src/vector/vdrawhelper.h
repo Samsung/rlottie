@@ -24,7 +24,6 @@
 #include "assert.h"
 #include "vbitmap.h"
 #include "vbrush.h"
-#include "vpainter.h"
 #include "vrect.h"
 #include "vrle.h"
 
@@ -63,7 +62,7 @@ struct RadialGradientValues {
 };
 
 struct Operator {
-    VPainter::CompositionMode mode;
+    BlendMode                 mode;
     SourceFetchProc           srcFetch;
     CompositionFunctionSolid  funcSolid;
     CompositionFunction       func;
@@ -152,7 +151,7 @@ struct VSpanData {
     void  updateSpanFunc();
     void  init(VRasterBuffer *image);
     void  setup(const VBrush &            brush,
-                VPainter::CompositionMode mode = VPainter::CompModeSrcOver,
+                BlendMode mode = BlendMode::SrcOver,
                 int                       alpha = 255);
     void  setupMatrix(const VMatrix &matrix);
 
@@ -173,7 +172,7 @@ struct VSpanData {
     }
     void initTexture(const VBitmap *image, int alpha, VBitmapData::Type type, const VRect &sourceRect);
 
-    VPainter::CompositionMode            mCompositionMode{VPainter::CompositionMode::CompModeSrcOver};
+    BlendMode                            mBlendMode{BlendMode::SrcOver};
     VRasterBuffer *                      mRasterBuffer;
     ProcessRleSpan                       mBlendFunc;
     ProcessRleSpan                       mUnclippedBlendFunc;

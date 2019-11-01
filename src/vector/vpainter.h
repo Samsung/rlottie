@@ -22,27 +22,20 @@
 #include "vbrush.h"
 #include "vpoint.h"
 #include "vrle.h"
+#include "vdrawhelper.h"
 
 V_BEGIN_NAMESPACE
 
 class VBitmap;
-class VPainterImpl;
 class VPainter {
 public:
-    enum CompositionMode {
-        CompModeSrc,
-        CompModeSrcOver,
-        CompModeDestIn,
-        CompModeDestOut
-    };
-    ~VPainter();
-    VPainter();
-    VPainter(VBitmap *buffer);
+    VPainter() = default;
+    explicit VPainter(VBitmap *buffer);
     bool  begin(VBitmap *buffer);
     void  end();
     void  setDrawRegion(const VRect &region); // sub surface rendering area.
     void  setBrush(const VBrush &brush);
-    void  setCompositionMode(CompositionMode mode);
+    void  setBlendMode(BlendMode mode);
     void  drawRle(const VPoint &pos, const VRle &rle);
     void  drawRle(const VRle &rle, const VRle &clip);
     VRect clipBoundingRect() const;
@@ -52,7 +45,10 @@ public:
     void  drawBitmap(const VPoint &point, const VBitmap &bitmap, uint8_t const_alpha = 255);
     void  drawBitmap(const VRect &rect, const VBitmap &bitmap, uint8_t const_alpha = 255);
 private:
-    VPainterImpl *mImpl;
+    void drawBitmapUntransform(const VRect &target, const VBitmap &bitmap,
+                               const VRect &source, uint8_t const_alpha);
+    VRasterBuffer mBuffer;
+    VSpanData     mSpanData;
 };
 
 V_END_NAMESPACE
