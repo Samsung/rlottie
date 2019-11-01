@@ -18,27 +18,12 @@
 
 #include "vpainter.h"
 #include <algorithm>
-#include "vdrawhelper.h"
+
 
 V_BEGIN_NAMESPACE
 
-class VPainterImpl {
-public:
-    void drawRle(const VPoint &pos, const VRle &rle);
-    void drawRle(const VRle &rle, const VRle &clip);
-    void setCompositionMode(VPainter::CompositionMode mode)
-    {
-        mSpanData.mCompositionMode = mode;
-    }
-    void drawBitmapUntransform(const VRect &target, const VBitmap &bitmap,
-                               const VRect &source, uint8_t const_alpha);
 
-public:
-    VRasterBuffer mBuffer;
-    VSpanData     mSpanData;
-};
-
-void VPainterImpl::drawRle(const VPoint &, const VRle &rle)
+void VPainter::drawRle(const VPoint &, const VRle &rle)
 {
     if (rle.empty()) return;
     // mSpanData.updateSpanFunc();
@@ -50,7 +35,7 @@ void VPainterImpl::drawRle(const VPoint &, const VRle &rle)
                   &mSpanData);
 }
 
-void VPainterImpl::drawRle(const VRle &rle, const VRle &clip)
+void VPainter::drawRle(const VRle &rle, const VRle &clip)
 {
     if (rle.empty() || clip.empty()) return;
 
@@ -88,7 +73,7 @@ static void fillRect(const VRect &r, VSpanData *data)
     }
 }
 
-void VPainterImpl::drawBitmapUntransform(const VRect &  target,
+void VPainter::drawBitmapUntransform(const VRect &  target,
                                          const VBitmap &bitmap,
                                          const VRect &  source,
                                          uint8_t        const_alpha)
@@ -103,59 +88,38 @@ void VPainterImpl::drawBitmapUntransform(const VRect &  target,
     fillRect(rr, &mSpanData);
 }
 
-VPainter::~VPainter()
-{
-    delete mImpl;
-}
-
-VPainter::VPainter()
-{
-    mImpl = new VPainterImpl;
-}
-
 VPainter::VPainter(VBitmap *buffer)
 {
-    mImpl = new VPainterImpl;
     begin(buffer);
 }
 bool VPainter::begin(VBitmap *buffer)
 {
-    mImpl->mBuffer.prepare(buffer);
-    mImpl->mSpanData.init(&mImpl->mBuffer);
+    mBuffer.prepare(buffer);
+    mSpanData.init(&mBuffer);
     // TODO find a better api to clear the surface
-    mImpl->mBuffer.clear();
+    mBuffer.clear();
     return true;
 }
 void VPainter::end() {}
 
 void VPainter::setDrawRegion(const VRect &region)
 {
-    mImpl->mSpanData.setDrawRegion(region);
+    mSpanData.setDrawRegion(region);
 }
 
 void VPainter::setBrush(const VBrush &brush)
 {
-    mImpl->mSpanData.setup(brush);
+    mSpanData.setup(brush);
 }
 
-void VPainter::setCompositionMode(CompositionMode mode)
+void VPainter::setBlendMode(BlendMode mode)
 {
-    mImpl->setCompositionMode(mode);
-}
-
-void VPainter::drawRle(const VPoint &pos, const VRle &rle)
-{
-    mImpl->drawRle(pos, rle);
-}
-
-void VPainter::drawRle(const VRle &rle, const VRle &clip)
-{
-    mImpl->drawRle(rle, clip);
+    mSpanData.mBlendMode = mode;
 }
 
 VRect VPainter::clipBoundingRect() const
 {
-    return mImpl->mSpanData.clipRect();
+    return mSpanData.clipRect();
 }
 
 void VPainter::drawBitmap(const VPoint &point, const VBitmap &bitmap,
@@ -176,7 +140,7 @@ void VPainter::drawBitmap(const VRect &target, const VBitmap &bitmap,
     setBrush(VBrush());
 
     if (target.size() == source.size()) {
-        mImpl->drawBitmapUntransform(target, bitmap, source, const_alpha);
+        drawBitmapUntransform(target, bitmap, source, const_alpha);
     } else {
         // @TODO scaling
     }

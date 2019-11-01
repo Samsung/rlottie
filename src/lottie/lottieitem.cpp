@@ -152,13 +152,13 @@ bool LOTCompItem::render(const rlottie::Surface &surface)
     VRect clip(0, 0, int(surface.drawRegionWidth()), int(surface.drawRegionHeight()));
     mRootLayer->preprocess(clip);
 
-    mPainter.begin(&mSurface);
+    VPainter painter(&mSurface);
     // set sub surface area for drawing.
-    mPainter.setDrawRegion(
+    painter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
-    mRootLayer->render(&mPainter, {}, {});
-    mPainter.end();
+    mRootLayer->render(&painter, {}, {});
+    painter.end();
     return true;
 }
 
@@ -552,14 +552,12 @@ void LOTCompLayerItem::renderMatteLayer(VPainter *painter, const VRle &mask,
     switch (layer->matteType()) {
     case MatteType::Alpha:
     case MatteType::Luma: {
-        layerPainter.setCompositionMode(
-            VPainter::CompositionMode::CompModeDestIn);
+        layerPainter.setBlendMode(BlendMode::DestIn);
         break;
     }
     case MatteType::AlphaInv:
     case MatteType::LumaInv: {
-        layerPainter.setCompositionMode(
-            VPainter::CompositionMode::CompModeDestOut);
+        layerPainter.setBlendMode(BlendMode::DestOut);
         break;
     }
     default:
