@@ -367,3 +367,19 @@ void LOTAsset::loadImagePath(std::string path)
 {
     if (!path.empty()) mBitmap = VImageLoader::instance().load(path.c_str());
 }
+
+std::vector<LayerInfo> LOTCompositionData::layerInfoList() const
+{
+    if (!mRootLayer || mRootLayer->mChildren.empty()) return {};
+
+    std::vector<LayerInfo> result;
+
+    result.reserve(mRootLayer->mChildren.size());
+
+    for (auto it : mRootLayer->mChildren) {
+        auto layer = static_cast<LOTLayerData *>(it);
+        result.emplace_back(layer->name(), layer->mInFrame, layer->mOutFrame);
+    }
+
+    return result;
+}

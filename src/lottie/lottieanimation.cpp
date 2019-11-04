@@ -56,7 +56,10 @@ public:
 
     const LayerInfoList &layerInfoList() const
     {
-        return mModel->layerInfoList();
+        if (mLayerList.empty()) {
+            mLayerList = mModel->layerInfoList();
+        }
+        return mLayerList;
     }
     const MarkerList &markers() const
     {
@@ -66,6 +69,7 @@ public:
     void removeFilter(const std::string &keypath, Property prop);
 
 private:
+    mutable LayerInfoList        mLayerList;
     std::string                  mFilePath;
     std::shared_ptr<LOTModel>    mModel;
     std::unique_ptr<LOTCompItem> mCompItem;
