@@ -655,7 +655,7 @@ class LOTCompositionData : public LOTData
 {
 public:
     LOTCompositionData():LOTData(LOTData::Type::Composition){}
-    const std::vector<LayerInfo> &layerInfoList() const { return  mLayerInfoList;}
+    std::vector<LayerInfo> layerInfoList() const;
     const std::vector<Marker> &markers() const { return  mMarkers;}
     double duration() const {
         return frameDuration() / frameRate(); // in second
@@ -687,7 +687,6 @@ public:
     std::unordered_map<std::string,
                        LOTAsset*>    mAssets;
 
-    std::vector<LayerInfo>  mLayerInfoList;
     std::vector<Marker>     mMarkers;
     VArenaAlloc             mArenaAlloc{2048};
     LOTModelStat            mStats;
@@ -1091,7 +1090,7 @@ public:
    size_t startFrame() const {return mRoot->startFrame();}
    size_t endFrame() const {return mRoot->endFrame();}
    size_t frameAtPos(double pos) const {return mRoot->frameAtPos(pos);}
-   const std::vector<LayerInfo> &layerInfoList() const { return mRoot->layerInfoList();}
+   std::vector<LayerInfo> layerInfoList() const { return mRoot->layerInfoList();}
    const std::vector<Marker> &markers() const { return mRoot->markers();}
 public:
     std::shared_ptr<LOTCompositionData> mRoot;

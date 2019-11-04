@@ -211,7 +211,7 @@ public:
     void                         parseAssets(LOTCompositionData *comp);
     LOTAsset*                    parseAsset();
     void                         parseLayers(LOTCompositionData *comp);
-    LOTLayerData*                parseLayer(bool record = false);
+    LOTLayerData*                parseLayer();
     void                         parseMaskProperty(LOTLayerData *layer);
     void                         parseShapesAttr(LOTLayerData *layer);
     void                         parseObject(LOTGroupData *parent);
@@ -271,7 +271,6 @@ protected:
     LOTLayerData *                             curLayerRef{nullptr};
     std::vector<LOTLayerData *>                mLayersToUpdate;
     std::string                                mDirPath;
-    std::vector<LayerInfo>                     mLayerInfoList;
     std::vector<VPointF>                       mInPoint;  /* "i" */
     std::vector<VPointF>                       mOutPoint; /* "o" */
     std::vector<VPointF>                       mVertices;
@@ -609,8 +608,6 @@ void LottieParserImpl::parseComposition()
     comp->mRootLayer->mInFrame = comp->mStartFrame;
     comp->mRootLayer->mOutFrame = comp->mEndFrame;
 
-    comp->mLayerInfoList = std::move(mLayerInfoList);
-
     mComposition = sharedComposition;
 }
 
@@ -803,7 +800,7 @@ void LottieParserImpl::parseLayers(LOTCompositionData *comp)
     RAPIDJSON_ASSERT(PeekType() == kArrayType);
     EnterArray();
     while (NextArrayValue()) {
-        auto layer = parseLayer(true);
+        auto layer = parseLayer();
         if (layer) {
             staticFlag = staticFlag && layer->isStatic();
             comp->mRootLayer->mChildren.push_back(layer);
@@ -891,7 +888,7 @@ LayerType LottieParserImpl::getLayerType()
  * https://github.com/airbnb/lottie-web/blob/master/docs/json/layers/shape.json
  *
  */
-LOTLayerData* LottieParserImpl::parseLayer(bool record)
+LOTLayerData* LottieParserImpl::parseLayer()
 {
     RAPIDJSON_ASSERT(PeekType() == kObjectType);
     LOTLayerData *layer = allocator().make<LOTLayerData>();
@@ -1005,10 +1002,6 @@ LOTLayerData* LottieParserImpl::parseLayer(bool record)
 
     layer->setStatic(staticFlag && layer->mTransform->isStatic());
 
-    if (record) {
-        mLayerInfoList.push_back(
-            LayerInfo(layer->name(), layer->mInFrame, layer->mOutFrame));
-    }
     return layer;
 }
 
