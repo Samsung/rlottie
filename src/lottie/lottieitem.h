@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -32,6 +32,7 @@
 #include"vpainter.h"
 #include"vdrawable.h"
 #include"lottiekeypath.h"
+#include"varenaalloc.h"
 
 V_USE_NAMESPACE
 
@@ -64,7 +65,6 @@ class LOTCompItem
 {
 public:
    explicit LOTCompItem(LOTModel *model);
-   static std::unique_ptr<LOTLayerItem> createLayerItem(LOTLayerData *layerData);
    bool update(int frameNo, const VSize &size, bool keepAspectRatio);
    VSize size() const { return mViewSize;}
    void buildRenderTree();
@@ -76,7 +76,8 @@ private:
    VMatrix                                     mScaleMatrix;
    VSize                                       mViewSize;
    LOTCompositionData                         *mCompData;
-   std::unique_ptr<LOTLayerItem>               mRootLayer;
+   LOTLayerItem                               *mRootLayer;
+   VArenaAlloc                                 mAllocator{2048};
    int                                         mCurFrameNo;
    bool                                        mKeepAspectRatio{true};
 };
@@ -194,7 +195,7 @@ protected:
 class LOTCompLayerItem: public LOTLayerItem
 {
 public:
-   explicit LOTCompLayerItem(LOTLayerData *layerData);
+   explicit LOTCompLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
 
    void render(VPainter *painter, const VRle &mask, const VRle &matteRle) final;
    void buildLayerNode() final;
@@ -207,8 +208,8 @@ private:
     void renderMatteLayer(VPainter *painter, const VRle &inheritMask, const VRle &matteRle,
                           LOTLayerItem *layer, LOTLayerItem *src);
 private:
-   std::vector<std::unique_ptr<LOTLayerItem>>   mLayers;
-   std::unique_ptr<LOTClipperItem>              mClipper;
+   std::vector<LOTLayerItem*>            mLayers;
+   std::unique_ptr<LOTClipperItem>       mClipper;
 };
 
 class LOTSolidLayerItem: public LOTLayerItem
@@ -230,8 +231,7 @@ class LOTContentGroupItem;
 class LOTShapeLayerItem: public LOTLayerItem
 {
 public:
-   explicit LOTShapeLayerItem(LOTLayerData *layerData);
-   static std::unique_ptr<LOTContentItem> createContentItem(LOTData *contentData);
+   explicit LOTShapeLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
    DrawableList renderList() final;
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
@@ -239,7 +239,7 @@ protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
    std::vector<VDrawable *>             mDrawableList;
-   std::unique_ptr<LOTContentGroupItem> mRoot;
+   LOTContentGroupItem                 *mRoot;
 };
 
 class LOTNullLayerItem: public LOTLayerItem
@@ -328,8 +328,9 @@ public:
 class LOTContentGroupItem: public LOTContentItem
 {
 public:
-   explicit LOTContentGroupItem(LOTGroupData *data=nullptr);
-   void addChildren(LOTGroupData *data);
+    LOTContentGroupItem() = default;
+   explicit LOTContentGroupItem(LOTGroupData *data, VArenaAlloc* allocator);
+   void addChildren(LOTGroupData *data, VArenaAlloc* allocator);
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) override;
    void applyTrim();
    void processTrimItems(std::vector<LOTPathDataItem *> &list);
@@ -345,7 +346,7 @@ public:
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
    LOTGroupData                                  *mData{nullptr};
-   std::vector<std::unique_ptr<LOTContentItem>>   mContents;
+   std::vector<LOTContentItem*>   mContents;
    VMatrix                                        mMatrix;
 };
 
@@ -542,7 +543,7 @@ private:
 class LOTRepeaterItem : public LOTContentGroupItem
 {
 public:
-   explicit LOTRepeaterItem(LOTRepeaterData *data);
+   explicit LOTRepeaterItem(LOTRepeaterData *data, VArenaAlloc* allocator);
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
