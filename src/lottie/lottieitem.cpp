@@ -97,7 +97,7 @@ LOTCompItem::LOTCompItem(LOTModel *model)
     : mCurFrameNo(-1)
 {
     mCompData = model->mRoot.get();
-    mRootLayer = createLayerItem(mCompData->mRootLayer.get(), &mAllocator);
+    mRootLayer = createLayerItem(mCompData->mRootLayer, &mAllocator);
     mRootLayer->setComplexContent(false);
     mViewSize = mCompData->size();
 }
@@ -258,7 +258,7 @@ LOTLayerMaskItem::LOTLayerMaskItem(LOTLayerData *layerData)
     mMasks.reserve(layerData->mExtra->mMasks.size());
 
     for (auto &i : layerData->mExtra->mMasks) {
-        mMasks.emplace_back(i.get());
+        mMasks.emplace_back(i);
         mStatic &= i->isStatic();
     }
 }
@@ -443,7 +443,7 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel, VArenaAlloc* alloca
     // as lottie model keeps the data in front-toback-order.
     for (auto it = mLayerData->mChildren.crbegin();
          it != mLayerData->mChildren.rend(); ++it ) {
-        auto model = static_cast<LOTLayerData *>((*it).get());
+        auto model = static_cast<LOTLayerData *>(*it);
         auto item = createLayerItem(model, allocator);
         if (item) mLayers.push_back(item);
     }
@@ -896,7 +896,7 @@ void LOTContentGroupItem::addChildren(LOTGroupData *data, VArenaAlloc* allocator
     // as lottie model keeps it in front-to-back order.
     for (auto it = data->mChildren.crbegin(); it != data->mChildren.rend();
          ++it ) {
-        auto content = createContentItem((*it).get(), allocator);
+        auto content = createContentItem(*it, allocator);
         if (content) {
             mContents.push_back(content);
         }

@@ -32,6 +32,7 @@
 #include"vbezier.h"
 #include"vbrush.h"
 #include"vpath.h"
+#include"varenaalloc.h"
 
 V_USE_NAMESPACE
 
@@ -231,8 +232,8 @@ public:
 public:
     float                 mStartFrame{0};
     float                 mEndFrame{0};
-    std::shared_ptr<VInterpolator> mInterpolator;
-    LOTKeyFrameValue<T>  mValue;
+    VInterpolator        *mInterpolator{nullptr};
+    LOTKeyFrameValue<T>   mValue;
 };
 
 template<typename T>
@@ -469,8 +470,8 @@ class LOTGroupData: public LOTData
 public:
     explicit LOTGroupData(LOTData::Type  type):LOTData(type){}
 public:
-    std::vector<std::shared_ptr<LOTData>>  mChildren;
-    std::shared_ptr<LOTTransformData>      mTransform;
+    std::vector<LOTData *>  mChildren;
+    LOTTransformData       *mTransform{nullptr};
 };
 
 class LOTShapeGroupData : public LOTGroupData
@@ -495,7 +496,7 @@ struct LOTAsset
     Type                                      mAssetType{Type::Precomp};
     bool                                      mStatic{true};
     std::string                               mRefId; // ref id
-    std::vector<std::shared_ptr<LOTData>>     mLayers;
+    std::vector<LOTData *>                    mLayers;
     // image asset data
     int                                       mWidth{0};
     int                                       mHeight{0};
@@ -533,13 +534,13 @@ class LOTTransformData : public LOTData
 {
 public:
     LOTTransformData():LOTData(LOTData::Type::Transform){}
-    void set(std::unique_ptr<TransformData> data, bool staticFlag)
+    void set(TransformData* data, bool staticFlag)
     {
         setStatic(staticFlag);
         if (isStatic()) {
             new (&impl.mStaticData) static_data(data->matrix(0), data->opacity(0));
         } else {
-            new (&impl.mData) std::unique_ptr<TransformData>(std::move(data));
+            impl.mData = data;
         }
     }
     VMatrix matrix(int frameNo, bool autoOrient = false) const
@@ -562,9 +563,6 @@ private:
     void destroy() {
         if (isStatic()) {
             impl.mStaticData.~static_data();
-        } else {
-            using std::unique_ptr;
-            impl.mData.~unique_ptr<TransformData>();
         }
     }
     struct static_data {
@@ -574,8 +572,8 @@ private:
        VMatrix  mMatrix;
     };
     union details {
-        std::unique_ptr<TransformData>   mData;
-        static_data                      mStaticData;
+        TransformData     *mData;
+        static_data        mStaticData;
         details(){};
         details(const details&) = delete;
         details(details&&) = delete;
@@ -591,8 +589,8 @@ struct ExtraLayerData
     std::string                mPreCompRefId;
     LOTAnimatable<float>       mTimeRemap;  /* "tm" */
     LOTCompositionData        *mCompRef{nullptr};
-    std::shared_ptr<LOTAsset>  mAsset;
-    std::vector<std::shared_ptr<LOTMaskData>>  mMasks;
+    LOTAsset                  *mAsset;
+    std::vector<LOTMaskData *>  mMasks;
 };
 
 class LOTLayerData : public LOTGroupData
@@ -624,7 +622,7 @@ public:
     }
     LOTAsset* asset() const
     {
-        return (mExtra && mExtra->mAsset) ? mExtra->mAsset.get() : nullptr;
+        return (mExtra && mExtra->mAsset) ? mExtra->mAsset : nullptr;
     }
 public:
     ExtraLayerData* extra()
@@ -685,12 +683,13 @@ public:
     long                 mEndFrame{0};
     float                mFrameRate{60};
     LottieBlendMode      mBlendMode{LottieBlendMode::Normal};
-    std::shared_ptr<LOTLayerData> mRootLayer;
+    LOTLayerData        *mRootLayer;
     std::unordered_map<std::string,
-                       std::shared_ptr<LOTAsset>>    mAssets;
+                       LOTAsset*>    mAssets;
 
     std::vector<LayerInfo>  mLayerInfoList;
     std::vector<Marker>     mMarkers;
+    VArenaAlloc             mArenaAlloc{2048};
     LOTModelStat            mStats;
 };
 
@@ -1064,17 +1063,20 @@ class LOTRepeaterData : public LOTData
 {
 public:
     LOTRepeaterData():LOTData(LOTData::Type::Repeater){}
-    LOTShapeGroupData *content() const { return mContent ? mContent.get() : nullptr; }
-    void setContent(std::shared_ptr<LOTShapeGroupData> content) {mContent = std::move(content);}
+    LOTShapeGroupData *content() const { return mContent ? mContent : nullptr; }
+    void setContent(LOTShapeGroupData *content) {mContent = content;}
     int maxCopies() const { return int(mMaxCopies);}
     float copies(int frameNo) const {return mCopies.value(frameNo);}
     float offset(int frameNo) const {return mOffset.value(frameNo);}
+    bool processed() const {return mProcessed;}
+    void markProcessed() {mProcessed = true;}
 public:
-    std::shared_ptr<LOTShapeGroupData>      mContent{nullptr};
+    LOTShapeGroupData*                      mContent{nullptr};
     LOTRepeaterTransform                    mTransform;
     LOTAnimatable<float>                    mCopies{0};
     LOTAnimatable<float>                    mOffset{0};
     float                                   mMaxCopies{0.0};
+    bool                                    mProcessed{false};
 };
 
 class LOTModel
