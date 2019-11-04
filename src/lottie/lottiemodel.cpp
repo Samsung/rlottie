@@ -40,16 +40,17 @@ public:
     {
         for (auto i = obj->mChildren.rbegin(); i != obj->mChildren.rend();
              ++i) {
-            auto child = (*i).get();
+            auto child = (*i);
             if (child->type() == LOTData::Type::Repeater) {
                 LOTRepeaterData *repeater =
                     static_cast<LOTRepeaterData *>(child);
                 // check if this repeater is already processed
                 // can happen if the layer is an asset and referenced by
                 // multiple layer.
-                if (repeater->content()) continue;
+                if (repeater->processed()) continue;
 
-                repeater->setContent(std::make_shared<LOTShapeGroupData>());
+                repeater->markProcessed();
+
                 LOTShapeGroupData *content = repeater->content();
                 // 1. increment the reverse iterator to point to the
                 //   object before the repeater
@@ -65,9 +66,8 @@ public:
                 visitChildren(content);
                 // 6. exit the loop as the current iterators are invalid
                 break;
-            } else {
-                visit(child);
             }
+            visit(child);
         }
     }
 
@@ -92,7 +92,7 @@ public:
     void visitChildren(LOTGroupData *obj)
     {
         for (const auto &child : obj->mChildren) {
-            if (child) visit(child.get());
+            if (child) visit(child);
         }
     }
     void visitLayer(LOTLayerData *layer)
@@ -143,13 +143,13 @@ public:
 void LOTCompositionData::processRepeaterObjects()
 {
     LottieRepeaterProcesser visitor;
-    visitor.visit(mRootLayer.get());
+    visitor.visit(mRootLayer);
 }
 
 void LOTCompositionData::updateStats()
 {
     LottieUpdateStatVisitor visitor(&mStats);
-    visitor.visit(mRootLayer.get());
+    visitor.visit(mRootLayer);
 }
 
 VMatrix LOTRepeaterTransform::matrix(int frameNo, float multiplier) const
