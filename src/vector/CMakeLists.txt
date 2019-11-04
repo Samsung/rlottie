@@ -25,6 +25,7 @@ target_sources(rlottie
         "${CMAKE_CURRENT_LIST_DIR}/vraster.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vdrawable.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vimageloader.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/varenaalloc.cpp"
     )
 
 target_include_directories(rlottie
