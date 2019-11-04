@@ -24,6 +24,7 @@ source_file = [
     'vbezier.cpp',
     'vraster.cpp',
     'vimageloader.cpp',
+    'varenaalloc.cpp',
 ]
 
 vector_dep = declare_dependency( include_directories : include_directories('.'),
