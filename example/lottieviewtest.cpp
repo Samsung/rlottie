@@ -103,14 +103,15 @@ main(int argc, char **argv)
         printf("Run ./lottieviewTest -h  for more option\n");
     }
 
-   EvasApp *app = new EvasApp(800, 800);
-   app->setup();
-
    Strategy st = Strategy::renderCppAsync;
    if (argc > 1) {
        int option = atoi(argv[1]);
        st = static_cast<Strategy>(option);
    }
+
+   EvasApp *app = new EvasApp(800, 800);
+   app->setup();
+
    LottieViewTest *view = new LottieViewTest(app, st);
    view->show(250);
 
