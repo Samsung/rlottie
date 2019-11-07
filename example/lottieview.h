@@ -43,7 +43,7 @@ public:
     virtual ~RenderStrategy() {
         evas_object_del(renderObject());
     }
-    RenderStrategy(Evas_Object *obj):_renderObject(obj){
+    RenderStrategy(Evas_Object *obj, bool useImage = true):_renderObject(obj), _useImage(useImage){
         addCallback();
     }
     virtual rlottie::Animation *player() {return nullptr;}
@@ -55,11 +55,11 @@ public:
     virtual double duration() = 0;
     void render(int frame) {
         _redraw = renderRequest(frame);
-        if (_redraw)
+        if (_redraw && _useImage)
             evas_object_image_pixels_dirty_set(renderObject(), EINA_TRUE);
     }
     void dataCb() {
-        if (_redraw) {
+        if (_redraw && _useImage) {
             evas_object_image_data_set(renderObject(), buffer());
         }
         _redraw = false;
@@ -78,6 +78,7 @@ protected:
 private:
     bool         _redraw{false};
     Evas_Object *_renderObject;
+    bool         _useImage{true};
 };
 
 class CppApiBase : public RenderStrategy {
@@ -396,15 +397,35 @@ public:
 };
 
 #include<assert.h>
-class EflVgRenderStrategy : public CppApiBase {
-    int mW;
-    int mH;
+class EflVgRenderStrategy : public RenderStrategy {
 public:
-    EflVgRenderStrategy(Evas *evas):CppApiBase(evas_object_vg_add(evas)) {}
+    EflVgRenderStrategy(Evas *evas):RenderStrategy(evas_object_vg_add(evas), false) {}
+
+    void loadFromFile(const char *filePath) {
+        evas_object_vg_file_set(renderObject(), filePath, NULL);
+    }
+
+    void loadFromData(const std::string&, const std::string&, const std::string&) {
+        assert(false);
+    }
+
+    size_t totalFrame() {
+        return evas_object_vg_animated_frame_count_get(renderObject()) - 1;
+    }
+
+    double frameRate() {
+        return (double)totalFrame() / evas_object_vg_animated_frame_duration_get(renderObject(), 0, 0);
+    }
+
+    size_t frameAtPos(double pos) {
+        return totalFrame() * pos;
+    }
+
+    double duration() {
+        return evas_object_vg_animated_frame_duration_get(renderObject(), 0, 0);
+    }
 
     void resize(int width, int height) {
-        mW = width;
-        mH = height;
         evas_object_resize(renderObject(), width, height);
     }
 
@@ -413,190 +434,12 @@ public:
     }
 
     bool renderRequest(int frame) {
-        const LOTLayerNode *root = mPlayer->renderTree(frame, mW, mH);
-        updateTree(root);
+        evas_object_vg_animated_frame_set(renderObject(), frame);
         return false;
     }
 
-    void updateTree(const LOTLayerNode * node)
-    {
-        Efl_VG *root = evas_vg_container_add(renderObject());
-        update(node, root);
-        evas_object_vg_root_node_set(renderObject(), root);
-    }
-
-    void createVgNode(LOTNode *node, Efl_VG *root)
-    {
-        Efl_VG *shape = evas_vg_shape_add(root);
-
-        //0: Path
-        const float *data = node->mPath.ptPtr;
-        if (!data) return;
-
-        for (size_t i = 0; i < node->mPath.elmCount; i++) {
-            switch (node->mPath.elmPtr[i]) {
-            case 0:
-                evas_vg_shape_append_move_to(shape, data[0], data[1]);
-                data += 2;
-                break;
-            case 1:
-                evas_vg_shape_append_line_to(shape, data[0], data[1]);
-                data += 2;
-                break;
-            case 2:
-                evas_vg_shape_append_cubic_to(shape, data[0], data[1], data[2], data[3], data[4], data[5]);
-                data += 6;
-                break;
-            case 3:
-                evas_vg_shape_append_close(shape);
-                break;
-            default:
-                break;
-            }
-        }
-
-        //1: Stroke
-        if (node->mStroke.enable) {
-            //Stroke Width
-            evas_vg_shape_stroke_width_set(shape, node->mStroke.width);
-
-            //Stroke Cap
-            Efl_Gfx_Cap cap;
-            switch (node->mStroke.cap) {
-            case CapFlat: cap = EFL_GFX_CAP_BUTT; break;
-            case CapSquare: cap = EFL_GFX_CAP_SQUARE; break;
-            case CapRound: cap = EFL_GFX_CAP_ROUND; break;
-            default: cap = EFL_GFX_CAP_BUTT; break;
-            }
-            evas_vg_shape_stroke_cap_set(shape, cap);
-
-            //Stroke Join
-            Efl_Gfx_Join join;
-            switch (node->mStroke.join) {
-            case JoinMiter: join = EFL_GFX_JOIN_MITER; break;
-            case JoinBevel: join = EFL_GFX_JOIN_BEVEL; break;
-            case JoinRound: join = EFL_GFX_JOIN_ROUND; break;
-            default: join = EFL_GFX_JOIN_MITER; break;
-            }
-            evas_vg_shape_stroke_join_set(shape, join);
-
-            //Stroke Dash
-            if (node->mStroke.dashArraySize > 0) {
-                int size = (node->mStroke.dashArraySize / 2);
-                Efl_Gfx_Dash *dash = static_cast<Efl_Gfx_Dash*>(malloc(sizeof(Efl_Gfx_Dash) * size));
-                if (dash) {
-                    for (int i = 0; i <= size; i+=2) {
-                        dash[i].length = node->mStroke.dashArray[i];
-                        dash[i].gap = node->mStroke.dashArray[i + 1];
-                    }
-                    evas_vg_shape_stroke_dash_set(shape, dash, size);
-                    free(dash);
-                }
-            }
-        }
-
-        //2: Fill Method
-        switch (node->mBrushType) {
-        case BrushSolid: {
-            float pa = ((float)node->mColor.a) / 255;
-            int r = (int)(((float) node->mColor.r) * pa);
-            int g = (int)(((float) node->mColor.g) * pa);
-            int b = (int)(((float) node->mColor.b) * pa);
-            int a = node->mColor.a;
-            if (node->mStroke.enable)
-              evas_vg_shape_stroke_color_set(shape, r, g, b, a);
-            else
-              evas_vg_node_color_set(shape, r, g, b, a);
-            break;
-        }
-        case BrushGradient: {
-            Efl_VG* grad = NULL;
-            if (node->mGradient.type == GradientLinear) {
-                grad = evas_vg_gradient_linear_add(root);
-                evas_vg_gradient_linear_start_set(grad, node->mGradient.start.x, node->mGradient.start.y);
-                evas_vg_gradient_linear_end_set(grad, node->mGradient.end.x, node->mGradient.end.y);
-
-            }
-            else if (node->mGradient.type == GradientRadial) {
-                grad = evas_vg_gradient_radial_add(root);
-                evas_vg_gradient_radial_center_set(grad, node->mGradient.center.x, node->mGradient.center.y);
-                evas_vg_gradient_radial_focal_set(grad, node->mGradient.focal.x, node->mGradient.focal.y);
-                evas_vg_gradient_radial_radius_set(grad, node->mGradient.cradius);
-            }
-
-            if (grad) {
-                //Gradient Stop
-                Efl_Gfx_Gradient_Stop* stops = static_cast<Efl_Gfx_Gradient_Stop*>(malloc(sizeof(Efl_Gfx_Gradient_Stop) * node->mGradient.stopCount));
-                if (stops) {
-                    for (unsigned int i = 0; i < node->mGradient.stopCount; i++) {
-                        stops[i].offset = node->mGradient.stopPtr[i].pos;
-                        float pa = ((float)node->mGradient.stopPtr[i].a) / 255;
-                        stops[i].r = (int)(((float)node->mGradient.stopPtr[i].r) * pa);
-                        stops[i].g = (int)(((float)node->mGradient.stopPtr[i].g) * pa);
-                        stops[i].b = (int)(((float)node->mGradient.stopPtr[i].b) * pa);
-                        stops[i].a = node->mGradient.stopPtr[i].a;
-                    }
-                    evas_vg_gradient_stop_set(grad, stops, node->mGradient.stopCount);
-                    free(stops);
-                }
-                if (node->mStroke.enable)
-                  evas_vg_shape_stroke_fill_set(shape, grad);
-                else
-                  evas_vg_shape_fill_set(shape, grad);
-            }
-            break;
-        }
-        default:
-          break;
-        }
-
-        //3: Fill Rule
-//        if (node->mFillRule == FillEvenOdd)
-//          efl_gfx_shape_fill_rule_set(shape, EFL_GFX_FILL_RULE_ODD_EVEN);
-//        else if (node->mFillRule == FillWinding)
-//          efl_gfx_shape_fill_rule_set(shape, EFL_GFX_FILL_RULE_WINDING);
-    }
-
-    void update(const std::vector<LOTNode *> &renderList)
-    {
-        Efl_VG *root = evas_vg_container_add(renderObject());
-        for(auto i : renderList) {
-            createVgNode(i, root);
-        }
-        evas_object_vg_root_node_set(renderObject(), root);
-    }
-
-    void update(const LOTLayerNode * node, Efl_VG *parent)
-    {
-        // if the layer is invisible return
-        if (!node->mVisible) return;
-
-        // check if this layer is a container layer
-        bool hasMatte = false;
-        if (node->mLayerList.size) {
-            for (unsigned int i = 0; i < node->mLayerList.size; i++) {
-                if (hasMatte) {
-                    hasMatte = false;
-                    continue;
-                }
-                // if the layer has matte then
-                // the next layer has to be rendered using this layer
-                // as matte source
-                if (node->mLayerList.ptr[i]->mMatte != MatteNone) {
-                    hasMatte = true;
-                    printf("Matte is not supported Yet\n");
-                    continue;
-                }
-                update(node->mLayerList.ptr[i], parent);
-            }
-        }
-
-        // check if this layer has drawable
-        if (node->mNodeList.size) {
-            for (unsigned int i = 0; i < node->mNodeList.size; i++) {
-                createVgNode(node->mNodeList.ptr[i], parent);
-            }
-        }
+    MarkerFrame findFrameAtMarker(const std::string&) {
+        return std::make_tuple(0, 0);
     }
 };
 

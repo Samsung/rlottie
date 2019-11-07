@@ -28,7 +28,8 @@ _image_update_cb(void *data, Evas_Object *obj EINA_UNUSED)
 }
 
 void RenderStrategy::addCallback(){
-    evas_object_image_pixels_get_callback_set(_renderObject, _image_update_cb, this);
+    if (_useImage)
+      evas_object_image_pixels_get_callback_set(_renderObject, _image_update_cb, this);
 }
 
 static Eina_Bool
