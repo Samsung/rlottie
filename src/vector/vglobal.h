@@ -70,7 +70,6 @@ using uchar  = uint8_t;
 #define VECTOR_FALLTHROUGH
 #endif
 
-
 #if __cplusplus==201103L
 
 #include <memory>
