@@ -2124,7 +2124,7 @@ public:
                << ", W: " << obj->size().width()
                << ", H: " << obj->size().height() << "\n";
         level.append("\t");
-        visit(obj->mRootLayer.get(), level);
+        visit(obj->mRootLayer, level);
         level.erase(level.end() - 1, level.end());
         vDebug << " } " << level << "Composition End\n";
     }
@@ -2156,8 +2156,8 @@ public:
     void visitChildren(LOTGroupData *obj, std::string level)
     {
         level.append("\t");
-        for (const auto &child : obj->mChildren) visit(child.get(), level);
-        if (obj->mTransform) visit(obj->mTransform.get(), level);
+        for (const auto &child : obj->mChildren) visit(child, level);
+        if (obj->mTransform) visit(obj->mTransform, level);
     }
 
     void visit(LOTData *obj, std::string level)
@@ -2169,7 +2169,7 @@ public:
                    << " , a:" << !obj->isStatic()
                    << ", copies:" << r->maxCopies()
                    << ", offset:" << r->offset(0);
-            visitChildren(r->mContent.get(), level);
+            visitChildren(r->mContent, level);
             vDebug << level << "} Repeater";
             break;
         }
