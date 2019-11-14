@@ -461,7 +461,7 @@ private:
     };
     union {
         Data  mData;
-        char *mPtr;
+        char *mPtr{nullptr};
     };
 };
 
@@ -572,7 +572,7 @@ private:
        VMatrix  mMatrix;
     };
     union details {
-        TransformData     *mData;
+        TransformData     *mData{nullptr};
         static_data        mStaticData;
         details(){};
         details(const details&) = delete;
@@ -589,7 +589,7 @@ struct ExtraLayerData
     std::string                mPreCompRefId;
     LOTAnimatable<float>       mTimeRemap;  /* "tm" */
     LOTCompositionData        *mCompRef{nullptr};
-    LOTAsset                  *mAsset;
+    LOTAsset                  *mAsset{nullptr};
     std::vector<LOTMaskData *>  mMasks;
 };
 
@@ -683,7 +683,7 @@ public:
     long                 mEndFrame{0};
     float                mFrameRate{60};
     LottieBlendMode      mBlendMode{LottieBlendMode::Normal};
-    LOTLayerData        *mRootLayer;
+    LOTLayerData        *mRootLayer{nullptr};
     std::unordered_map<std::string,
                        LOTAsset*>    mAssets;
 
