@@ -75,8 +75,8 @@ private:
    VBitmap                                     mSurface;
    VMatrix                                     mScaleMatrix;
    VSize                                       mViewSize;
-   LOTCompositionData                         *mCompData;
-   LOTLayerItem                               *mRootLayer;
+   LOTCompositionData                         *mCompData{nullptr};
+   LOTLayerItem                               *mRootLayer{nullptr};
    VArenaAlloc                                 mAllocator{2048};
    int                                         mCurFrameNo;
    bool                                        mKeepAspectRatio{true};
@@ -239,7 +239,7 @@ protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
    std::vector<VDrawable *>             mDrawableList;
-   LOTContentGroupItem                 *mRoot;
+   LOTContentGroupItem                 *mRoot{nullptr};
 };
 
 class LOTNullLayerItem: public LOTLayerItem
@@ -275,7 +275,7 @@ public:
     VRle rle();
     void preprocess(const VRect &clip);
 public:
-    LOTMaskData             *mData;
+    LOTMaskData             *mData{nullptr};
     VPath                    mLocalPath;
     VPath                    mFinalPath;
     VRasterizer              mRasterizer;
@@ -389,7 +389,7 @@ public:
    explicit LOTRectItem(LOTRectData *data);
 protected:
    void updatePath(VPath& path, int frameNo) final;
-   LOTRectData           *mData;
+   LOTRectData           *mData{nullptr};
 
    bool hasChanged(int prevFrame, int curFrame) final {
        return (mData->mPos.changed(prevFrame, curFrame) ||
@@ -404,7 +404,7 @@ public:
    explicit LOTEllipseItem(LOTEllipseData *data);
 private:
    void updatePath(VPath& path, int frameNo) final;
-   LOTEllipseData           *mData;
+   LOTEllipseData           *mData{nullptr};
    bool hasChanged(int prevFrame, int curFrame) final {
        return (mData->mPos.changed(prevFrame, curFrame) ||
                mData->mSize.changed(prevFrame, curFrame));
@@ -417,7 +417,7 @@ public:
    explicit LOTShapeItem(LOTShapeData *data);
 private:
    void updatePath(VPath& path, int frameNo) final;
-   LOTShapeData             *mData;
+   LOTShapeData             *mData{nullptr};
    bool hasChanged(int prevFrame, int curFrame) final {
        return mData->mShape.changed(prevFrame, curFrame);
    }
@@ -429,7 +429,7 @@ public:
    explicit LOTPolystarItem(LOTPolystarData *data);
 private:
    void updatePath(VPath& path, int frameNo) final;
-   LOTPolystarData             *mData;
+   LOTPolystarData             *mData{nullptr};
 
    bool hasChanged(int prevFrame, int curFrame) final {
        return (mData->mPos.changed(prevFrame, curFrame) ||
@@ -484,7 +484,7 @@ public:
 protected:
    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
-   LOTGFillData                 *mData;
+   LOTGFillData                 *mData{nullptr};
    std::unique_ptr<VGradient>    mGradient;
 };
 
@@ -506,7 +506,7 @@ public:
 protected:
    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
 private:
-   LOTGStrokeData               *mData;
+   LOTGStrokeData               *mData{nullptr};
    std::unique_ptr<VGradient>    mGradient;
 };
 
@@ -535,7 +535,7 @@ private:
    };
    Cache                            mCache;
    std::vector<LOTPathDataItem *>   mPathItems;
-   LOTTrimData                     *mData;
+   LOTTrimData                     *mData{nullptr};
    VPathMesure                      mPathMesure;
    bool                             mDirty{true};
 };
@@ -547,7 +547,7 @@ public:
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
    void renderList(std::vector<VDrawable *> &list) final;
 private:
-   LOTRepeaterData             *mRepeaterData;
+   LOTRepeaterData             *mRepeaterData{nullptr};
    bool                         mHidden{false};
    int                          mCopies{0};
 };
