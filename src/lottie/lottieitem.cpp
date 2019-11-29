@@ -1175,16 +1175,20 @@ void LOTPaintDataItem::updateRenderNode()
 
 void LOTPaintDataItem::renderList(std::vector<VDrawable *> &list)
 {
-    //@TODO This optimization breaks when the layer
-    // is used as Matte. Find out the reason for this
-    // regression then reenable it.
-    //if (!mContentToRender) return;
-
     if (mRenderNodeUpdate) {
         updateRenderNode();
         mRenderNodeUpdate = false;
     }
-    list.push_back(&mDrawable);
+
+    // Q: Why we even update the final path if we don't have content
+    // to render ?
+    // Ans: We update the render nodes because we will loose the
+    // dirty path information at end of this frame.
+    // so if we return early without updating the final path.
+    // in the subsequent frame when we have content to render but
+    // we may not able to update our final path properly as we
+    // don't know what paths got changed in between.
+    if (mContentToRender) list.push_back(&mDrawable);
 }
 
 void LOTPaintDataItem::addPathItems(std::vector<LOTPathDataItem *> &list,
