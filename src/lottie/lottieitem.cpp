@@ -1175,7 +1175,10 @@ void LOTPaintDataItem::updateRenderNode()
 
 void LOTPaintDataItem::renderList(std::vector<VDrawable *> &list)
 {
-    if (!mContentToRender) return;
+    //@TODO This optimization breaks when the layer
+    // is used as Matte. Find out the reason for this
+    // regression then reenable it.
+    //if (!mContentToRender) return;
 
     if (mRenderNodeUpdate) {
         updateRenderNode();
