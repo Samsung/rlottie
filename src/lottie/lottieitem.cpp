@@ -1204,13 +1204,11 @@ bool LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
     auto combinedAlpha = alpha * mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
-    if (color.isTransparent()) return false;
-
     VBrush brush(color);
     mDrawable.setBrush(brush);
     mDrawable.setFillRule(mModel.fillRule());
 
-    return true;
+    return !color.isTransparent();
 }
 
 LOTGFillItem::LOTGFillItem(LOTGFillData *data)
@@ -1221,7 +1219,6 @@ LOTGFillItem::LOTGFillItem(LOTGFillData *data)
 bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
     float combinedAlpha = alpha * mData->opacity(frameNo);
-    if (vIsZero(combinedAlpha)) return false;
 
     mData->update(mGradient, frameNo);
     mGradient->setAlpha(combinedAlpha);
@@ -1229,7 +1226,7 @@ bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha
     mDrawable.setBrush(VBrush(mGradient.get()));
     mDrawable.setFillRule(mData->fillRule());
 
-    return true;
+    return !vIsZero(combinedAlpha);
 }
 
 LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
@@ -1249,8 +1246,6 @@ bool LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alph
     auto combinedAlpha = alpha * mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
-    if (color.isTransparent()) return false;
-
     VBrush brush(color);
     mDrawable.setBrush(brush);
     float scale = matrix.scale();
@@ -1266,7 +1261,7 @@ bool LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alph
         }
     }
 
-    return true;
+    return !color.isTransparent();
 }
 
 LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
@@ -1282,7 +1277,6 @@ LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
 bool LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
 {
     float combinedAlpha = alpha * mData->opacity(frameNo);
-    if (vIsZero(combinedAlpha)) return false;
 
     mData->update(mGradient, frameNo);
     mGradient->setAlpha(combinedAlpha);
@@ -1301,7 +1295,7 @@ bool LOTGStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alp
         }
     }
 
-    return true;
+    return !vIsZero(combinedAlpha);
 }
 
 LOTTrimItem::LOTTrimItem(LOTTrimData *data)
