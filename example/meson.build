@@ -63,7 +63,8 @@ executable('lottieviewer',
            link_with : rlottie_lib,
            dependencies : demo_dep)
 
-if (meson.get_compiler('cpp').has_header('elementary-1/efl_ui_animation_view.h'))
+if (meson.get_compiler('cpp').has_header('elementary-1/efl_ui_vg_animation.h') or
+     meson.get_compiler('cpp').has_header('elementary-1/efl_ui_animation_view.h'))
     executable('efl_animview',
                'efl_animview.cpp',
                include_directories : inc,
