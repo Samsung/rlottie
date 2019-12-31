@@ -243,6 +243,12 @@ public:
         rlottie::Color col = data(prop).color()(info);
         return LottieColor(col.r(), col.g(), col.b());
     }
+    VPointF point(rlottie::Property prop, int frame) const
+    {
+        rlottie::FrameInfo info(frame);
+        rlottie::Point pt = data(prop).point()(info);
+        return VPointF(pt.x(), pt.y());
+    }
     float opacity(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
@@ -334,4 +340,22 @@ private:
     LOTFilter                  mFilter;
 };
 
+template <>
+class LOTProxyModel<LOTGroupData>
+{
+public:
+    LOTProxyModel(LOTGroupData *model = nullptr): _modelData(model) {}
+    LOTFilter& filter() {return mFilter;}
+    const char* name() const {return _modelData->name();}
+    VPointF position(int frame) const
+    {
+        if (mFilter.hasFilter(rlottie::Property::TrPosition)) {
+            return mFilter.point(rlottie::Property::TrPosition, frame);
+        }
+        return VPointF(_modelData->mTransform->matrix(frame).m_tx(), _modelData->mTransform->matrix(frame).m_ty());
+    }
+private:
+    LOTGroupData               *_modelData;
+    LOTFilter                  mFilter;
+};
 #endif // LOTTIEITEM_H

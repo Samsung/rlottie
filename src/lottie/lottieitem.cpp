@@ -830,16 +830,18 @@ DrawableList LOTShapeLayerItem::renderList()
 bool LOTContentGroupItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
                                          LOTVariant &value)
 {
-    if (!keyPath.matches(name(), depth)) {
-        return false;
-    }
-
-    if (!keyPath.skip(name())) {
-        if (keyPath.fullyResolvesTo(name(), depth) &&
-            transformProp(value.property())) {
-            //@TODO handle property update
+   if (!keyPath.skip(name())) {
+        if (!keyPath.matches(mModel.name(), depth)) {
+             return false;
         }
-    }
+
+        if (!keyPath.skip(mModel.name())) {
+             if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
+                 transformProp(value.property())) {
+                  mModel.filter().addValue(value);
+             }
+        }
+   }
 
     if (keyPath.propagate(name(), depth)) {
         uint newDepth = keyPath.nextDepth(name(), depth);
@@ -881,7 +883,7 @@ bool LOTStrokeItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 }
 
 LOTContentGroupItem::LOTContentGroupItem(LOTGroupData *data, VArenaAlloc* allocator)
-    : mData(data)
+    : mData(data), mModel(data)
 {
     addChildren(mData, allocator);
 }
@@ -912,6 +914,11 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
     if (mData && mData->mTransform) {
         VMatrix m = mData->mTransform->matrix(frameNo);
         m *= parentMatrix;
+
+        if (mModel.filter().hasFilter(rlottie::Property::TrPosition)){
+             auto ps = mModel.position(frameNo);
+             m.translate(ps.x(), ps.y());
+        }
 
         if (!(flag & DirtyFlagBit::Matrix) && !mData->mTransform->isStatic() &&
             (m != mMatrix)) {

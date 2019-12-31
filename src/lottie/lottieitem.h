@@ -348,6 +348,8 @@ protected:
    LOTGroupData                                  *mData{nullptr};
    std::vector<LOTContentItem*>   mContents;
    VMatrix                                        mMatrix;
+private:
+   LOTProxyModel<LOTGroupData> mModel;
 };
 
 class LOTPathDataItem : public LOTContentItem
