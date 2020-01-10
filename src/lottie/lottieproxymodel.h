@@ -345,8 +345,10 @@ class LOTProxyModel<LOTGroupData>
 {
 public:
     LOTProxyModel(LOTGroupData *model = nullptr): _modelData(model) {}
+    bool hasModel() const { return _modelData ? true : false; }
     LOTFilter& filter() {return mFilter;}
     const char* name() const {return _modelData->name();}
+    LOTTransformData* transform() const { return _modelData->mTransform; }
     VPointF position(int frame) const
     {
         if (mFilter.hasFilter(rlottie::Property::TrPosition)) {

@@ -883,9 +883,9 @@ bool LOTStrokeItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 }
 
 LOTContentGroupItem::LOTContentGroupItem(LOTGroupData *data, VArenaAlloc* allocator)
-    : mData(data), mModel(data)
+    : mModel(data)
 {
-    addChildren(mData, allocator);
+    addChildren(data, allocator);
 }
 
 void LOTContentGroupItem::addChildren(LOTGroupData *data, VArenaAlloc* allocator)
@@ -911,8 +911,8 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
     DirtyFlag newFlag = flag;
     float alpha;
 
-    if (mData && mData->mTransform) {
-        VMatrix m = mData->mTransform->matrix(frameNo);
+    if (mModel.hasModel() && mModel.transform()) {
+        VMatrix m = mModel.transform()->matrix(frameNo);
         m *= parentMatrix;
 
         if (mModel.filter().hasFilter(rlottie::Property::TrPosition)){
@@ -920,14 +920,14 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
              m.translate(ps.x(), ps.y());
         }
 
-        if (!(flag & DirtyFlagBit::Matrix) && !mData->mTransform->isStatic() &&
+        if (!(flag & DirtyFlagBit::Matrix) && !mModel.transform()->isStatic() &&
             (m != mMatrix)) {
             newFlag |= DirtyFlagBit::Matrix;
         }
 
         mMatrix = m;
 
-        alpha = parentAlpha * mData->mTransform->opacity(frameNo);
+        alpha = parentAlpha * mModel.transform()->opacity(frameNo);
         if (!vCompare(alpha, parentAlpha)) {
             newFlag |= DirtyFlagBit::Alpha;
         }
