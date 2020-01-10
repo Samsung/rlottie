@@ -328,7 +328,7 @@ public:
 class LOTContentGroupItem: public LOTContentItem
 {
 public:
-    LOTContentGroupItem() = default;
+   LOTContentGroupItem() = default;
    explicit LOTContentGroupItem(LOTGroupData *data, VArenaAlloc* allocator);
    void addChildren(LOTGroupData *data, VArenaAlloc* allocator);
    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) override;
@@ -341,11 +341,10 @@ public:
    const char* name() const
    {
        static const char* TAG = "__";
-       return mData ? mData->name() : TAG;
+       return mModel.hasModel() ? mModel.name() : TAG;
    }
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
-   LOTGroupData                                  *mData{nullptr};
    std::vector<LOTContentItem*>   mContents;
    VMatrix                                        mMatrix;
 private:
