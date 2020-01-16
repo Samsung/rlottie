@@ -210,8 +210,13 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
         animation->mAnimation->setValue<rlottie::Property::TrPosition>(keypath, rlottie::Point((float)x, (float)y));
         break;
     }
+    case LOTTIE_ANIMATION_PROPERTY_TR_SCALE: {
+        double w = va_arg(prop, double);
+        double h = va_arg(prop, double);
+        animation->mAnimation->setValue<rlottie::Property::TrScale>(keypath, rlottie::Size((float)w, (float)h));
+        break;
+    }
     case LOTTIE_ANIMATION_PROPERTY_TR_ANCHOR:
-    case LOTTIE_ANIMATION_PROPERTY_TR_SCALE:
     case LOTTIE_ANIMATION_PROPERTY_TR_ROTATION:
     case LOTTIE_ANIMATION_PROPERTY_TR_OPACITY:
         //@TODO handle propery update.

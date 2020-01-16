@@ -915,6 +915,10 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
         VMatrix m = mModel.transform()->matrix(frameNo);
         m *= parentMatrix;
 
+        if (mModel.filter().hasFilter(rlottie::Property::TrScale)){
+             auto sz = mModel.scale(frameNo);
+             m.scale(sz.width() / 100.0, sz.height() / 100.0);
+        }
         if (mModel.filter().hasFilter(rlottie::Property::TrPosition)){
              auto ps = mModel.position(frameNo);
              m.translate(ps.x(), ps.y());

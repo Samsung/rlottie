@@ -249,6 +249,12 @@ public:
         rlottie::Point pt = data(prop).point()(info);
         return VPointF(pt.x(), pt.y());
     }
+    VSize scale(rlottie::Property prop, int frame) const
+    {
+        rlottie::FrameInfo info(frame);
+        rlottie::Size sz = data(prop).size()(info);
+        return VSize(sz.w(), sz.h());
+    }
     float opacity(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
@@ -355,6 +361,14 @@ public:
             return mFilter.point(rlottie::Property::TrPosition, frame);
         }
         return VPointF(_modelData->mTransform->matrix(frame).m_tx(), _modelData->mTransform->matrix(frame).m_ty());
+    }
+    VSize scale(int frame) const
+    {
+        if (mFilter.hasFilter(rlottie::Property::TrScale)) {
+            return mFilter.scale(rlottie::Property::TrScale, frame);
+        }
+        return VSize(_modelData->mTransform->matrix(frame).m_11() * 100.0,
+                       _modelData->mTransform->matrix(frame).m_22() * 100.0);
     }
 private:
     LOTGroupData               *_modelData;
