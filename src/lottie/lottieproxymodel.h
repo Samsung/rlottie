@@ -370,6 +370,13 @@ public:
         return VSize(_modelData->mTransform->matrix(frame).m_11() * 100.0,
                        _modelData->mTransform->matrix(frame).m_22() * 100.0);
     }
+    float rotate(int frame) const
+    {
+        if (mFilter.hasFilter(rlottie::Property::TrRotation)) {
+            return mFilter.value(rlottie::Property::TrRotation, frame);
+        }
+        return atan2(_modelData->mTransform->matrix(frame).m_21(), _modelData->mTransform->matrix(frame).m_11());
+    }
 private:
     LOTGroupData               *_modelData;
     LOTFilter                  mFilter;

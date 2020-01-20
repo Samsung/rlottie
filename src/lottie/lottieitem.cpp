@@ -918,10 +918,17 @@ void LOTContentGroupItem::update(int frameNo, const VMatrix &parentMatrix,
         if (mModel.filter().hasFilter(rlottie::Property::TrScale)){
              auto sz = mModel.scale(frameNo);
              m.scale(sz.width() / 100.0, sz.height() / 100.0);
+             newFlag |= DirtyFlagBit::Matrix;
+        }
+        if (mModel.filter().hasFilter(rlottie::Property::TrRotation)){
+             float r = mModel.rotate(frameNo);
+             m.rotate(r);
+             newFlag |= DirtyFlagBit::Matrix;
         }
         if (mModel.filter().hasFilter(rlottie::Property::TrPosition)){
              auto ps = mModel.position(frameNo);
              m.translate(ps.x(), ps.y());
+             newFlag |= DirtyFlagBit::Matrix;
         }
 
         if (!(flag & DirtyFlagBit::Matrix) && !mModel.transform()->isStatic() &&
