@@ -35,6 +35,7 @@ public:
         Demo5(app, filePath);
         Demo6(app, filePath);
         Demo7(app, filePath);
+        Demo8(app, filePath);
     }
     void Demo1(EvasApp *app, std::string &filePath) {
         /* Fill Color */
@@ -176,6 +177,40 @@ public:
         view7->loop(true);
         view7->setRepeatMode(LottieView::RepeatMode::Reverse);
     }
+    void Demo8(EvasApp *app, std::string &filePath) {
+        /* Transform + color */
+        view8.reset(new LottieView(app->evas()));
+        view8->setFilePath(filePath.c_str());
+        if (view8->player()) {
+            view8->player()->setValue<rlottie::Property::TrRotation>("Shape Layer 1.Ellipse 1",
+                [](const rlottie::FrameInfo& info) {
+                          return info.curFrame() * 20;
+                 });
+            view8->player()->setValue<rlottie::Property::TrScale>("Shape Layer 1.Ellipse 1",
+                [](const rlottie::FrameInfo& info) {
+                          return rlottie::Size(50, 100 - info.curFrame());
+                 });
+            view8->player()->setValue<rlottie::Property::TrPosition>("Shape Layer 1.Ellipse 1",
+                [](const rlottie::FrameInfo& info) {
+                          return rlottie::Point(-20 + (double)info.curFrame()/2.0,
+                                                -20 + (double)info.curFrame()/2.0);
+                 });
+            view8->player()->setValue<rlottie::Property::FillColor>("Shape Layer 1.Ellipse 1.Fill 1",
+                [](const rlottie::FrameInfo& info) {
+                     if (info.curFrame() < 60 )
+                         return rlottie::Color(0, 0, 1);
+                     else {
+                         return rlottie::Color(1, 0, 0);
+                     }
+                 });
+        }
+        view8->setPos(2100, 0);
+        view8->setSize(300, 300);
+        view8->show();
+        view8->play();
+        view8->loop(true);
+        view8->setRepeatMode(LottieView::RepeatMode::Reverse);
+    }
 private:
     std::unique_ptr<LottieView>  view1;
     std::unique_ptr<LottieView>  view2;
@@ -184,6 +219,7 @@ private:
     std::unique_ptr<LottieView>  view5;
     std::unique_ptr<LottieView>  view6;
     std::unique_ptr<LottieView>  view7;
+    std::unique_ptr<LottieView>  view8;
 };
 
 static void
@@ -196,7 +232,7 @@ onExitCb(void *data, void */*extra*/)
 int
 main(void)
 {
-   EvasApp *app = new EvasApp(2100, 300);
+   EvasApp *app = new EvasApp(2400, 300);
    app->setup();
 
    std::string filePath = DEMO_DIR;
