@@ -355,27 +355,21 @@ public:
     LOTFilter& filter() {return mFilter;}
     const char* name() const {return _modelData->name();}
     LOTTransformData* transform() const { return _modelData->mTransform; }
-    VPointF position(int frame) const
+    VMatrix matrix(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::TrPosition)) {
-            return mFilter.point(rlottie::Property::TrPosition, frame);
-        }
-        return VPointF(_modelData->mTransform->matrix(frame).m_tx(), _modelData->mTransform->matrix(frame).m_ty());
-    }
-    VSize scale(int frame) const
-    {
+        VMatrix mS, mR, mT;
         if (mFilter.hasFilter(rlottie::Property::TrScale)) {
-            return mFilter.scale(rlottie::Property::TrScale, frame);
+            VSize s = mFilter.scale(rlottie::Property::TrScale, frame);
+            mS.scale(s.width() / 100.0, s.height() / 100.0);
         }
-        return VSize(_modelData->mTransform->matrix(frame).m_11() * 100.0,
-                       _modelData->mTransform->matrix(frame).m_22() * 100.0);
-    }
-    float rotate(int frame) const
-    {
         if (mFilter.hasFilter(rlottie::Property::TrRotation)) {
-            return mFilter.value(rlottie::Property::TrRotation, frame);
+            mR.rotate(mFilter.value(rlottie::Property::TrRotation, frame));
         }
-        return atan2(_modelData->mTransform->matrix(frame).m_21(), _modelData->mTransform->matrix(frame).m_11());
+        if (mFilter.hasFilter(rlottie::Property::TrPosition)) {
+            mT.translate(mFilter.point(rlottie::Property::TrPosition, frame));
+        }
+
+        return _modelData->mTransform->matrix(frame) * mS * mR * mT;
     }
 private:
     LOTGroupData               *_modelData;
