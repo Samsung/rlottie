@@ -183,6 +183,8 @@ typedef struct LOTNode {
     int       mFlag;
     LOTBrushType mBrushType;
     LOTFillRule  mFillRule;
+
+    const char  *keypath;
 } LOTNode;
 
 

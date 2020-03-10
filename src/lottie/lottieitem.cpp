@@ -1203,6 +1203,7 @@ void LOTPaintDataItem::addPathItems(std::vector<LOTPathDataItem *> &list,
 LOTFillItem::LOTFillItem(LOTFillData *data)
     : LOTPaintDataItem(data->isStatic()), mModel(data)
 {
+    mDrawable.setName(mModel.name());
 }
 
 bool LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
@@ -1220,6 +1221,7 @@ bool LOTFillItem::updateContent(int frameNo, const VMatrix &, float alpha)
 LOTGFillItem::LOTGFillItem(LOTGFillData *data)
     : LOTPaintDataItem(data->isStatic()), mData(data)
 {
+    mDrawable.setName(mData->name());
 }
 
 bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha)
@@ -1238,6 +1240,7 @@ bool LOTGFillItem::updateContent(int frameNo, const VMatrix &matrix, float alpha
 LOTStrokeItem::LOTStrokeItem(LOTStrokeData *data)
     : LOTPaintDataItem(data->isStatic()), mModel(data)
 {
+    mDrawable.setName(mModel.name());
     if (mModel.hasDashInfo()) {
         mDrawable.setType(VDrawable::Type::StrokeWithDash);
     } else {
@@ -1273,6 +1276,7 @@ bool LOTStrokeItem::updateContent(int frameNo, const VMatrix &matrix, float alph
 LOTGStrokeItem::LOTGStrokeItem(LOTGStrokeData *data)
     : LOTPaintDataItem(data->isStatic()), mData(data)
 {
+    mDrawable.setName(mData->name());
     if (mData->hasDashInfo()) {
         mDrawable.setType(VDrawable::Type::StrokeWithDash);
     } else {
