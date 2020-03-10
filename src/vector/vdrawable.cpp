@@ -34,6 +34,7 @@ VDrawable::~VDrawable()
             delete mStrokeInfo;
         }
     }
+    if (mName) free(mName);
 }
 
 void VDrawable::setType(VDrawable::Type type)

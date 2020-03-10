@@ -19,6 +19,7 @@
 #ifndef VDRAWABLE_H
 #define VDRAWABLE_H
 #include <future>
+#include <cstring>
 #include "vbrush.h"
 #include "vpath.h"
 #include "vrle.h"
@@ -54,6 +55,11 @@ public:
     void preprocess(const VRect &clip);
     void applyDashOp();
     VRle rle();
+    void setName(const char *name)
+    {
+        if (name) mName = strdup(name);
+    }
+    char* name() const { return mName; }
 
 public:
     struct StrokeInfo {
@@ -76,6 +82,8 @@ public:
     DirtyFlag                mFlag{DirtyState::All};
     FillRule                 mFillRule{FillRule::Winding};
     VDrawable::Type          mType{Type::Fill};
+
+    char                     *mName{nullptr};
 };
 
 #endif  // VDRAWABLE_H
