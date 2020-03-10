@@ -244,6 +244,7 @@ void LOTDrawable::sync()
         mCNode->mPath.ptPtr = ptPtr;
         mCNode->mPath.ptCount = 2 * pts.size();
         mCNode->mFlag |= ChangeFlagPath;
+        mCNode->keypath = name();
     }
 
     if (mStrokeInfo) {
