@@ -57,9 +57,9 @@ public:
     VRle rle();
     void setName(const char *name)
     {
-        if (name) mName = strdup(name);
+        mName = name;
     }
-    char* name() const { return mName; }
+    const char* name() const { return mName; }
 
 public:
     struct StrokeInfo {
@@ -83,7 +83,7 @@ public:
     FillRule                 mFillRule{FillRule::Winding};
     VDrawable::Type          mType{Type::Fill};
 
-    char                     *mName{nullptr};
+    const char              *mName{nullptr};
 };
 
 #endif  // VDRAWABLE_H
