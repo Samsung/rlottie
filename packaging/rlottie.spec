@@ -3,7 +3,7 @@ Summary:    rlottie Library
 Version:    0.0.1
 Release:    1
 Group:      UI Framework/Services
-License:    LGPL-v2.1
+License:    LGPL-2.1+ and BSD-3-Clause and MIT
 URL:        http://www.tizen.org/
 Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  meson
