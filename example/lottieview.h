@@ -431,6 +431,7 @@ public:
 
     uint32_t *buffer() {
         assert(false);
+        return nullptr;
     }
 
     bool renderRequest(int frame) {
