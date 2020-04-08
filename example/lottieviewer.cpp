@@ -241,7 +241,7 @@ elm_main(int argc EINA_UNUSED, char **argv EINA_UNUSED)
 
    jsonFiles = EvasApp::jsonFiles(DEMO_DIR);
 
-   for (uint i = 0; i < jsonFiles.size(); i++) {
+   for (uint32_t i = 0; i < jsonFiles.size(); i++) {
       itemData = (ItemData *)calloc(sizeof(ItemData), 1);
       itemData->index = i;
       elm_genlist_item_append(genlist, itc, (void *)itemData, NULL, ELM_GENLIST_ITEM_NONE, NULL, NULL);
