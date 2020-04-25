@@ -663,7 +663,7 @@ public:
     size_t frameAtPos(double pos) const {
         if (pos < 0) pos = 0;
         if (pos > 1) pos = 1;
-        return size_t(pos * frameDuration());
+        return size_t(round(pos * frameDuration()));
     }
     long frameAtTime(double timeInSec) const {
         return long(frameAtPos(timeInSec / duration()));
