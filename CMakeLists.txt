@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.3 )
 
 #declare project
-project( rlottie VERSION 0.0.1 LANGUAGES C CXX ASM)
+project( rlottie VERSION 0.1 LANGUAGES C CXX ASM)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE MinSizeRel)
