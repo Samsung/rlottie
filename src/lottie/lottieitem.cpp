@@ -157,7 +157,7 @@ bool LOTCompItem::render(const rlottie::Surface &surface)
     painter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
-    mRootLayer->render(&painter, {}, {});
+    mRootLayer->render(&painter, {}, {}, mSurfaceCache);
     painter.end();
     return true;
 }
@@ -200,7 +200,7 @@ void LOTMaskItem::preprocess(const VRect &clip)
 }
 
 void LOTLayerItem::render(VPainter *painter, const VRle &inheritMask,
-                          const VRle &matteRle)
+                          const VRle &matteRle, SurfaceCache& cache)
 {
     auto renderlist = renderList();
 
@@ -468,30 +468,30 @@ LOTCompLayerItem::LOTCompLayerItem(LOTLayerData *layerModel, VArenaAlloc* alloca
 }
 
 void LOTCompLayerItem::render(VPainter *painter, const VRle &inheritMask,
-                              const VRle &matteRle)
+                              const VRle &matteRle, SurfaceCache& cache)
 {
     if (vIsZero(combinedAlpha())) return;
 
     if (vCompare(combinedAlpha(), 1.0)) {
-        renderHelper(painter, inheritMask, matteRle);
+        renderHelper(painter, inheritMask, matteRle, cache);
     } else {
         if (complexContent()) {
             VSize    size = painter->clipBoundingRect().size();
             VPainter srcPainter;
-            VBitmap  srcBitmap(size.width(), size.height(),
-                              VBitmap::Format::ARGB32_Premultiplied);
+            VBitmap  srcBitmap = cache.make_surface(size.width(), size.height());
             srcPainter.begin(&srcBitmap);
-            renderHelper(&srcPainter, inheritMask, matteRle);
+            renderHelper(&srcPainter, inheritMask, matteRle, cache);
             srcPainter.end();
             painter->drawBitmap(VPoint(), srcBitmap, uchar(combinedAlpha() * 255.0f));
+            cache.release_surface(srcBitmap);
         } else {
-            renderHelper(painter, inheritMask, matteRle);
+            renderHelper(painter, inheritMask, matteRle, cache);
         }
     }
 }
 
 void LOTCompLayerItem::renderHelper(VPainter *painter, const VRle &inheritMask,
-                                    const VRle &matteRle)
+                                    const VRle &matteRle, SurfaceCache& cache)
 {
     VRle mask;
     if (mLayerMask) {
@@ -517,9 +517,9 @@ void LOTCompLayerItem::renderHelper(VPainter *painter, const VRle &inheritMask,
                 if (matte) {
                     if (matte->visible())
                         renderMatteLayer(painter, mask, matteRle, matte,
-                                         layer);
+                                         layer, cache);
                 } else {
-                    layer->render(painter, mask, matteRle);
+                    layer->render(painter, mask, matteRle, cache);
                 }
             }
             matte = nullptr;
@@ -529,24 +529,22 @@ void LOTCompLayerItem::renderHelper(VPainter *painter, const VRle &inheritMask,
 
 void LOTCompLayerItem::renderMatteLayer(VPainter *painter, const VRle &mask,
                                         const VRle &  matteRle,
-                                        LOTLayerItem *layer, LOTLayerItem *src)
+                                        LOTLayerItem *layer, LOTLayerItem *src, SurfaceCache& cache)
 {
     VSize size = painter->clipBoundingRect().size();
     // Decide if we can use fast matte.
     // 1. draw src layer to matte buffer
     VPainter srcPainter;
-    src->bitmap().reset(size.width(), size.height(),
-                        VBitmap::Format::ARGB32_Premultiplied);
-    srcPainter.begin(&src->bitmap());
-    src->render(&srcPainter, mask, matteRle);
+    VBitmap srcBitmap = cache.make_surface(size.width(), size.height());
+    srcPainter.begin(&srcBitmap);
+    src->render(&srcPainter, mask, matteRle, cache);
     srcPainter.end();
 
     // 2. draw layer to layer buffer
     VPainter layerPainter;
-    layer->bitmap().reset(size.width(), size.height(),
-                          VBitmap::Format::ARGB32_Premultiplied);
-    layerPainter.begin(&layer->bitmap());
-    layer->render(&layerPainter, mask, matteRle);
+    VBitmap layerBitmap = cache.make_surface(size.width(), size.height());
+    layerPainter.begin(&layerBitmap);
+    layer->render(&layerPainter, mask, matteRle, cache);
 
     // 2.1update composition mode
     switch (layer->matteType()) {
@@ -567,14 +565,17 @@ void LOTCompLayerItem::renderMatteLayer(VPainter *painter, const VRle &mask,
     // 2.2 update srcBuffer if the matte is luma type
     if (layer->matteType() == MatteType::Luma ||
         layer->matteType() == MatteType::LumaInv) {
-        src->bitmap().updateLuma();
+        srcBitmap.updateLuma();
     }
 
     // 2.3 draw src buffer as mask
-    layerPainter.drawBitmap(VPoint(), src->bitmap());
+    layerPainter.drawBitmap(VPoint(), srcBitmap);
     layerPainter.end();
     // 3. draw the result buffer into painter
-    painter->drawBitmap(VPoint(), layer->bitmap());
+    painter->drawBitmap(VPoint(), layerBitmap);
+
+    cache.release_surface(srcBitmap);
+    cache.release_surface(layerBitmap);
 }
 
 void LOTClipperItem::update(const VMatrix &matrix)
