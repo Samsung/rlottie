@@ -61,6 +61,31 @@ public:
     }
 };
 
+class SurfaceCache
+{
+public:  
+  SurfaceCache(){mCache.reserve(10);}
+
+  VBitmap make_surface(size_t width, size_t height, VBitmap::Format format=VBitmap::Format::ARGB32_Premultiplied)
+  {
+    if (mCache.empty()) return {width, height, format};
+
+    auto surface = mCache.back();
+    surface.reset(width, height, format);
+
+    mCache.pop_back();
+    return surface;
+  }
+
+  void release_surface(VBitmap& surface)
+  {
+     mCache.push_back(surface);
+  }
+
+private:
+  std::vector<VBitmap> mCache;
+};
+
 class LOTCompItem
 {
 public:
@@ -72,6 +97,7 @@ public:
    bool render(const rlottie::Surface &surface);
    void setValue(const std::string &keypath, LOTVariant &value);
 private:
+   SurfaceCache                                mSurfaceCache;
    VBitmap                                     mSurface;
    VMatrix                                     mScaleMatrix;
    VSize                                       mViewSize;
@@ -157,7 +183,7 @@ public:
    VMatrix matrix(int frameNo) const;
    void preprocess(const VRect& clip);
    virtual DrawableList renderList(){ return {};}
-   virtual void render(VPainter *painter, const VRle &mask, const VRle &matteRle);
+   virtual void render(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache);
    bool hasMatte() { if (mLayerData->mMatteType == MatteType::None) return false; return true; }
    MatteType matteType() const { return mLayerData->mMatteType;}
    bool visible() const;
@@ -168,7 +194,6 @@ public:
    std::vector<LOTNode *>& cnodes() {return mCApiData->mCNodeList;}
    const char* name() const {return mLayerData->name();}
    virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
-   VBitmap& bitmap() {return mRenderBuffer;}
 protected:
    virtual void preprocessStage(const VRect& clip) = 0;
    virtual void updateContent() = 0;
@@ -184,7 +209,6 @@ protected:
    LOTLayerData                               *mLayerData{nullptr};
    LOTLayerItem                               *mParentLayer{nullptr};
    VMatrix                                     mCombinedMatrix;
-   VBitmap                                     mRenderBuffer;
    float                                       mCombinedAlpha{0.0};
    int                                         mFrameNo{-1};
    DirtyFlag                                   mDirtyFlag{DirtyFlagBit::All};
@@ -197,16 +221,16 @@ class LOTCompLayerItem: public LOTLayerItem
 public:
    explicit LOTCompLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
 
-   void render(VPainter *painter, const VRle &mask, const VRle &matteRle) final;
+   void render(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache) final;
    void buildLayerNode() final;
    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
    void preprocessStage(const VRect& clip) final;
    void updateContent() final;
 private:
-    void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle);
+    void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache);
     void renderMatteLayer(VPainter *painter, const VRle &inheritMask, const VRle &matteRle,
-                          LOTLayerItem *layer, LOTLayerItem *src);
+                          LOTLayerItem *layer, LOTLayerItem *src, SurfaceCache& cache);
 private:
    std::vector<LOTLayerItem*>            mLayers;
    std::unique_ptr<LOTClipperItem>       mClipper;
