@@ -749,100 +749,60 @@ static void gray_split_cubic(SW_FT_Vector* base)
     base[3].y = ( a + c ) >> 3;
 }
 
-static void gray_render_cubic(RAS_ARG_ const SW_FT_Vector* control1,
+
+static void
+gray_render_cubic(RAS_ARG_ const SW_FT_Vector* control1,
                               const SW_FT_Vector*          control2,
                               const SW_FT_Vector*          to)
 {
-    SW_FT_Vector* arc;
-    TPos          min, max, y;
+    SW_FT_Vector* arc = ras.bez_stack;
 
-    arc = ras.bez_stack;
-    arc[0].x = UPSCALE(to->x);
-    arc[0].y = UPSCALE(to->y);
-    arc[1].x = UPSCALE(control2->x);
-    arc[1].y = UPSCALE(control2->y);
-    arc[2].x = UPSCALE(control1->x);
-    arc[2].y = UPSCALE(control1->y);
+    arc[0].x = UPSCALE( to->x );
+    arc[0].y = UPSCALE( to->y );
+    arc[1].x = UPSCALE( control2->x );
+    arc[1].y = UPSCALE( control2->y );
+    arc[2].x = UPSCALE( control1->x );
+    arc[2].y = UPSCALE( control1->y );
     arc[3].x = ras.x;
     arc[3].y = ras.y;
 
-    /* Short-cut the arc that crosses the current band. */
-    min = max = arc[0].y;
+    /* short-cut the arc that crosses the current band */
+    if ( ( TRUNC( arc[0].y ) >= ras.max_ey &&
+           TRUNC( arc[1].y ) >= ras.max_ey &&
+           TRUNC( arc[2].y ) >= ras.max_ey &&
+           TRUNC( arc[3].y ) >= ras.max_ey ) ||
+         ( TRUNC( arc[0].y ) <  ras.min_ey &&
+           TRUNC( arc[1].y ) <  ras.min_ey &&
+           TRUNC( arc[2].y ) <  ras.min_ey &&
+           TRUNC( arc[3].y ) <  ras.min_ey ) )
+    {
+      ras.x = arc[0].x;
+      ras.y = arc[0].y;
+      return;
+    }
 
-    y = arc[1].y;
-    if (y < min) min = y;
-    if (y > max) max = y;
+    for (;;)
+    {
+      /* with each split, control points quickly converge towards  */
+      /* chord trisection points and the vanishing distances below */
+      /* indicate when the segment is flat enough to draw          */
+      if ( SW_FT_ABS( 2 * arc[0].x - 3 * arc[1].x + arc[3].x ) > ONE_PIXEL / 2 ||
+           SW_FT_ABS( 2 * arc[0].y - 3 * arc[1].y + arc[3].y ) > ONE_PIXEL / 2 ||
+           SW_FT_ABS( arc[0].x - 3 * arc[2].x + 2 * arc[3].x ) > ONE_PIXEL / 2 ||
+           SW_FT_ABS( arc[0].y - 3 * arc[2].y + 2 * arc[3].y ) > ONE_PIXEL / 2 )
+        goto Split;
 
-    y = arc[2].y;
-    if (y < min) min = y;
-    if (y > max) max = y;
+      gray_render_line( RAS_VAR_ arc[0].x, arc[0].y );
 
-    y = arc[3].y;
-    if (y < min) min = y;
-    if (y > max) max = y;
+      if ( arc == ras.bez_stack )
+        return;
 
-    if (TRUNC(min) >= ras.max_ey || TRUNC(max) < ras.min_ey) goto Draw;
-
-    for (;;) {
-        /* Decide whether to split or draw. See `Rapid Termination          */
-        /* Evaluation for Recursive Subdivision of Bezier Curves' by Thomas */
-        /* F. Hain, at                                                      */
-        /* http://www.cis.southalabama.edu/~hain/general/Publications/Bezier/Camera-ready%20CISST02%202.pdf
-         */
-
-        {
-            TPos dx, dy, dx_, dy_;
-            TPos dx1, dy1, dx2, dy2;
-            TPos L, s, s_limit;
-
-            /* dx and dy are x and y components of the P0-P3 chord vector. */
-            dx = dx_ = arc[3].x - arc[0].x;
-            dy = dy_ = arc[3].y - arc[0].y;
-
-            L = SW_FT_HYPOT(dx_, dy_);
-
-            /* Avoid possible arithmetic overflow below by splitting. */
-            if (L > 32767) goto Split;
-
-            /* Max deviation may be as much as (s/L) * 3/4 (if Hain's v = 1). */
-            s_limit = L * (TPos)(ONE_PIXEL / 6);
-
-            /* s is L * the perpendicular distance from P1 to the line P0-P3. */
-            dx1 = arc[1].x - arc[0].x;
-            dy1 = arc[1].y - arc[0].y;
-            s = SW_FT_ABS(dy * dx1 - dx * dy1);
-
-            if (s > s_limit) goto Split;
-
-            /* s is L * the perpendicular distance from P2 to the line P0-P3. */
-            dx2 = arc[2].x - arc[0].x;
-            dy2 = arc[2].y - arc[0].y;
-            s = SW_FT_ABS(dy * dx2 - dx * dy2);
-
-            if (s > s_limit) goto Split;
-
-            /* Split super curvy segments where the off points are so far
-               from the chord that the angles P0-P1-P3 or P0-P2-P3 become
-               acute as detected by appropriate dot products. */
-            if (dx1 * (dx1 - dx) + dy1 * (dy1 - dy) > 0 ||
-                dx2 * (dx2 - dx) + dy2 * (dy2 - dy) > 0)
-                goto Split;
-
-            /* No reason to split. */
-            goto Draw;
-        }
+      arc -= 3;
+      continue;
 
     Split:
-        gray_split_cubic(arc);
-        arc += 3;
-        continue;
-
-    Draw:
-        gray_render_line(RAS_VAR_ arc[0].x, arc[0].y);
-
-        if (arc == ras.bez_stack) return;
-
-        arc -= 3;
+      gray_split_cubic( arc );
+      arc += 3;
     }
 }
 
