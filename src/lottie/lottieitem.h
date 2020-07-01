@@ -345,12 +345,93 @@ public:
 protected:
     void preprocessStage(const VRect &clip) final;
     void updateContent() final;
-
 private:
     Drawable   mRenderNode;
     VTexture   mTexture;
     VPath      mPath;
     VDrawable *mDrawableList{nullptr};  // to work with the Span api
+};
+
+class TextLayer final : public Layer
+{
+public:
+   explicit TextLayer(model::Layer *layerData, VArenaAlloc* allocator);
+   DrawableList renderList() final;
+   void buildLayerNode() final;
+   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
+protected:
+   void preprocessStage(const VRect& clip) final;
+   void updateContent() final;
+   Group                       *mRoot{nullptr};
+   model::TextProperties                         curTextProperties;
+   std::vector<std::unique_ptr<Drawable>> mRenderNode;
+   std::vector<VDrawable *>                  mDrawableList;
+   VPath                                     mLastPath;
+
+   void getTextPath(VPath &path, int frameNo) {
+       float curX = 0.0;
+
+       model::TextProperties textProperties = mLayerData->extra()->textLayer()->getTextProperties(frameNo);
+
+       if (curTextProperties == textProperties) {
+           path = mLastPath;
+           return;
+       } else {
+           curTextProperties = textProperties;
+
+           if (mLayerData->extra()->mCompRef &&
+               !mLayerData->extra()->mCompRef->mChars.empty()) {
+               for (auto textChar : curTextProperties.mText) {
+                   for (auto  charData : mLayerData->extra()->mCompRef->mChars) {
+                       // FIXME: There is a problem for font searching logic.
+                       // It needs to compare font considering spaces and '-' character.
+                       if ((textChar == *charData.mCh.c_str()) &&
+                           (curTextProperties.mSize == charData.mSize) &&
+                           (curTextProperties.mFont.compare(charData.mFontFamily) == 0)) {
+                           VMatrix matrix;
+
+                           matrix = matrix.translate(curX, 0.0);
+
+                           for (auto shapeData : charData.mShapePathData) {
+                               path.addPath(shapeData, matrix);
+
+                               break;
+                           }
+                           curX += (float)charData.mWidth;
+                       }
+                   }
+               }
+               mLastPath = path;
+           } else {
+               // Load font and get path.
+               /*
+               path = getPathfromFontblah(blah, blah);
+               ... blah blah;
+               mLastPath = path;
+                */
+           }
+       }
+   }
+
+   model::Color getTextFillColor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextFillColor(frameNo);
+   }
+
+   float getTextStrokeWidth(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeWidth(frameNo);
+   }
+
+   model::Color getTextStrokeColor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeColor(frameNo);
+   }
+
+   bool getTextStrokeOverFill(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeOverFill(frameNo);
+   }
+
+   int getTextOpacity(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextOpacity(frameNo);
+   }
 };
 
 class Object {

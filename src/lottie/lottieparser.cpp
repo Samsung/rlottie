@@ -282,10 +282,10 @@ public:
     VInterpolator *interpolator(VPointF, VPointF, std::string);
 
     void parseTextProperties(model::TextDocument &obj);
-	void parseTextAnimatedProperties(model::TextAnimator &obj);
+    void parseTextAnimatedProperties(model::TextAnimator &obj);
     void parseTextRangeSelection(model::TextAnimator &obj);
-	void parseTextDocument(model::TextLayerData *obj);
-	void parseTextAnimators(model::TextLayerData *obj);
+    void parseTextDocument(model::TextLayerData *obj);
+    void parseTextAnimators(model::TextLayerData *obj);
     void parseText(model::TextLayerData *obj);
 
 
