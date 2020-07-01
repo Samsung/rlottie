@@ -73,7 +73,7 @@ public:
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
-
+    friend inline bool operator==(const Color &c1, const Color &c2);
 public:
     float r{1};
     float g{1};
@@ -98,6 +98,17 @@ inline const Color operator*(float m, const Color &c)
 {
     return Color(c.r * m, c.g * m, c.b * m);
 }
+
+inline bool operator==(const Color &c1, const Color &c2)
+{
+    if (vCompare(c1.r, c2.r) &&
+        vCompare(c1.g, c2.g) &&
+        vCompare(c1.b, c2.b))
+      return true;
+    return false;
+}
+
+
 
 struct PathData {
     std::vector<VPointF> mPoints;
@@ -487,6 +498,24 @@ struct Asset {
     VBitmap mBitmap;
 };
 
+class Fonts {
+public:
+	std::string		mFontName;
+	std::string		mFontFamily;
+	std::string		mFontStyle;
+	double			mFontAscent;
+};
+
+class Chars {
+public:
+    std::string              mCh;            /* ch */
+    std::string              mStyle;         /* style */
+    std::string              mFontFamily;    /* fFamily */
+    double                   mSize;          /* size */
+    double                   mWidth;         /* w */
+    std::vector<VPath>       mShapePathData; /* data */
+};
+
 class Layer;
 
 class Composition : public Object {
@@ -537,6 +566,8 @@ public:
     std::unordered_map<std::string, Asset *> mAssets;
 
     std::vector<Marker> mMarkers;
+    std::vector<Fonts>   mFonts;
+    std::vector<Chars>   mChars;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
 };
@@ -634,6 +665,132 @@ public:
     Transform *           mTransform{nullptr};
 };
 
+
+enum class Justification {
+    Left,
+    Right,
+    Center
+};
+
+class TextProperties
+{
+public:
+    int                 mSize{0};                   /* "s" */
+    std::string         mFont;                      /* "f" */
+    std::string         mText;                      /* "t" */
+    Justification mJustification{Justification::Left}; /* "j" */
+    float               mTracking{0.0};             /* "tr" */
+    float               mLineHeight{0.0};           /* "lh" */
+    float               mBaselineShift{0.0};        /* "ls" */
+    Color         mFillColor;                 /* "fc" */
+    Color         mStrokeColor;               /* "sc" */
+    float               mStrokeWidth{0.0};          /* "sw" */
+    bool                mStrokeOverFill{false};     /* "of" */
+
+    inline bool operator==(const TextProperties &a) {
+         if ((mSize == a.mSize) &&
+	     (mFont.compare(a.mFont) == 0) &&
+             (mText.compare(a.mText) == 0) &&
+             (mJustification == a.mJustification) &&
+             vCompare(mTracking, a.mTracking) &&
+             vCompare(mLineHeight, a.mLineHeight) &&
+             vCompare(mBaselineShift, a.mBaselineShift) &&
+             (mFillColor == a.mFillColor) &&
+             (mStrokeColor == a.mStrokeColor) &&
+             vCompare(mStrokeWidth, a.mStrokeWidth) &&
+             (mStrokeOverFill == a.mStrokeOverFill))
+             return true;
+	 return false;
+    }
+};
+
+class TextDocument
+{
+public:
+    TextProperties mTextProperties;
+    int               mTime;
+};
+
+class TextAnimator
+{
+public:
+    std::string            mName;
+
+    /* Animated Properties */
+    Property<float>   mOpacity{100};
+    Property<float>   mRotation;
+    Property<VPointF> mTracking;
+
+    /* Range Selection */
+    int                    mTime;
+};
+
+class TextLayerData
+{
+
+private:
+    TextProperties textProperties(int frameNo) {
+        for (auto &textDocument : mTextDocument) {
+            if (textDocument.mTime >= frameNo)
+                return textDocument.mTextProperties;
+            }
+        return mTextDocument.back().mTextProperties;
+    }
+
+public:
+    std::vector<TextDocument>		mTextDocument;
+    std::vector<TextAnimator>		mTextAnimator;
+
+    TextProperties getTextProperties(int frameNo) {
+        return textProperties(frameNo);
+    }
+
+    Color getTextFillColor(int frameNo) {
+        if (mTextAnimator.empty()) {
+            TextProperties textProp = getTextProperties(frameNo);
+            return textProp.mFillColor;
+        } else {
+            // TODO: get Animatable fill color.
+            return Color(0.0, 1.0, 0.0);
+        }
+    }
+
+    float getTextStrokeWidth(int frameNo) {
+        if (mTextAnimator.empty()) {
+            TextProperties textProp = getTextProperties(frameNo);
+            return textProp.mStrokeWidth;
+        } else {
+            // TODO: get Animatable stroke width.
+            return 0.0;
+        }
+    }
+
+    Color getTextStrokeColor(int frameNo) {
+        if (mTextAnimator.empty()) {
+            TextProperties textProp = getTextProperties(frameNo);
+            return textProp.mStrokeColor;
+        } else {
+            // TODO: get Animatable stroke color.
+            return Color(0.0, 1.0, 0.0);
+        }
+    }
+
+    bool getTextStrokeOverFill(int frameNo) {
+        return getTextProperties(frameNo).mStrokeOverFill;
+    }
+
+    int getTextOpacity(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return 100;
+        } else {
+            // TODO: get Animatable opacity.
+            return 50;
+        }
+    }
+};
+
+
+
 class Layer : public Group {
 public:
     enum class Type : uchar {
@@ -680,6 +837,13 @@ public:
         Composition *       mCompRef{nullptr};
         Asset *             mAsset{nullptr};
         std::vector<Mask *> mMasks;
+	std::unique_ptr<TextLayerData> mTextLayerData{nullptr};
+
+	    TextLayerData* textLayer()
+	    {
+		if (!mTextLayerData) mTextLayerData = std::make_unique<TextLayerData>();
+		return mTextLayerData.get();
+	    }
     };
 
     Layer::Extra *extra()

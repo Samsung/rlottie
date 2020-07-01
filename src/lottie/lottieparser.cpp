@@ -238,6 +238,13 @@ public:
 
     void parseGradientProperty(model::Gradient *gradient, const char *key);
 
+    void                         parseFonts();
+    void                         parseFont();
+    void                         parseChars();
+    void                         parseChar();
+    void                         parseCharData(model::Chars &obj);
+    void                         parseCharDataShape(VPath &obj);
+
     VPointF parseInperpolatorPoint();
 
     void getValue(VPointF &pt);
@@ -262,6 +269,14 @@ public:
     void parseDashProperty(model::Dash &dash);
 
     VInterpolator *interpolator(VPointF, VPointF, std::string);
+
+    void parseTextProperties(model::TextDocument &obj);
+	void parseTextAnimatedProperties(model::TextAnimator &obj);
+    void parseTextRangeSelection(model::TextAnimator &obj);
+	void parseTextDocument(model::TextLayerData *obj);
+	void parseTextAnimators(model::TextLayerData *obj);
+    void parseText(model::TextLayerData *obj);
+
 
     model::Color toColor(const char *str);
 
@@ -663,6 +678,10 @@ void LottieParserImpl::parseComposition()
             parseLayers(comp);
         } else if (0 == strcmp(key, "markers")) {
             parseMarkers();
+        } else if (0 == strcmp(key, "fonts")) {
+             parseFonts();
+        } else if (0 == strcmp(key, "chars")) {
+             parseChars();
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Composition Attribute Skipped : " << key;
@@ -685,6 +704,364 @@ void LottieParserImpl::parseComposition()
     comp->mRootLayer->mOutFrame = comp->mEndFrame;
 
     mComposition = sharedComposition;
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/layers/text.json
+ */
+void LottieParserImpl::parseTextProperties(model::TextDocument &obj)
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "s")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             obj.mTextProperties.mSize = GetInt();
+        } else if (0 == strcmp(key, "f")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             obj.mTextProperties.mFont = std::string(GetString());
+        } else if (0 == strcmp(key, "t")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             obj.mTextProperties.mText = std::string(GetString());
+        } else if (0 == strcmp(key, "j")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             int j = GetInt();
+             switch (j) {
+                case 0:
+                   obj.mTextProperties.mJustification = model::Justification::Left;
+                   break;
+                case 1:
+                   obj.mTextProperties.mJustification = model::Justification::Right;
+                   break;
+                case 2:
+                default:
+                   obj.mTextProperties.mJustification = model::Justification::Center;
+                   break;
+             }
+        } else if (0 == strcmp(key, "tr")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             obj.mTextProperties.mTracking = GetDouble();
+        } else if (0 == strcmp(key, "lh")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             obj.mTextProperties.mLineHeight = GetDouble();
+        } else if (0 == strcmp(key, "ls")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             obj.mTextProperties.mBaselineShift = GetDouble();
+        } else if (0 == strcmp(key, "fc")) {
+             getValue(obj.mTextProperties.mFillColor);
+        } else if (0 == strcmp(key, "sc")) {
+             getValue(obj.mTextProperties.mStrokeColor);
+        } else if (0 == strcmp(key, "sw")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             obj.mTextProperties.mStrokeWidth = GetDouble();
+        } else if (0 == strcmp(key, "of")) {
+             obj.mTextProperties.mStrokeOverFill = GetBool();
+        } else {
+             printf(".............. parseTextProperties key[%s] SKIPPED\n", key);
+             Skip(key);
+        }
+   }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/layers/text.json
+ */
+void LottieParserImpl::parseTextDocument(model::TextLayerData *obj)
+{
+    RAPIDJSON_ASSERT(PeekType() == kArrayType);
+    EnterArray();
+
+    obj->mTextDocument.emplace_back();
+    model::TextDocument &documentObj = obj->mTextDocument.back();
+
+    while (NextArrayValue()) {
+        RAPIDJSON_ASSERT(PeekType() == kObjectType);
+        EnterObject();
+
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "s")) {
+                parseTextProperties(documentObj);
+            } else if (0 == strcmp(key, "t")) {
+                documentObj.mTime = GetInt();
+            } else {
+                Skip(key);
+            }
+        }
+    }
+}
+
+void LottieParserImpl::parseTextAnimatedProperties(model::TextAnimator &obj)
+{
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
+
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "r")) {
+            parseProperty(obj.mRotation);
+        } else if (0 == strcmp(key, "o")) {
+            parseProperty(obj.mOpacity);
+        } else {
+            Skip(key);
+        }
+    }
+}
+
+void LottieParserImpl::parseTextRangeSelection(model::TextAnimator &obj)
+{
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
+
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "a")){
+            //parseProperty(??);
+            Skip(key);
+        } else if (0 == strcmp(key, "b")) {
+            Skip(key);
+        } else if (0 == strcmp(key, "t")) {
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTime = GetInt();
+        } else {
+            Skip(key);
+        }
+    }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/layers/text.json
+ */
+void LottieParserImpl::parseTextAnimators(model::TextLayerData *obj)
+{
+   RAPIDJSON_ASSERT(PeekType() == kArrayType);
+   EnterArray();
+
+   while (NextArrayValue()) {
+        RAPIDJSON_ASSERT(PeekType() == kObjectType);
+        EnterObject();
+
+        obj->mTextAnimator.emplace_back();
+        model::TextAnimator &animatorObj = obj->mTextAnimator.back();
+
+        while (const char *key = NextObjectKey()) {
+             if (0 == strcmp(key, "nm")) {
+                  RAPIDJSON_ASSERT(PeekType() == kStringType);
+                  animatorObj.mName = std::string(GetString());
+             } else if (0 == strcmp(key, "a")) {
+                  parseTextAnimatedProperties(animatorObj);
+             } else if (0 == strcmp(key, "s")) {
+                  parseTextRangeSelection(animatorObj);
+             } else {
+                  Skip(key);
+             }
+        }
+   }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/layers/text.json
+ */
+void LottieParserImpl::parseText(model::TextLayerData *obj)
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "d")) {
+             RAPIDJSON_ASSERT(PeekType() == kObjectType);
+             EnterObject();
+
+             while (const char *dKey = NextObjectKey()) {
+                  if (0 == strcmp(dKey, "k")) {
+                       parseTextDocument(obj);
+                  } else {
+                       Skip(dKey);
+                  }
+             }
+        } else if (0 == strcmp(key, "a")) {
+             parseTextAnimators(obj);
+        } else if (0 == strcmp(key, "p")) {
+             //printf("TEXT(p) ... SKIP! \n");
+             Skip(key);
+        } else if (0 == strcmp(key, "m")) {
+             //printf("TEXT(m) ... SKIP! \n");
+             Skip(key);
+        } else {
+             Skip(key);
+        }
+   }
+}
+
+void LottieParserImpl::parseFont()
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   compRef->mFonts.emplace_back();
+   model::Fonts &fonts = compRef->mFonts.back();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "fName")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             fonts.mFontName = std::string(GetString());
+        } else if (0 == strcmp(key, "fFamily")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             fonts.mFontFamily = std::string(GetString());
+        } else if (0 == strcmp(key, "fStyle")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             fonts.mFontStyle = std::string(GetString());
+        } else if (0 == strcmp(key, "ascent")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             fonts.mFontAscent = GetDouble();
+        } else {
+             printf("ERR! UNKNOWN KEYWORD for Font! key[%s] type[%d]\n", key, PeekType());
+             Skip(key);
+        }
+   }
+}
+
+void LottieParserImpl::parseFonts()
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "list")) {
+             RAPIDJSON_ASSERT(PeekType() == kArrayType);
+             EnterArray();
+             while (NextArrayValue()) {
+                  parseFont();
+             }
+        } else {
+             printf("ERR! FONTS has NO LIST!\n");
+             Skip(key);
+        }
+   }
+}
+
+void LottieParserImpl::parseCharDataShape(VPath &obj)
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "it")) {
+             RAPIDJSON_ASSERT(PeekType() == kArrayType);
+             EnterArray();
+
+             while (NextArrayValue()) {
+                  RAPIDJSON_ASSERT(PeekType() == kObjectType);
+                  EnterObject();
+
+                  VPath pathItem;
+                  while (const char *itKey = NextObjectKey()) {
+                       if (0 == strcmp(itKey, "ks")) {
+                            RAPIDJSON_ASSERT(PeekType() == kObjectType);
+                            EnterObject();
+
+                            while (const char *ksKey = NextObjectKey()) {
+                                 if (0 == strcmp(ksKey, "k")) {
+                                      model::PathData shapeData;
+
+                                      getValue(shapeData);
+                                      shapeData.toPath(pathItem);
+                                      obj.addPath(pathItem);
+                                 } else {
+                                      Skip(ksKey);
+                                 }
+                            }
+                       } else {
+                            printf("parseCharDataShape - itKey[%s] = SKIP\n", itKey);
+                            Skip(itKey);
+                       }
+                  }
+             }
+        } else {
+             printf("parseCharDataShape - key[%s] = SKIP\n", key);
+             Skip(key);
+        }
+   }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/sources/chars.json
+ */
+void LottieParserImpl::parseCharData(model::Chars &obj)
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "shapes")) {
+             // Instead of parsing a shape group,
+             // parse a shape data and save as a VPath.
+             //parseShapesAttr(obj.getShapesData());
+
+             RAPIDJSON_ASSERT(PeekType() == kArrayType);
+             EnterArray();
+             while (NextArrayValue()) {
+                  //obj.mShapesData.emplace_back();
+                  //model::PathData &shapeDataObj = obj.mShapesData.back();
+                  //
+                  //parseCharDataShape(shapeDataObj);
+
+                  obj.mShapePathData.emplace_back();
+                  VPath &pathObj = obj.mShapePathData.back();
+
+                  parseCharDataShape(pathObj);
+             }
+        } else {
+             printf("parseCharData - UNKNOWN KEY!\n");
+             Skip(key);
+        }
+   }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/sources/chars.json
+ */
+void LottieParserImpl::parseChar()
+{
+   RAPIDJSON_ASSERT(PeekType() == kObjectType);
+   EnterObject();
+
+   compRef->mChars.emplace_back();
+   model::Chars &chars = compRef->mChars.back();
+
+   while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "ch")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             chars.mCh = std::string(GetString());
+        } else if (0 == strcmp(key, "size")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             chars.mSize = GetDouble();
+        } else if (0 == strcmp(key, "style")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             chars.mStyle = std::string(GetString());
+        } else if (0 == strcmp(key, "w")) {
+             RAPIDJSON_ASSERT(PeekType() == kNumberType);
+             chars.mWidth = GetDouble();
+        } else if (0 == strcmp(key, "data")) {
+             parseCharData(chars);
+        } else if (0 == strcmp(key, "fFamily")) {
+             RAPIDJSON_ASSERT(PeekType() == kStringType);
+             chars.mFontFamily = std::string(GetString());
+        } else {
+             Skip(key);
+        }
+   }
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/sources/chars.json
+ */
+void LottieParserImpl::parseChars()
+{
+    RAPIDJSON_ASSERT(PeekType() == kArrayType);
+    EnterArray();
+
+    while (NextArrayValue()) {
+		parseChar();
+	}
 }
 
 void LottieParserImpl::parseMarker()
@@ -1038,6 +1415,8 @@ model::Layer *LottieParserImpl::parseLayer()
             layer->mAutoOrient = GetInt();
         } else if (0 == strcmp(key, "hd")) {
             layer->setHidden(GetBool());
+        } else if (0 == strcmp(key, "t")) {
+            parseText(layer->extra()->textLayer());
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Layer Attribute Skipped : " << key;
