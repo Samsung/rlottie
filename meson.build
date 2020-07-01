@@ -56,6 +56,10 @@ if get_option('dumptree') == true
     config_h.set10('LOTTIE_DUMP_TREE_SUPPORT', true)
 endif
 
+if get_option('ext-font') == true
+    config_h.set10('LOTTIE_FONTPATH_SUPPORT', true)
+endif
+
 
 configure_file(
   output: 'config.h',
