@@ -307,6 +307,88 @@ public:
     bool                     mRasterRequest{false};
 };
 
+class LOTTextLayerItem: public LOTLayerItem
+{
+public:
+   explicit LOTTextLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
+   DrawableList renderList() final;
+   void buildLayerNode() final;
+   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
+protected:
+   void preprocessStage(const VRect& clip) final;
+   void updateContent() final;
+   LOTContentGroupItem                       *mRoot{nullptr};
+   LOTTextProperties                         curTextProperties;
+   std::vector<std::unique_ptr<LOTDrawable>> mRenderNode;
+   std::vector<VDrawable *>                  mDrawableList;
+   VPath                                     mLastPath;
+
+   void getTextPath(VPath &path, int frameNo) {
+       float curX = 0.0;
+
+       LOTTextProperties textProperties = mLayerData->extra()->textLayer()->getTextProperties(frameNo);
+
+       if (curTextProperties == textProperties) {
+           path = mLastPath;
+           return;
+       } else {
+           curTextProperties = textProperties;
+
+           if (mLayerData->extra()->mCompRef &&
+               !mLayerData->extra()->mCompRef->mChars.empty()) {
+               for (auto textChar : curTextProperties.mText) {
+                   for (auto  charData : mLayerData->extra()->mCompRef->mChars) {
+                       // FIXME: There is a problem for font searching logic.
+                       // It needs to compare font considering spaces and '-' character.
+                       if ((textChar == *charData.mCh.c_str()) &&
+                           (curTextProperties.mSize == charData.mSize) &&
+                           (curTextProperties.mFont.compare(charData.mFontFamily) == 0)) {
+                           VMatrix matrix;
+
+                           matrix = matrix.translate(curX, 0.0);
+
+                           for (auto shapeData : charData.mShapePathData) {
+                               path.addPath(shapeData, matrix);
+
+                               break;
+                           }
+                           curX += (float)charData.mWidth;
+                       }
+                   }
+               }
+               mLastPath = path;
+           } else {
+               // Load font and get path.
+               /*
+               path = getPathfromFontblah(blah, blah);
+               ... blah blah;
+               mLastPath = path;
+                */
+           }
+       }
+   }
+
+   LottieColor getTextFillColor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextFillColor(frameNo);
+   }
+
+   float getTextStrokeWidth(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeWidth(frameNo);
+   }
+
+   LottieColor getTextStrokeColor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeColor(frameNo);
+   }
+
+   bool getTextStrokeOverFill(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextStrokeOverFill(frameNo);
+   }
+
+   int getTextOpacity(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextOpacity(frameNo);
+   }
+};
+
 /*
  * Handels mask property of a layer item
  */

@@ -266,10 +266,10 @@ public:
     void parseDashProperty(LOTDashProperty &dash);
 
     void parseTextProperties(LOTTextDocument &obj);
-	void parseTextAnimatedProperties(LOTTextAnimator &obj);
+    void parseTextAnimatedProperties(LOTTextAnimator &obj);
     void parseTextRangeSelection(LOTTextAnimator &obj);
-	void parseTextDocument(LOTTextLayerData *obj);
-	void parseTextAnimators(LOTTextLayerData *obj);
+    void parseTextDocument(LOTTextLayerData *obj);
+    void parseTextAnimators(LOTTextLayerData *obj);
     void parseText(LOTTextLayerData *obj);
 
     VInterpolator* interpolator(VPointF, VPointF, std::string);

@@ -87,6 +87,9 @@ createLayerItem(LOTLayerData *layerData, VArenaAlloc *allocator)
     case LayerType::Image: {
         return allocator->make<LOTImageLayerItem>(layerData);
     }
+    case LayerType::Text: {
+        return allocator->make<LOTTextLayerItem>(layerData, allocator);
+    }
     default:
         return nullptr;
         break;
@@ -337,6 +340,19 @@ bool LOTLayerItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 
 bool LOTShapeLayerItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
                                        LOTVariant &value)
+{
+    if (LOTLayerItem::resolveKeyPath(keyPath, depth, value)) {
+        if (keyPath.propagate(name(), depth)) {
+            uint newDepth = keyPath.nextDepth(name(), depth);
+            mRoot->resolveKeyPath(keyPath, newDepth, value);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool LOTTextLayerItem::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                      LOTVariant &value)
 {
     if (LOTLayerItem::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
@@ -824,6 +840,78 @@ DrawableList LOTShapeLayerItem::renderList()
     mRoot->renderList(mDrawableList);
 
     if (mDrawableList.empty()) return {};
+
+    return {mDrawableList.data() , mDrawableList.size()};
+}
+
+LOTTextLayerItem::LOTTextLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator)
+    : LOTLayerItem(layerData),
+      mRoot(allocator->make<LOTContentGroupItem>(nullptr, allocator))
+{
+   // TODO: Constructor
+}
+
+void LOTTextLayerItem::updateContent()
+{
+   LOTDrawable *renderNode;
+   VPath path;
+   float strokeWidth;
+   int opacity;
+
+   mRenderNode.clear();
+
+   getTextPath(path, frameNo());
+   path.transform(combinedMatrix());
+   opacity = getTextOpacity(frameNo());
+
+   LottieColor fillColor = getTextFillColor(frameNo());
+
+   auto fillDrawable = std::make_unique<LOTDrawable>();
+   mRenderNode.push_back(std::move(fillDrawable));
+   renderNode = mRenderNode.back().get();
+   renderNode->mFlag |= VDrawable::DirtyState::Path;
+   renderNode->mPath = path;
+
+   VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity * 255 / 100);
+   renderNode->setBrush(fillBrush);
+   renderNode->mFlag |= VDrawable::DirtyState::Brush;
+
+   strokeWidth = getTextStrokeWidth(frameNo());
+   if (getTextStrokeOverFill(frameNo()) && (strokeWidth != 0)) {
+        LottieColor strokeColor = getTextStrokeColor(frameNo());
+
+        auto strokeDrawable = std::make_unique<LOTDrawable>();
+        mRenderNode.push_back(std::move(strokeDrawable));
+        renderNode = mRenderNode.back().get();
+
+        renderNode->setType(VDrawable::Type::Stroke);
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
+
+        VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity * 255 / 100);
+        renderNode->setBrush(strokeBrush);
+
+        // FIXME: Need to check CapStyle, JoinStyle and iterLimit values.
+        renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Bevel,
+                                  10.0, strokeWidth);
+        renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+   }
+}
+
+void LOTTextLayerItem::preprocessStage(const VRect& clip)
+{
+    mDrawableList.clear();
+    auto renderlist = renderList();
+
+    for (auto &drawable : renderlist) drawable->preprocess(clip);
+}
+
+DrawableList LOTTextLayerItem::renderList()
+{
+    if (skipRendering()) return {};
+
+    for (auto &renderNode : mRenderNode)
+        mDrawableList.emplace_back((VDrawable *)renderNode.get());
 
     return {mDrawableList.data() , mDrawableList.size()};
 }
