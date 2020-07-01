@@ -2,6 +2,7 @@
 subdir('freetype')
 subdir('pixman')
 subdir('stb')
+subdir('text')
 
 source_file = [
     'vdasher.cpp',
@@ -29,7 +30,7 @@ source_file = [
 
 vector_dep = declare_dependency( include_directories : include_directories('.'),
                                   sources             : source_file,
-                                  dependencies        : [freetype_dep, pixman_dep, stb_dep],
+                                  dependencies        : [freetype_dep, pixman_dep, stb_dep, text_dep],
                                 )
 
 
