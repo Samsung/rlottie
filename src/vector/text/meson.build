@@ -4,7 +4,7 @@ deps = []
 if get_option('ext-font') == true
     deps += [dependency('freetype2'), dependency('fontconfig'), dependency('harfbuzz')]
 
-    source_file += 'vtextshaper.cpp'
+    source_file += ['vtextshaper.cpp', 'vfont.cpp']
 endif
 
 text_dep = declare_dependency(
