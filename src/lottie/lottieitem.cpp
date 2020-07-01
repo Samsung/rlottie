@@ -87,6 +87,9 @@ static renderer::Layer *createLayerItem(model::Layer *layerData,
     case model::Layer::Type::Image: {
         return allocator->make<renderer::ImageLayer>(layerData);
     }
+    case model::Layer::Type::Text: {
+        return allocator->make<renderer::TextLayer>(layerData, allocator);
+    }
     default:
         return nullptr;
         break;
@@ -351,6 +354,20 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     }
     return false;
 }
+
+bool renderer::TextLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                            LOTVariant &value)
+{
+    if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
+        if (keyPath.propagate(name(), depth)) {
+            uint newDepth = keyPath.nextDepth(name(), depth);
+            mRoot->resolveKeyPath(keyPath, newDepth, value);
+        }
+        return true;
+    }
+    return false;
+}
+
 
 bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
                                          LOTVariant &value)
@@ -833,8 +850,80 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
     return {mDrawableList.data(), mDrawableList.size()};
 }
 
+renderer::TextLayer::TextLayer(model::Layer *layerData, VArenaAlloc* allocator)
+    : renderer::Layer(layerData),
+      mRoot(allocator->make<renderer::Group>(nullptr, allocator))
+{
+   // TODO: Constructor
+}
+
+void renderer::TextLayer::updateContent()
+{
+   renderer::Drawable *renderNode;
+   VPath path;
+   float strokeWidth;
+   int opacity;
+
+   mRenderNode.clear();
+
+   getTextPath(path, frameNo());
+   path.transform(combinedMatrix());
+   opacity = getTextOpacity(frameNo());
+
+   model::Color fillColor = getTextFillColor(frameNo());
+
+   auto fillDrawable = std::make_unique<renderer::Drawable>();
+   mRenderNode.push_back(std::move(fillDrawable));
+   renderNode = mRenderNode.back().get();
+   renderNode->mFlag |= VDrawable::DirtyState::Path;
+   renderNode->mPath = path;
+
+   VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity * 255 / 100);
+   renderNode->setBrush(fillBrush);
+   renderNode->mFlag |= VDrawable::DirtyState::Brush;
+
+   strokeWidth = getTextStrokeWidth(frameNo());
+   if (getTextStrokeOverFill(frameNo()) && (strokeWidth != 0)) {
+        model::Color strokeColor = getTextStrokeColor(frameNo());
+
+        auto strokeDrawable = std::make_unique<renderer::Drawable>();
+        mRenderNode.push_back(std::move(strokeDrawable));
+        renderNode = mRenderNode.back().get();
+
+        renderNode->setType(VDrawable::Type::Stroke);
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
+
+        VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity * 255 / 100);
+        renderNode->setBrush(strokeBrush);
+
+        // FIXME: Need to check CapStyle, JoinStyle and iterLimit values.
+        renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Bevel,
+                                  10.0, strokeWidth);
+        renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+   }
+}
+
+void renderer::TextLayer::preprocessStage(const VRect& clip)
+{
+    mDrawableList.clear();
+    auto renderlist = renderList();
+
+    for (auto &drawable : renderlist) drawable->preprocess(clip);
+}
+
+renderer::DrawableList renderer::TextLayer::renderList()
+{
+    if (skipRendering()) return {};
+
+    for (auto &renderNode : mRenderNode)
+        mDrawableList.emplace_back((VDrawable *)renderNode.get());
+
+    return {mDrawableList.data() , mDrawableList.size()};
+}
+
 bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
-                                     LOTVariant &value)
+                                         LOTVariant &value)
 {
     if (!keyPath.skip(name())) {
         if (!keyPath.matches(mModel.name(), depth)) {
