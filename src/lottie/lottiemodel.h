@@ -795,10 +795,10 @@ using LayerInfo = Marker;
 
 class LOTFonts {
 public:
-	std::string		mFontName;
-	std::string		mFontFamily;
-	std::string		mFontStyle;
-	double			mFontAscent;
+    std::string mFontName;
+    std::string mFontFamily;
+    std::string mFontStyle;
+    double      mFontAscent;
 };
 
 class LOTChars {

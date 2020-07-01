@@ -81,6 +81,22 @@ void LOTShapeLayerItem::buildLayerNode()
     clayer().mNodeList.size = cnodes().size();
 }
 
+void LOTTextLayerItem::buildLayerNode()
+{
+    LOTLayerItem::buildLayerNode();
+
+    auto renderlist = renderList();
+
+    cnodes().clear();
+    for (auto &i : renderlist) {
+        auto lotDrawable = static_cast<LOTDrawable *>(i);
+        lotDrawable->sync();
+        cnodes().push_back(lotDrawable->mCNode.get());
+    }
+    clayer().mNodeList.ptr = cnodes().data();
+    clayer().mNodeList.size = cnodes().size();
+}
+
 void LOTLayerItem::buildLayerNode()
 {
     if (!mCApiData) {
