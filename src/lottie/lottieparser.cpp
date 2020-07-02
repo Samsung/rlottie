@@ -253,7 +253,6 @@ public:
     template <typename T>
     void parsePropertyHelper(LOTAnimatable<T> &obj);
 
-    void parseShapeKeyFrame(LOTAnimInfo<LottieShapeData> &obj);
     void parseShapeProperty(LOTAnimatable<LottieShapeData> &obj);
     void parseDashProperty(LOTDashProperty &dash);
 
@@ -262,7 +261,77 @@ public:
     LottieColor toColor(const char *str);
 
     void resolveLayerRefs();
+    void parsePathInfo();
+private:
+    struct {
+        std::vector<VPointF>                       mInPoint;  /* "i" */
+        std::vector<VPointF>                       mOutPoint; /* "o" */
+        std::vector<VPointF>                       mVertices; /* "v" */
+        std::vector<VPointF>                       mResult;
+        bool                                       mClosed{false};
 
+        void convert() {
+            // shape data could be empty.
+            if (mInPoint.empty() || mOutPoint.empty() || mVertices.empty()) {
+                mResult.clear();
+                return;
+            }
+
+            /*
+             * Convert the AE shape format to
+             * list of bazier curves
+             * The final structure will be Move +size*Cubic + Cubic (if the path is
+             * closed one)
+             */
+            if (mInPoint.size() != mOutPoint.size() ||
+                mInPoint.size() != mVertices.size()) {
+                mResult.clear();
+            } else {
+                auto size = mVertices.size();
+                mResult.push_back(mVertices[0]);
+                for (size_t i = 1; i < size; i++) {
+                    mResult.push_back(mVertices[i - 1] +
+                                     mOutPoint[i - 1]);  // CP1 = start + outTangent
+                    mResult.push_back(mVertices[i] +
+                                     mInPoint[i]);   // CP2 = end + inTangent
+                    mResult.push_back(mVertices[i]);  // end point
+                }
+
+                if (mClosed) {
+                    mResult.push_back(mVertices[size - 1] +
+                                     mOutPoint[size - 1]);  // CP1 = start + outTangent
+                    mResult.push_back(mVertices[0] +
+                                     mInPoint[0]);   // CP2 = end + inTangent
+                    mResult.push_back(mVertices[0]);  // end point
+                }
+            }
+        }
+        void reset() {
+            mInPoint.clear();
+            mOutPoint.clear();
+            mVertices.clear();
+            mResult.clear();
+            mClosed = false;
+        }
+       void updatePath(VPath &out) {
+
+            if (mResult.empty()) return;
+
+            auto size = mResult.size();
+            auto points = mResult.data();
+            /* reserve exact memory requirement at once
+             * ptSize = size + 1(size + close)
+             * elmSize = size/3 cubic + 1 move + 1 close
+             */
+            out.reserve(size + 1 , size/3 + 2);
+            out.moveTo(points[0]);
+            for (size_t i = 1 ; i < size; i+=3) {
+               out.cubicTo(points[i], points[i+1], points[i+2]);
+            }
+            if (mClosed)
+              out.close();
+       }
+    }mPathInfo;
 protected:
     std::unordered_map<std::string, VInterpolator*>
                                                mInterpolatorCache;
@@ -271,9 +340,6 @@ protected:
     LOTLayerData *                             curLayerRef{nullptr};
     std::vector<LOTLayerData *>                mLayersToUpdate;
     std::string                                mDirPath;
-    std::vector<VPointF>                       mInPoint;  /* "i" */
-    std::vector<VPointF>                       mOutPoint; /* "o" */
-    std::vector<VPointF>                       mVertices;
     void                                       SkipOut(int depth);
 };
 
@@ -1802,13 +1868,9 @@ void LottieParserImpl::getValue(int &val)
     }
 }
 
-void LottieParserImpl::getValue(LottieShapeData &obj)
+void LottieParserImpl::parsePathInfo()
 {
-    mInPoint.clear();
-    mOutPoint.clear();
-    mVertices.clear();
-    std::vector<VPointF> points;
-    bool                 closed = false;
+    mPathInfo.reset();
 
     /*
      * The shape object could be wrapped by a array
@@ -1821,13 +1883,13 @@ void LottieParserImpl::getValue(LottieShapeData &obj)
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "i")) {
-            getValue(mInPoint);
+            getValue(mPathInfo.mInPoint);
         } else if (0 == strcmp(key, "o")) {
-            getValue(mOutPoint);
+            getValue(mPathInfo.mOutPoint);
         } else if (0 == strcmp(key, "v")) {
-            getValue(mVertices);
+            getValue(mPathInfo.mVertices);
         } else if (0 == strcmp(key, "c")) {
-            closed = GetBool();
+            mPathInfo.mClosed = GetBool();
         } else {
             RAPIDJSON_ASSERT(0);
             Skip(nullptr);
@@ -1836,41 +1898,14 @@ void LottieParserImpl::getValue(LottieShapeData &obj)
     // exit properly from the array
     if (arrayWrapper) NextArrayValue();
 
-    // shape data could be empty.
-    if (mInPoint.empty() || mOutPoint.empty() || mVertices.empty()) return;
+    mPathInfo.convert();
+}
 
-    /*
-     * Convert the AE shape format to
-     * list of bazier curves
-     * The final structure will be Move +size*Cubic + Cubic (if the path is
-     * closed one)
-     */
-    if (mInPoint.size() != mOutPoint.size() ||
-        mInPoint.size() != mVertices.size()) {
-        vCritical << "The Shape data are corrupted";
-        points = std::vector<VPointF>();
-    } else {
-        auto size = mVertices.size();
-        points.reserve(3 * size + 4);
-        points.push_back(mVertices[0]);
-        for (size_t i = 1; i < size; i++) {
-            points.push_back(mVertices[i - 1] +
-                             mOutPoint[i - 1]);  // CP1 = start + outTangent
-            points.push_back(mVertices[i] +
-                             mInPoint[i]);   // CP2 = end + inTangent
-            points.push_back(mVertices[i]);  // end point
-        }
-
-        if (closed) {
-            points.push_back(mVertices[size - 1] +
-                             mOutPoint[size - 1]);  // CP1 = start + outTangent
-            points.push_back(mVertices[0] +
-                             mInPoint[0]);   // CP2 = end + inTangent
-            points.push_back(mVertices[0]);  // end point
-        }
-    }
-    obj.mPoints = std::move(points);
-    obj.mClosed = closed;
+void LottieParserImpl::getValue(LottieShapeData &obj)
+{
+    parsePathInfo();
+    obj.mPoints = mPathInfo.mResult;
+    obj.mClosed = mPathInfo.mClosed;
 }
 
 VPointF LottieParserImpl::parseInperpolatorPoint()
