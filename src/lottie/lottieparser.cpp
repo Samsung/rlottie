@@ -949,11 +949,8 @@ void LottieParserImpl::parseCharDataShape(VPath &obj)
 
                             while (const char *ksKey = NextObjectKey()) {
                                  if (0 == strcmp(ksKey, "k")) {
-                                      LottieShapeData shapeData;
-
-                                      getValue(shapeData);
-                                      shapeData.toPath(pathItem);
-                                      obj.addPath(pathItem);
+                                      parsePathInfo();
+                                      mPathInfo.updatePath(obj);
                                  } else {
                                       Skip(ksKey);
                                  }
