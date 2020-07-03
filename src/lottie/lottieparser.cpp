@@ -169,8 +169,10 @@ protected:
 
 class LottieParserImpl : public LookaheadParserHandler {
 public:
-    LottieParserImpl(char *str, const char *dir_path)
-        : LookaheadParserHandler(str), mDirPath(dir_path) {}
+    LottieParserImpl(char *str, std::string dir_path, ColorFilter filter)
+        : LookaheadParserHandler(str),
+          mColorFilter(std::move(filter)),
+          mDirPath(std::move(dir_path)) {}
     bool VerifyType();
     bool ParseNext();
 public:
@@ -263,6 +265,7 @@ public:
     void resolveLayerRefs();
     void parsePathInfo();
 private:
+    ColorFilter mColorFilter;
     struct {
         std::vector<VPointF>                       mInPoint;  /* "i" */
         std::vector<VPointF>                       mOutPoint; /* "o" */
@@ -1840,6 +1843,9 @@ void LottieParserImpl::getValue(LottieColor &color)
             val[i++] = value;
         }
     }
+
+    if (mColorFilter) mColorFilter( val[0] , val[1], val[2]) ;
+
     color.r = val[0];
     color.g = val[1];
     color.b = val[2];
@@ -2331,8 +2337,8 @@ public:
 #endif
 
 LottieParser::~LottieParser() = default;
-LottieParser::LottieParser(char *str, const char *dir_path)
-    : d(std::make_unique<LottieParserImpl>(str, dir_path))
+LottieParser::LottieParser(char *str, std::string dir_path, ColorFilter filter)
+    : d(std::make_unique<LottieParserImpl>(str, std::move(dir_path), std::move(filter)))
 {
     if (d->VerifyType())
         d->parseComposition();
