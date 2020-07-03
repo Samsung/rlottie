@@ -256,8 +256,23 @@ std::unique_ptr<Animation> Animation::loadFromData(
     }
 
     LottieLoader loader;
-    if (loader.loadFromData(std::move(jsonData), key,
-                            (resourcePath.empty() ? " " : resourcePath), cachePolicy)) {
+    if (loader.loadFromData(std::move(jsonData), key, resourcePath, cachePolicy)) {
+        auto animation = std::unique_ptr<Animation>(new Animation);
+        animation->d->init(loader.model());
+        return animation;
+    }
+    return nullptr;
+}
+
+std::unique_ptr<Animation> Animation::loadFromData( std::string jsonData, std::string resourcePath, ColorFilter filter)
+{
+    if (jsonData.empty()) {
+        vWarning << "jason data is empty";
+        return nullptr;
+    }
+
+    LottieLoader loader;
+    if (loader.loadFromData(std::move(jsonData), std::move(resourcePath), std::move(filter))) {
         auto animation = std::unique_ptr<Animation>(new Animation);
         animation->d->init(loader.model());
         return animation;

@@ -21,6 +21,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <sstream>
 
 #ifdef LOTTIE_CACHE_SUPPORT
 
@@ -127,8 +128,7 @@ bool LottieLoader::load(const std::string &path, bool cachePolicy)
         if (content.empty()) return false;
 
         const char *str = content.c_str();
-        LottieParser parser(const_cast<char *>(str),
-                            dirname(path).c_str());
+        LottieParser parser(const_cast<char *>(str), dirname(path));
         mModel = parser.model();
 
         if (!mModel) return false;
@@ -140,16 +140,15 @@ bool LottieLoader::load(const std::string &path, bool cachePolicy)
     return true;
 }
 
-bool LottieLoader::loadFromData(std::string &&jsonData, const std::string &key,
-                                const std::string &resourcePath, bool cachePolicy)
+bool LottieLoader::loadFromData(std::string jsonData, const std::string &key,
+                                std::string resourcePath, bool cachePolicy)
 {
     if (cachePolicy) {
         mModel = LottieModelCache::instance().find(key);
         if (mModel) return true;
     }
 
-    LottieParser parser(const_cast<char *>(jsonData.c_str()),
-                        resourcePath.c_str());
+    LottieParser parser(const_cast<char *>(jsonData.c_str()), std::move(resourcePath));
     mModel = parser.model();
 
     if (!mModel) return false;
@@ -158,6 +157,14 @@ bool LottieLoader::loadFromData(std::string &&jsonData, const std::string &key,
         LottieModelCache::instance().add(key, mModel);
 
     return true;
+}
+
+bool LottieLoader::loadFromData(std::string jsonData, std::string resourcePath, ColorFilter filter)
+{
+    LottieParser parser(const_cast<char *>(jsonData.c_str()), std::move(resourcePath), std::move(filter));
+    mModel = parser.model();
+
+    return mModel ? true : false;
 }
 
 std::shared_ptr<LOTModel> LottieLoader::model()

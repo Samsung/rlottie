@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -261,6 +261,9 @@ using MarkerList = std::vector<std::tuple<std::string, int , int>>;
 
 using LayerInfoList = std::vector<std::tuple<std::string, int , int>>;
 
+
+using ColorFilter = std::function<void(float &r , float &g, float &b)>;
+
 class LOT_EXPORT Animation {
 public:
 
@@ -300,6 +303,23 @@ public:
     static std::unique_ptr<Animation>
     loadFromData(std::string jsonData, const std::string &key,
                  const std::string &resourcePath="", bool cachePolicy=true);
+
+    /**
+     *  @brief Constructs an animation object from JSON string data and update.
+     *  the color properties using ColorFilter.
+
+     *  @param[in] jsonData The JSON string data.
+     *  @param[in] resourcePath the path will be used to search for external resource.
+     *  @param[in] filter The color filter that will be applied for each color property
+     *             found during parsing.
+
+     *  @return Animation object that can render the contents of the
+     *          Lottie resource represented by JSON string data.
+     *
+     *  @internal
+     */
+    static std::unique_ptr<Animation>
+    loadFromData(std::string jsonData, std::string resourcePath, ColorFilter filter);
 
     /**
      *  @brief Returns default framerate of the Lottie resource.
