@@ -396,6 +396,149 @@ private:
     bool                                 mStatic{true};
 };
 
+
+/* *
+ * Hand written std::variant equivalent till c++17
+ */
+class LOTTextAnimatable
+{
+public:
+    enum class Property {
+        Opacity = 0,
+        Rotation,
+        Tracking,
+        StrokeWidth,
+        Position,
+        Scale,
+        Anchor,
+        StrokeColor,
+        FillColor,
+    };
+    LOTTextAnimatable(LOTTextAnimatable::Property prop):mProperty(prop) {
+        switch (mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                construct(impl.mFloat, {});
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                construct(impl.mPoint, {});
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                construct(impl.mColor, {});
+                break;
+        }
+    }
+    ~LOTTextAnimatable() { destroy(); }
+
+    LOTTextAnimatable(LOTTextAnimatable &&other) noexcept {
+        switch (other.mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                construct(impl.mFloat, std::move(other.impl.mFloat));
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                construct(impl.mPoint, std::move(other.impl.mPoint));
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                construct(impl.mColor, std::move(other.impl.mColor));
+                break;
+        }
+    }
+
+    // delete special member functions
+    LOTTextAnimatable(const LOTTextAnimatable &) = delete;
+    LOTTextAnimatable& operator=(const LOTTextAnimatable&) = delete;
+    LOTTextAnimatable& operator=(LOTTextAnimatable&&) = delete;
+
+    LOTTextAnimatable::Property type() const {return mProperty;}
+
+    LOTAnimatable<float>& opacity() {assert(mProperty == Property::Opacity); return impl.mFloat;}
+    LOTAnimatable<float>& roation() {assert(mProperty == Property::Rotation); return impl.mFloat;}
+    LOTAnimatable<float>& tracking() {assert(mProperty == Property::Tracking); return impl.mFloat;}
+    LOTAnimatable<float>& strokeWidth() {assert(mProperty == Property::StrokeWidth); return impl.mFloat;}
+
+    LOTAnimatable<VPointF>& position() {assert(mProperty == Property::Position); return impl.mPoint;}
+    LOTAnimatable<VPointF>& scale() {assert(mProperty == Property::Scale); return impl.mPoint;}
+    LOTAnimatable<VPointF>& anchor() {assert(mProperty == Property::Anchor); return impl.mPoint;}
+
+    LOTAnimatable<LottieColor>& strokeColor() {assert(mProperty == Property::StrokeColor); return impl.mColor;}
+    LOTAnimatable<LottieColor>& fillColor() {assert(mProperty == Property::FillColor); return impl.mColor;}
+private:
+    template <typename Tp>
+    void construct(Tp& member, Tp&& val)
+    {
+        new (&member) Tp(std::move(val));
+    }
+    void destroy() {
+        switch (mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                impl.mFloat.~LOTAnimatable<float>();
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                impl.mPoint.~LOTAnimatable<VPointF>();
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                impl.mColor.~LOTAnimatable<LottieColor>();
+                break;
+        }
+    }
+private:
+    LOTTextAnimatable::Property     mProperty;
+    union details {
+        LOTAnimatable<float>        mFloat;
+        LOTAnimatable<VPointF>      mPoint;
+        LOTAnimatable<LottieColor>  mColor;
+        details(){};
+        details(const details&) = delete;
+        details(details&&) = delete;
+        details& operator=(details&&) = delete;
+        details& operator=(const details&) = delete;
+        ~details(){};
+    }impl;
+};
+
+
+class LOTAnimatableShape : public LOTAnimatable<LottieShapeData>
+{
+public:
+    void updatePath(int frameNo, VPath &path) const {
+        if (isStatic()) {
+            value().toPath(path);
+        } else {
+            const auto &vec = animation().mKeyFrames;
+            if (vec.front().mStartFrame >= frameNo)
+                return vec.front().mValue.mStartValue.toPath(path);
+            if(vec.back().mEndFrame <= frameNo)
+                return vec.back().mValue.mEndValue.toPath(path);
+
+            for(const auto &keyFrame : vec) {
+                if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame) {
+                    LottieShapeData::lerp(keyFrame.mValue.mStartValue,
+                                          keyFrame.mValue.mEndValue,
+                                          keyFrame.progress(frameNo),
+                                          path);
+                }
+            }
+        }
+    }
+};
+
 enum class LottieBlendMode: uchar
 {
     Normal = 0,
@@ -664,8 +807,9 @@ private:
     }
 
 public:
-    std::vector<LOTTextDocument>		mTextDocument;
-    std::vector<LOTTextAnimator>		mTextAnimator;
+    std::vector<LOTTextDocument>        mTextDocument;
+    std::vector<LOTTextAnimator>        mTextAnimator;
+    std::vector<LOTTextAnimatable>      mAnimators;
 
     LOTTextProperties getTextProperties(int frameNo) {
         return textProperties(frameNo);
