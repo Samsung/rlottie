@@ -378,6 +378,122 @@ private:
     bool mStatic{true};
 };
 
+/* *
+ * Hand written std::variant equivalent till c++17
+ */
+class PropertyText
+{
+public:
+    enum class Type {
+        Opacity = 0,
+        Rotation,
+        Tracking,
+        StrokeWidth,
+        Position,
+        Scale,
+        Anchor,
+        StrokeColor,
+        FillColor,
+    };
+    PropertyText(PropertyText::Type prop):mProperty(prop) {
+        switch (mProperty) {
+            case Type::Opacity:
+            case Type::Rotation:
+            case Type::Tracking:
+            case Type::StrokeWidth:
+                construct(impl.mFloat, {});
+                break;
+            case Type::Position:
+            case Type::Scale:
+            case Type::Anchor:
+                construct(impl.mPoint, {});
+                break;
+            case Type::StrokeColor:
+            case Type::FillColor:
+                construct(impl.mColor, {});
+                break;
+        }
+    }
+    ~PropertyText() { destroy(); }
+
+    PropertyText(PropertyText &&other) noexcept {
+        switch (other.mProperty) {
+            case Type::Opacity:
+            case Type::Rotation:
+            case Type::Tracking:
+            case Type::StrokeWidth:
+                construct(impl.mFloat, std::move(other.impl.mFloat));
+                break;
+            case Type::Position:
+            case Type::Scale:
+            case Type::Anchor:
+                construct(impl.mPoint, std::move(other.impl.mPoint));
+                break;
+            case Type::StrokeColor:
+            case Type::FillColor:
+                construct(impl.mColor, std::move(other.impl.mColor));
+                break;
+        }
+    }
+
+    // delete special member functions
+    PropertyText(const PropertyText &) = delete;
+    PropertyText& operator=(const PropertyText&) = delete;
+    PropertyText& operator=(PropertyText&&) = delete;
+
+    PropertyText::Type type() const {return mProperty;}
+
+    Property<float>& opacity() {assert(mProperty == Type::Opacity); return impl.mFloat;}
+    Property<float>& roation() {assert(mProperty == Type::Rotation); return impl.mFloat;}
+    Property<float>& tracking() {assert(mProperty == Type::Tracking); return impl.mFloat;}
+    Property<float>& strokeWidth() {assert(mProperty == Type::StrokeWidth); return impl.mFloat;}
+
+    Property<VPointF>& position() {assert(mProperty == Type::Position); return impl.mPoint;}
+    Property<VPointF>& scale() {assert(mProperty == Type::Scale); return impl.mPoint;}
+    Property<VPointF>& anchor() {assert(mProperty == Type::Anchor); return impl.mPoint;}
+
+    Property<Color>& strokeColor() {assert(mProperty == Type::StrokeColor); return impl.mColor;}
+    Property<Color>& fillColor() {assert(mProperty == Type::FillColor); return impl.mColor;}
+private:
+    template <typename Tp>
+    void construct(Tp& member, Tp&& val)
+    {
+        new (&member) Tp(std::move(val));
+    }
+    void destroy() {
+        switch (mProperty) {
+            case Type::Opacity:
+            case Type::Rotation:
+            case Type::Tracking:
+            case Type::StrokeWidth:
+                impl.mFloat.~Property<float>();
+                break;
+            case Type::Position:
+            case Type::Scale:
+            case Type::Anchor:
+                impl.mPoint.~Property<VPointF>();
+                break;
+            case Type::StrokeColor:
+            case Type::FillColor:
+                impl.mColor.~Property<Color>();
+                break;
+        }
+    }
+private:
+    PropertyText::Type     mProperty;
+    union details {
+        Property<float>        mFloat;
+        Property<VPointF>      mPoint;
+        Property<Color>  mColor;
+        details(){};
+        details(const details&) = delete;
+        details(details&&) = delete;
+        details& operator=(details&&) = delete;
+        details& operator=(const details&) = delete;
+        ~details(){};
+    }impl;
+};
+
 class Path;
 struct PathData;
 struct Dash {
@@ -738,8 +854,8 @@ private:
     }
 
 public:
-    std::vector<TextDocument>		mTextDocument;
-    std::vector<TextAnimator>		mTextAnimator;
+    std::vector<TextDocument>       mTextDocument;
+    std::vector<TextAnimator>       mTextAnimator;
 
     TextProperties getTextProperties(int frameNo) {
         return textProperties(frameNo);
