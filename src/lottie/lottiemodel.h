@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -373,6 +373,123 @@ private:
 };
 
 
+/* *
+ * Hand written std::variant equivalent till c++17
+ */
+class LOTTextAnimatable
+{
+public:
+    enum class Property {
+        Opacity = 0,
+        Rotation,
+        Tracking,
+        StrokeWidth,
+        Position,
+        Scale,
+        Anchor,
+        StrokeColor,
+        FillColor,
+    };
+    LOTTextAnimatable(LOTTextAnimatable::Property prop):mProperty(prop) {
+        switch (mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                construct(impl.mFloat, {});
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                construct(impl.mPoint, {});
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                construct(impl.mColor, {});
+                break;
+        }
+    }
+    ~LOTTextAnimatable() { destroy(); }
+
+    LOTTextAnimatable(LOTTextAnimatable &&other) noexcept {
+        switch (other.mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                construct(impl.mFloat, std::move(other.impl.mFloat));
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                construct(impl.mPoint, std::move(other.impl.mPoint));
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                construct(impl.mColor, std::move(other.impl.mColor));
+                break;
+        }
+    }
+
+    // delete special member functions
+    LOTTextAnimatable(const LOTTextAnimatable &) = delete;
+    LOTTextAnimatable& operator=(const LOTTextAnimatable&) = delete;
+    LOTTextAnimatable& operator=(LOTTextAnimatable&&) = delete;
+
+    LOTTextAnimatable::Property type() const {return mProperty;}
+
+    LOTAnimatable<float>& opacity() {assert(mProperty == Property::Opacity); return impl.mFloat;}
+    LOTAnimatable<float>& roation() {assert(mProperty == Property::Rotation); return impl.mFloat;}
+    LOTAnimatable<float>& tracking() {assert(mProperty == Property::Tracking); return impl.mFloat;}
+    LOTAnimatable<float>& strokeWidth() {assert(mProperty == Property::StrokeWidth); return impl.mFloat;}
+
+    LOTAnimatable<VPointF>& position() {assert(mProperty == Property::Position); return impl.mPoint;}
+    LOTAnimatable<VPointF>& scale() {assert(mProperty == Property::Scale); return impl.mPoint;}
+    LOTAnimatable<VPointF>& anchor() {assert(mProperty == Property::Anchor); return impl.mPoint;}
+
+    LOTAnimatable<LottieColor>& strokeColor() {assert(mProperty == Property::StrokeColor); return impl.mColor;}
+    LOTAnimatable<LottieColor>& fillColor() {assert(mProperty == Property::FillColor); return impl.mColor;}
+private:
+    template <typename Tp>
+    void construct(Tp& member, Tp&& val)
+    {
+        new (&member) Tp(std::move(val));
+    }
+    void destroy() {
+        switch (mProperty) {
+            case Property::Opacity:
+            case Property::Rotation:
+            case Property::Tracking:
+            case Property::StrokeWidth:
+                impl.mFloat.~LOTAnimatable<float>();
+                break;
+            case Property::Position:
+            case Property::Scale:
+            case Property::Anchor:
+                impl.mPoint.~LOTAnimatable<VPointF>();
+                break;
+            case Property::StrokeColor:
+            case Property::FillColor:
+                impl.mColor.~LOTAnimatable<LottieColor>();
+                break;
+        }
+    }
+private:
+    LOTTextAnimatable::Property     mProperty;
+    union details {
+        LOTAnimatable<float>        mFloat;
+        LOTAnimatable<VPointF>      mPoint;
+        LOTAnimatable<LottieColor>  mColor;
+        details(){};
+        details(const details&) = delete;
+        details(details&&) = delete;
+        details& operator=(details&&) = delete;
+        details& operator=(const details&) = delete;
+        ~details(){};
+    }impl;
+};
+
+
 class LOTAnimatableShape : public LOTAnimatable<LottieShapeData>
 {
 public:
@@ -667,8 +784,9 @@ private:
     }
 
 public:
-    std::vector<LOTTextDocument>		mTextDocument;
-    std::vector<LOTTextAnimator>		mTextAnimator;
+    std::vector<LOTTextDocument>        mTextDocument;
+    std::vector<LOTTextAnimator>        mTextAnimator;
+    std::vector<LOTTextAnimatable>      mAnimators;
 
     LOTTextProperties getTextProperties(int frameNo) {
         return textProperties(frameNo);
