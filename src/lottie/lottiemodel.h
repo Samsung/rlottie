@@ -453,6 +453,7 @@ public:
                 construct(impl.mColor, std::move(other.impl.mColor));
                 break;
         }
+        mProperty = other.mProperty;
     }
 
     // delete special member functions
@@ -463,7 +464,7 @@ public:
     LOTTextAnimatable::Property type() const {return mProperty;}
 
     LOTAnimatable<float>& opacity() {assert(mProperty == Property::Opacity); return impl.mFloat;}
-    LOTAnimatable<float>& roation() {assert(mProperty == Property::Rotation); return impl.mFloat;}
+    LOTAnimatable<float>& rotation() {assert(mProperty == Property::Rotation); return impl.mFloat;}
     LOTAnimatable<float>& tracking() {assert(mProperty == Property::Tracking); return impl.mFloat;}
     LOTAnimatable<float>& strokeWidth() {assert(mProperty == Property::StrokeWidth); return impl.mFloat;}
 
@@ -757,15 +758,28 @@ public:
 class LOTTextAnimator
 {
 public:
+    enum class Property {
+      None = 1 << 0,
+      Opacity = 1 << 1,
+      Rotation = 1 << 2,
+      Tracking = 1 << 3,
+      StrokeWidth = 1 << 4,
+      Position = 1 << 5,
+      Scale = 1 << 6,
+      Anchor = 1 << 7,
+      StrokeColor = 1 << 8,
+      FillColor = 1 << 9
+    };
     std::string            mName;
 
-    /* Animated Properties */
-    LOTAnimatable<float>   mOpacity{100};
-    LOTAnimatable<float>   mRotation;
-    LOTAnimatable<VPointF> mTracking;
+    // Animated Properties
+    typedef vFlag<Property>             PropertyFlag;
+    PropertyFlag                        mProperty{Property::None};
+    std::vector<LOTTextAnimatable>      mAnimators;
 
-    /* Range Selection */
-    int                    mTime;
+    // Range Selection
+    LOTAnimatable<int>          mRangeStart{0};
+    LOTAnimatable<int>          mRangeEnd{100};
 };
 
 class LOTTextLayerData
@@ -783,39 +797,173 @@ private:
 public:
     std::vector<LOTTextDocument>        mTextDocument;
     std::vector<LOTTextAnimator>        mTextAnimator;
-    std::vector<LOTTextAnimatable>      mAnimators;
 
     LOTTextProperties getTextProperties(int frameNo) {
         return textProperties(frameNo);
     }
 
-    LottieColor getTextFillColor(int frameNo) {
+    float getTextOpacity(int frameNo) {
         if (mTextAnimator.empty()) {
-            LOTTextProperties textProp = getTextProperties(frameNo);
-            return textProp.mFillColor;
+            return 100.;
         } else {
-            // TODO: get Animatable fill color.
-            return LottieColor(0.0, 1.0, 0.0);
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Opacity) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Opacity)
+                            return animators.opacity().value(frameNo);
+                    }
+                }
+            }
+            return 100.;
+        }
+    }
+
+    float getTextRotation(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return 0.;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Rotation) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Rotation)
+                            return animators.rotation().value(frameNo);
+                    }
+                }
+            }
+
+            return 0.;
+        }
+    }
+
+    float getTextTracking(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return 0.;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Tracking) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Tracking)
+                            return animators.tracking().value(frameNo);
+                    }
+                }
+            }
+
+            return 0.;
         }
     }
 
     float getTextStrokeWidth(int frameNo) {
+        LOTTextProperties textProp;
+
         if (mTextAnimator.empty()) {
-            LOTTextProperties textProp = getTextProperties(frameNo);
+            textProp = getTextProperties(frameNo);
             return textProp.mStrokeWidth;
         } else {
-            // TODO: get Animatable stroke width.
-            return 0.0;
+            textProp = getTextProperties(frameNo);
+
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::StrokeWidth) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::StrokeWidth)
+                            return textProp.mStrokeWidth + animators.strokeWidth().value(frameNo);
+                    }
+                }
+            }
+
+            return textProp.mStrokeWidth;
+        }
+    }
+
+    VPointF getTextPosition(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {0.0, 0.0};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Position) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Position)
+                            return animators.position().value(frameNo);
+                    }
+                }
+            }
+
+            return {0.0, 0.0};
+        }
+    }
+
+    VPointF getTextScale(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {100., 100.};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Scale) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Scale)
+                            return animators.scale().value(frameNo);
+                    }
+                }
+            }
+
+            return {100., 100.};
+        }
+    }
+
+    VPointF getTextAnchor(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {0.0, 0.0};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::Anchor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::Anchor)
+                            return animators.anchor().value(frameNo);
+                    }
+                }
+            }
+
+            return {0.0, 0.0};
+        }
+    }
+
+    LottieColor getTextFillColor(int frameNo) {
+        LOTTextProperties textProp;
+
+        if (mTextAnimator.empty()) {
+            textProp = getTextProperties(frameNo);
+            return textProp.mFillColor;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::FillColor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::FillColor)
+                            return animators.fillColor().value(frameNo);
+                    }
+                }
+            }
+
+            textProp = getTextProperties(frameNo);
+            return textProp.mFillColor;
         }
     }
 
     LottieColor getTextStrokeColor(int frameNo) {
+        LOTTextProperties textProp;
+
         if (mTextAnimator.empty()) {
-            LOTTextProperties textProp = getTextProperties(frameNo);
+            textProp = getTextProperties(frameNo);
             return textProp.mStrokeColor;
         } else {
-            // TODO: get Animatable stroke color.
-            return LottieColor(0.0, 1.0, 0.0);
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & LOTTextAnimator::Property::StrokeColor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == LOTTextAnimatable::Property::StrokeColor)
+                            return animators.strokeColor().value(frameNo);
+                    }
+                }
+            }
+
+            textProp = getTextProperties(frameNo);
+            return textProp.mStrokeColor;
         }
     }
 
@@ -823,13 +971,11 @@ public:
         return getTextProperties(frameNo).mStrokeOverFill;
     }
 
-    int getTextOpacity(int frameNo) {
-        if (mTextAnimator.empty()) {
-            return 100;
-        } else {
-            // TODO: get Animatable opacity.
-            return 50;
-        }
+
+    bool isStatic() {
+        if (mTextAnimator.empty() && (mTextDocument.size() <= 1))
+            return true;
+        return false;
     }
 };
 
@@ -913,7 +1059,7 @@ public:
     std::string mFontName;
     std::string mFontFamily;
     std::string mFontStyle;
-    double      mFontAscent;
+    float       mFontAscent;
 };
 
 class LOTChars {
@@ -921,8 +1067,8 @@ public:
     std::string              mCh;            /* ch */
     std::string              mStyle;         /* style */
     std::string              mFontFamily;    /* fFamily */
-    double                   mSize;          /* size */
-    double                   mWidth;         /* w */
+    float                    mSize;          /* size */
+    float                    mWidth;         /* w */
     std::vector<VPath>       mShapePathData; /* data */
 };
 
@@ -949,6 +1095,15 @@ public:
     long startFrame() const {return mStartFrame;}
     long endFrame() const {return mEndFrame;}
     VSize size() const {return mSize;}
+    int compareFontFamily(std::string fName, std::string fFamily) {
+        for (auto &fontData : mFonts) {
+            if (fontData.mFontName.compare(fName) == 0) {
+                return fontData.mFontFamily.compare(fFamily);
+            }
+        }
+        return 1; // 1=fail, 0=success
+    }
+
     void processRepeaterObjects();
     void updateStats();
 public:
