@@ -861,46 +861,90 @@ void renderer::TextLayer::updateContent()
 {
    renderer::Drawable *renderNode;
    VPath path;
+   std::vector<LottieTextPath> textPathList;
+   float opacity;
+   float rotation;
+   float tracking;
    float strokeWidth;
-   int opacity;
+   VPointF pos;
+   VPointF scale;
+   VPointF anchor;
+   model::Color fillColor;
+   model::Color strokeColor;
+   bool strokeOverFill;
+   float curX = 0., curY = 0.;
 
    mRenderNode.clear();
 
-   getTextPath(path, frameNo());
-   path.transform(combinedMatrix());
+   getTextPath(textPathList, frameNo());
+
    opacity = getTextOpacity(frameNo());
-
-   model::Color fillColor = getTextFillColor(frameNo());
-
-   auto fillDrawable = std::make_unique<renderer::Drawable>();
-   mRenderNode.push_back(std::move(fillDrawable));
-   renderNode = mRenderNode.back().get();
-   renderNode->mFlag |= VDrawable::DirtyState::Path;
-   renderNode->mPath = path;
-
-   VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity * 255 / 100);
-   renderNode->setBrush(fillBrush);
-   renderNode->mFlag |= VDrawable::DirtyState::Brush;
-
+   rotation = getTextRotation(frameNo());
+   tracking = getTextTracking(frameNo());
    strokeWidth = getTextStrokeWidth(frameNo());
-   if (getTextStrokeOverFill(frameNo()) && (strokeWidth != 0)) {
-        model::Color strokeColor = getTextStrokeColor(frameNo());
+   pos = getTextPosition(frameNo());
+   scale = getTextScale(frameNo());
+   anchor = getTextAnchor(frameNo());
+   fillColor = getTextFillColor(frameNo());
+   strokeColor = getTextStrokeColor(frameNo());
+   strokeOverFill = getTextStrokeOverFill(frameNo());
 
-        auto strokeDrawable = std::make_unique<renderer::Drawable>();
-        mRenderNode.push_back(std::move(strokeDrawable));
-        renderNode = mRenderNode.back().get();
+   for (auto &textPath : textPathList) {
+       VMatrix m;
 
-        renderNode->setType(VDrawable::Type::Stroke);
-        renderNode->mFlag |= VDrawable::DirtyState::Path;
-        renderNode->mPath = path;
+       m.translate(curX + textPath.x_advance / 2. * textPath.size / 100. + pos.x(), curY + pos.y());
+       m.rotate(rotation);
+       curX += textPath.x_advance * textPath.size / 100. + tracking;
+       m.translate(-anchor - VPointF(textPath.x_advance / 2. * textPath.size / 100., 0));
+       m.scale(textPath.size / 100. * scale.x() / 100, textPath.size / 100. * scale.y() / 100);
+       m = m * combinedMatrix();
+       textPath.path.transform(m);
 
-        VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity * 255 / 100);
-        renderNode->setBrush(strokeBrush);
+       if (!strokeOverFill && (strokeWidth != 0)) {
+           auto strokeDrawable = std::make_unique<renderer::Drawable>();
+           mRenderNode.push_back(std::move(strokeDrawable));
+           renderNode = mRenderNode.back().get();
 
-        // FIXME: Need to check CapStyle, JoinStyle and iterLimit values.
-        renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Bevel,
-                                  10.0, strokeWidth);
-        renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+           renderNode->setType(VDrawable::Type::Stroke);
+           renderNode->mFlag |= VDrawable::DirtyState::Path;
+           renderNode->mPath = textPath.path;
+
+           VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
+           renderNode->setBrush(strokeBrush);
+
+           // FIXME: The magic number 1.5!
+           renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
+                   10.0, strokeWidth * 1.5);
+           renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+       }
+
+       auto fillDrawable = std::make_unique<renderer::Drawable>();
+       mRenderNode.push_back(std::move(fillDrawable));
+       renderNode = mRenderNode.back().get();
+       renderNode->mFlag |= VDrawable::DirtyState::Path;
+       renderNode->mPath = textPath.path;
+
+       VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity / 100 * 255);
+       renderNode->setBrush(fillBrush);
+       renderNode->mFlag |= VDrawable::DirtyState::Brush;
+
+       if (strokeOverFill && (strokeWidth != 0)) {
+           auto strokeDrawable = std::make_unique<renderer::Drawable>();
+           mRenderNode.push_back(std::move(strokeDrawable));
+           renderNode = mRenderNode.back().get();
+
+           renderNode->setType(VDrawable::Type::Stroke);
+           renderNode->mFlag |= VDrawable::DirtyState::Path;
+           renderNode->mPath = textPath.path;
+
+           VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
+           renderNode->setBrush(strokeBrush);
+
+           // FIXME: The magic number 1.5!
+           renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
+                   10.0, strokeWidth * 1.5);
+           renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+       }
    }
 }
 

@@ -434,6 +434,7 @@ public:
                 construct(impl.mColor, std::move(other.impl.mColor));
                 break;
         }
+        mProperty = other.mProperty;
     }
 
     // delete special member functions
@@ -447,11 +448,9 @@ public:
     Property<float>& roation() {assert(mProperty == Type::Rotation); return impl.mFloat;}
     Property<float>& tracking() {assert(mProperty == Type::Tracking); return impl.mFloat;}
     Property<float>& strokeWidth() {assert(mProperty == Type::StrokeWidth); return impl.mFloat;}
-
     Property<VPointF>& position() {assert(mProperty == Type::Position); return impl.mPoint;}
     Property<VPointF>& scale() {assert(mProperty == Type::Scale); return impl.mPoint;}
     Property<VPointF>& anchor() {assert(mProperty == Type::Anchor); return impl.mPoint;}
-
     Property<Color>& strokeColor() {assert(mProperty == Type::StrokeColor); return impl.mColor;}
     Property<Color>& fillColor() {assert(mProperty == Type::FillColor); return impl.mColor;}
 private:
@@ -830,15 +829,28 @@ public:
 class TextAnimator
 {
 public:
+    enum class Props {
+      None = 1 << 0,
+      Opacity = 1 << 1,
+      Rotation = 1 << 2,
+      Tracking = 1 << 3,
+      StrokeWidth = 1 << 4,
+      Position = 1 << 5,
+      Scale = 1 << 6,
+      Anchor = 1 << 7,
+      StrokeColor = 1 << 8,
+      FillColor = 1 << 9
+    };
     std::string            mName;
 
-    /* Animated Properties */
-    Property<float>   mOpacity{100};
-    Property<float>   mRotation;
-    Property<VPointF> mTracking;
+    // Animated Properties
+    typedef vFlag<Props>             PropertyFlag;
+    PropertyFlag                        mProperty{Props::None};
+    std::vector<PropertyText>      mAnimators;
 
-    /* Range Selection */
-    int                    mTime;
+    // Range Selection
+    Property<int>          mRangeStart{0};
+    Property<int>          mRangeEnd{100};
 };
 
 class TextLayerData
@@ -857,37 +869,172 @@ public:
     std::vector<TextDocument>       mTextDocument;
     std::vector<TextAnimator>       mTextAnimator;
 
+
     TextProperties getTextProperties(int frameNo) {
         return textProperties(frameNo);
     }
 
-    Color getTextFillColor(int frameNo) {
+    float getTextOpacity(int frameNo) {
         if (mTextAnimator.empty()) {
-            TextProperties textProp = getTextProperties(frameNo);
-            return textProp.mFillColor;
+            return 100.;
         } else {
-            // TODO: get Animatable fill color.
-            return Color(0.0, 1.0, 0.0);
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Opacity) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Opacity)
+                            return animators.opacity().value(frameNo);
+                    }
+                }
+            }
+            return 100.;
+        }
+    }
+
+    float getTextRotation(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return 0.;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Rotation) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Rotation)
+                            return animators.rotation().value(frameNo);
+                    }
+                }
+            }
+
+            return 0.;
+        }
+    }
+
+    float getTextTracking(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return 0.;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Tracking) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Tracking)
+                            return animators.tracking().value(frameNo);
+                    }
+                }
+            }
+
+            return 0.;
         }
     }
 
     float getTextStrokeWidth(int frameNo) {
+        TextProperties textProp;
+
         if (mTextAnimator.empty()) {
-            TextProperties textProp = getTextProperties(frameNo);
+            textProp = getTextProperties(frameNo);
             return textProp.mStrokeWidth;
         } else {
-            // TODO: get Animatable stroke width.
-            return 0.0;
+            textProp = getTextProperties(frameNo);
+
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::StrokeWidth) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::StrokeWidth)
+                            return textProp.mStrokeWidth + animators.strokeWidth().value(frameNo);
+                    }
+                }
+            }
+            return textProp.mStrokeWidth;
+        }
+    }
+
+    VPointF getTextPosition(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {0.0, 0.0};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Position) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Position)
+                            return animators.position().value(frameNo);
+                    }
+                }
+            }
+
+            return {0.0, 0.0};
+        }
+    }
+
+    VPointF getTextScale(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {100., 100.};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Scale) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Scale)
+                            return animators.scale().value(frameNo);
+                    }
+                }
+            }
+
+            return {100., 100.};
+        }
+    }
+
+    VPointF getTextAnchor(int frameNo) {
+        if (mTextAnimator.empty()) {
+            return {0.0, 0.0};
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::Anchor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::Anchor)
+                            return animators.anchor().value(frameNo);
+                    }
+                }
+            }
+
+            return {0.0, 0.0};
+        }
+    }
+
+    Color getTextFillColor(int frameNo) {
+        TextProperties textProp;
+
+        if (mTextAnimator.empty()) {
+            textProp = getTextProperties(frameNo);
+            return textProp.mFillColor;
+        } else {
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::FillColor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() == PropertyText::Type::FillColor)
+                            return animators.fillColor().value(frameNo);
+                    }
+                }
+            }
+
+            textProp = getTextProperties(frameNo);
+            return textProp.mFillColor;
         }
     }
 
     Color getTextStrokeColor(int frameNo) {
+        TextProperties textProp;
+
         if (mTextAnimator.empty()) {
-            TextProperties textProp = getTextProperties(frameNo);
+            textProp = getTextProperties(frameNo);
             return textProp.mStrokeColor;
         } else {
-            // TODO: get Animatable stroke color.
-            return Color(0.0, 1.0, 0.0);
+            for (auto &textAnim : mTextAnimator) {
+                if (textAnim.mProperty & TextAnimator::Props::StrokeColor) {
+                    for (auto &animators : textAnim.mAnimators) {
+                        if (animators.type() ==  PropertyText::Type::StrokeColor)
+                            return animators.strokeColor().value(frameNo);
+                    }
+                }
+            }
+
+            textProp = getTextProperties(frameNo);
+            return textProp.mStrokeColor;
         }
     }
 
@@ -895,13 +1042,11 @@ public:
         return getTextProperties(frameNo).mStrokeOverFill;
     }
 
-    int getTextOpacity(int frameNo) {
-        if (mTextAnimator.empty()) {
-            return 100;
-        } else {
-            // TODO: get Animatable opacity.
-            return 50;
-        }
+
+    bool isStatic() {
+        if (mTextAnimator.empty() && (mTextDocument.size() <= 1))
+            return true;
+        return false;
     }
 };
 
@@ -953,13 +1098,13 @@ public:
         Composition *       mCompRef{nullptr};
         Asset *             mAsset{nullptr};
         std::vector<Mask *> mMasks;
-	std::unique_ptr<TextLayerData> mTextLayerData{nullptr};
+        std::unique_ptr<TextLayerData> mTextLayerData{nullptr};
 
-	    TextLayerData* textLayer()
-	    {
-		if (!mTextLayerData) mTextLayerData = std::make_unique<TextLayerData>();
-		return mTextLayerData.get();
-	    }
+        TextLayerData* textLayer()
+        {
+        if (!mTextLayerData) mTextLayerData = std::make_unique<TextLayerData>();
+        return mTextLayerData.get();
+        }
     };
 
     Layer::Extra *extra()
