@@ -769,7 +769,6 @@ void LottieParserImpl::parseTextProperties(model::TextDocument &obj)
         } else if (0 == strcmp(key, "of")) {
              obj.mTextProperties.mStrokeOverFill = GetBool();
         } else {
-             printf(".............. parseTextProperties key[%s] SKIPPED\n", key);
              Skip(key);
         }
    }
@@ -808,10 +807,42 @@ void LottieParserImpl::parseTextAnimatedProperties(model::TextAnimator &obj)
     EnterObject();
 
     while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "r")) {
-            parseProperty(obj.mRotation);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj.mOpacity);
+        if (0 == strcmp(key, "o")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Opacity);
+            parseProperty(obj.mAnimators.back().opacity());
+            obj.mProperty |= model::TextAnimator::Props::Opacity;
+        } else if (0 == strcmp(key, "r")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Rotation);
+            parseProperty(obj.mAnimators.back().rotation());
+            obj.mProperty |= model::TextAnimator::Props::Rotation;
+        } else if (0 == strcmp(key, "t")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Tracking);
+            parseProperty(obj.mAnimators.back().tracking());
+            obj.mProperty |= model::TextAnimator::Props::Tracking;
+        } else if (0 == strcmp(key, "sw")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeWidth);
+            parseProperty(obj.mAnimators.back().strokeWidth());
+            obj.mProperty |= model::TextAnimator::Props::StrokeWidth;
+        } else if (0 == strcmp(key, "p")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Position);
+            parseProperty(obj.mAnimators.back().position());
+            obj.mProperty |= model::TextAnimator::Props::Position;
+        } else if (0 == strcmp(key, "s")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Scale);
+            parseProperty(obj.mAnimators.back().scale());
+            obj.mProperty |= model::TextAnimator::Props::Scale;
+        } else if (0 == strcmp(key, "a")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::Anchor);
+            parseProperty(obj.mAnimators.back().anchor());
+            obj.mProperty |= model::TextAnimator::Props::Anchor;
+        } else if (0 == strcmp(key, "fc")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::FillColor);
+            parseProperty(obj.mAnimators.back().fillColor());
+            obj.mProperty |= model::TextAnimator::Props::FillColor;
+        } else if (0 == strcmp(key, "sc")) {
+            obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeColor);
+            parseProperty(obj.mAnimators.back().strokeColor());
+            obj.mProperty |= model::TextAnimator::Props::StrokeColor;
         } else {
             Skip(key);
         }
@@ -830,8 +861,11 @@ void LottieParserImpl::parseTextRangeSelection(model::TextAnimator &obj)
         } else if (0 == strcmp(key, "b")) {
             Skip(key);
         } else if (0 == strcmp(key, "t")) {
-            RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTime = GetInt();
+            Skip(key);
+        } else if (0 == strcmp(key, "s")) {
+            parseProperty(obj.mRangeStart);
+        } else if (0 == strcmp(key, "e")) {
+            parseProperty(obj.mRangeEnd);
         } else {
             Skip(key);
         }
@@ -978,13 +1012,11 @@ void LottieParserImpl::parseCharDataShape(VPath &obj)
                                  }
                             }
                        } else {
-                            printf("parseCharDataShape - itKey[%s] = SKIP\n", itKey);
                             Skip(itKey);
                        }
                   }
              }
         } else {
-             printf("parseCharDataShape - key[%s] = SKIP\n", key);
              Skip(key);
         }
    }
@@ -1357,6 +1389,8 @@ model::Layer *LottieParserImpl::parseLayer()
     model::Layer *layer = allocator().make<model::Layer>();
     curLayerRef = layer;
     bool ddd = true;
+    bool staticFlag = true;
+
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ty")) { /* Type of layer*/
@@ -1425,6 +1459,7 @@ model::Layer *LottieParserImpl::parseLayer()
             layer->setHidden(GetBool());
         } else if (0 == strcmp(key, "t")) {
             parseText(layer->extra()->textLayer());
+            staticFlag = layer->extra()->textLayer()->isStatic();
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Layer Attribute Skipped : " << key;
@@ -1455,7 +1490,6 @@ model::Layer *LottieParserImpl::parseLayer()
     }
 
     // update the static property of layer
-    bool staticFlag = true;
     for (const auto &child : layer->mChildren) {
         staticFlag &= child->isStatic();
     }
