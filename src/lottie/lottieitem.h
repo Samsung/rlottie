@@ -307,6 +307,14 @@ public:
     bool                     mRasterRequest{false};
 };
 
+class LottieTextPath {
+public:
+    VPath path;
+    float x_advance;
+    float y_advance;
+    float size;
+};
+
 class LOTTextLayerItem: public LOTLayerItem
 {
 public:
@@ -321,59 +329,72 @@ protected:
    LOTTextProperties                         curTextProperties;
    std::vector<std::unique_ptr<LOTDrawable>> mRenderNode;
    std::vector<VDrawable *>                  mDrawableList;
-   VPath                                     mLastPath;
+   std::vector<LottieTextPath>               mLastTextPathList;
 
-   void getTextPath(VPath &path, int frameNo) {
-       float curX = 0.0;
+   void getTextPath(std::vector<LottieTextPath> &textPathList, int frameNo) {
+       auto curTextProperties = mLayerData->extra()->textLayer()->getTextProperties(frameNo);
 
-       LOTTextProperties textProperties = mLayerData->extra()->textLayer()->getTextProperties(frameNo);
-
-       if (curTextProperties == textProperties) {
-           path = mLastPath;
-           return;
-       } else {
-           curTextProperties = textProperties;
-
-           if (mLayerData->extra()->mCompRef &&
+       if (mLayerData->extra()->mCompRef &&
                !mLayerData->extra()->mCompRef->mChars.empty()) {
-               for (auto textChar : curTextProperties.mText) {
-                   for (auto  charData : mLayerData->extra()->mCompRef->mChars) {
-                       // FIXME: There is a problem for font searching logic.
-                       // It needs to compare font considering spaces and '-' character.
-                       if ((textChar == *charData.mCh.c_str()) &&
+           for (auto textChar : curTextProperties.mText) {
+               // TODO: Multiline support
+               /*
+               if ((textChar == '\r') || (textChar == '\r')) {
+                   curLineNum++;
+                   continue;
+               }
+                */
+               for (auto  charData : mLayerData->extra()->mCompRef->mChars) {
+                   if ((textChar == *charData.mCh.c_str()) &&
                            (curTextProperties.mSize == charData.mSize) &&
-                           (curTextProperties.mFont.compare(charData.mFontFamily) == 0)) {
-                           VMatrix matrix;
+                           (mLayerData->extra()->mCompRef->compareFontFamily(curTextProperties.mFont, charData.mFontFamily) == 0)) {
+                       textPathList.emplace_back();
+                       auto &textPath = textPathList.back();
 
-                           matrix = matrix.translate(curX, 0.0);
-
-                           for (auto shapeData : charData.mShapePathData) {
-                               path.addPath(shapeData, matrix);
-
-                               break;
-                           }
-                           curX += (float)charData.mWidth;
+                       for (auto shapeData : charData.mShapePathData) {
+                           textPath.path.addPath(shapeData);
+                           break;
                        }
+                       textPath.x_advance = charData.mWidth;
+                       textPath.y_advance = curTextProperties.mLineHeight;
+                       textPath.size = charData.mSize;
                    }
                }
-               mLastPath = path;
-           } else {
-               // Load font and get path.
-               /*
-               path = getPathfromFontblah(blah, blah);
-               ... blah blah;
-               mLastPath = path;
-                */
            }
+           mLastTextPathList = textPathList;
        }
    }
 
-   LottieColor getTextFillColor(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextFillColor(frameNo);
+   float getTextOpacity(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextOpacity(frameNo);
+   }
+
+   float getTextRotation(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextRotation(frameNo);
+   }
+
+   float getTextTracking(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextTracking(frameNo);
    }
 
    float getTextStrokeWidth(int frameNo) {
        return mLayerData->extra()->textLayer()->getTextStrokeWidth(frameNo);
+   }
+
+   VPointF getTextPosition(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextPosition(frameNo);
+   }
+
+   VPointF getTextScale(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextScale(frameNo);
+   }
+
+   VPointF getTextAnchor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextAnchor(frameNo);
+   }
+
+   LottieColor getTextFillColor(int frameNo) {
+       return mLayerData->extra()->textLayer()->getTextFillColor(frameNo);
    }
 
    LottieColor getTextStrokeColor(int frameNo) {
@@ -384,8 +405,8 @@ protected:
        return mLayerData->extra()->textLayer()->getTextStrokeOverFill(frameNo);
    }
 
-   int getTextOpacity(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextOpacity(frameNo);
+   bool isStatic() {
+       return mLayerData->extra()->textLayer()->isStatic();
    }
 };
 
