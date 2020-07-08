@@ -13,571 +13,608 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
 #ifndef LOTTIEITEM_H
 #define LOTTIEITEM_H
 
-#include<sstream>
-#include<memory>
+#include <memory>
+#include <sstream>
 
-#include"lottieproxymodel.h"
-#include"vmatrix.h"
-#include"vpath.h"
-#include"vpoint.h"
-#include"vpathmesure.h"
-#include"rlottiecommon.h"
-#include"rlottie.h"
-#include"vpainter.h"
-#include"vdrawable.h"
-#include"lottiekeypath.h"
-#include"varenaalloc.h"
+#include "lottiekeypath.h"
+#include "lottieproxymodel.h"
+#include "rlottie.h"
+#include "rlottiecommon.h"
+#include "varenaalloc.h"
+#include "vdrawable.h"
+#include "vmatrix.h"
+#include "vpainter.h"
+#include "vpath.h"
+#include "vpathmesure.h"
+#include "vpoint.h"
 
 V_USE_NAMESPACE
 
-enum class DirtyFlagBit : uchar
-{
-   None   = 0x00,
-   Matrix = 0x01,
-   Alpha  = 0x02,
-   All    = (Matrix | Alpha)
-};
+namespace rlottie {
 
-class LOTLayerItem;
-class LOTMaskItem;
-class VDrawable;
+namespace internal {
 
-class LOTDrawable : public VDrawable
-{
+template <class T>
+class VSpan {
 public:
-    void sync();
-public:
-    std::unique_ptr<LOTNode>  mCNode{nullptr};
+    using reference = T &;
+    using pointer = T *;
+    using const_pointer = T const *;
+    using const_reference = T const &;
+    using index_type = size_t;
 
-    ~LOTDrawable() {
-        if (mCNode && mCNode->mGradient.stopPtr)
-          free(mCNode->mGradient.stopPtr);
-    }
-};
-
-class SurfaceCache
-{
-public:  
-  SurfaceCache(){mCache.reserve(10);}
-
-  VBitmap make_surface(size_t width, size_t height, VBitmap::Format format=VBitmap::Format::ARGB32_Premultiplied)
-  {
-    if (mCache.empty()) return {width, height, format};
-
-    auto surface = mCache.back();
-    surface.reset(width, height, format);
-
-    mCache.pop_back();
-    return surface;
-  }
-
-  void release_surface(VBitmap& surface)
-  {
-     mCache.push_back(surface);
-  }
-
-private:
-  std::vector<VBitmap> mCache;
-};
-
-class LOTCompItem
-{
-public:
-   explicit LOTCompItem(LOTModel *model);
-   bool update(int frameNo, const VSize &size, bool keepAspectRatio);
-   VSize size() const { return mViewSize;}
-   void buildRenderTree();
-   const LOTLayerNode * renderTree()const;
-   bool render(const rlottie::Surface &surface);
-   void setValue(const std::string &keypath, LOTVariant &value);
-private:
-   SurfaceCache                                mSurfaceCache;
-   VBitmap                                     mSurface;
-   VMatrix                                     mScaleMatrix;
-   VSize                                       mViewSize;
-   LOTCompositionData                         *mCompData{nullptr};
-   LOTLayerItem                               *mRootLayer{nullptr};
-   VArenaAlloc                                 mAllocator{2048};
-   int                                         mCurFrameNo;
-   bool                                        mKeepAspectRatio{true};
-};
-
-class LOTLayerMaskItem;
-
-class LOTClipperItem
-{
-public:
-    explicit LOTClipperItem(VSize size): mSize(size){}
-    void update(const VMatrix &matrix);
-    void preprocess(const VRect &clip);
-    VRle rle(const VRle& mask);
-public:
-    VSize                    mSize;
-    VPath                    mPath;
-    VRle                     mMaskedRle;
-    VRasterizer              mRasterizer;
-    bool                     mRasterRequest{false};
-};
-
-typedef vFlag<DirtyFlagBit> DirtyFlag;
-
-struct LOTCApiData
-{
-    LOTCApiData();
-    LOTLayerNode                  mLayer;
-    std::vector<LOTMask>          mMasks;
-    std::vector<LOTLayerNode *>   mLayers;
-    std::vector<LOTNode *>        mCNodeList;
-};
-
-template< class T>
-class VSpan
-{
-public:
-    using reference         = T &;
-    using pointer           = T *;
-    using const_pointer     = T const *;
-    using const_reference   = T const &;
-    using index_type        = size_t;
-
-    using iterator          = pointer;
-    using const_iterator    = const_pointer;
+    using iterator = pointer;
+    using const_iterator = const_pointer;
 
     VSpan() = default;
-    VSpan(pointer data, index_type size):_data(data), _size(size){}
+    VSpan(pointer data, index_type size) : _data(data), _size(size) {}
 
-    constexpr pointer data() const noexcept {return _data; }
-    constexpr index_type size() const noexcept {return _size; }
-    constexpr bool empty() const noexcept { return size() == 0 ;}
-    constexpr iterator begin() const noexcept { return data(); }
-    constexpr iterator end() const noexcept {return data() + size() ;}
-    constexpr const_iterator cbegin() const noexcept {return  data();}
-    constexpr const_iterator cend() const noexcept { return data() + size();}
-    constexpr reference operator[]( index_type idx ) const { return *( data() + idx );}
+    constexpr pointer        data() const noexcept { return _data; }
+    constexpr index_type     size() const noexcept { return _size; }
+    constexpr bool           empty() const noexcept { return size() == 0; }
+    constexpr iterator       begin() const noexcept { return data(); }
+    constexpr iterator       end() const noexcept { return data() + size(); }
+    constexpr const_iterator cbegin() const noexcept { return data(); }
+    constexpr const_iterator cend() const noexcept { return data() + size(); }
+    constexpr reference      operator[](index_type idx) const
+    {
+        return *(data() + idx);
+    }
 
 private:
-    pointer      _data{nullptr};
-    index_type   _size{0};
+    pointer    _data{nullptr};
+    index_type _size{0};
 };
+
+namespace renderer {
 
 using DrawableList = VSpan<VDrawable *>;
 
-class LOTLayerItem
-{
-public:
-   virtual ~LOTLayerItem() = default;
-   LOTLayerItem& operator=(LOTLayerItem&&) noexcept = delete;
-   LOTLayerItem(LOTLayerData *layerData);
-   int id() const {return mLayerData->id();}
-   int parentId() const {return mLayerData->parentId();}
-   void setParentLayer(LOTLayerItem *parent){mParentLayer = parent;}
-   void setComplexContent(bool value) { mComplexContent = value;}
-   bool complexContent() const {return mComplexContent;}
-   virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha);
-   VMatrix matrix(int frameNo) const;
-   void preprocess(const VRect& clip);
-   virtual DrawableList renderList(){ return {};}
-   virtual void render(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache);
-   bool hasMatte() { if (mLayerData->mMatteType == MatteType::None) return false; return true; }
-   MatteType matteType() const { return mLayerData->mMatteType;}
-   bool visible() const;
-   virtual void buildLayerNode();
-   LOTLayerNode& clayer() {return mCApiData->mLayer;}
-   std::vector<LOTLayerNode *>& clayers() {return mCApiData->mLayers;}
-   std::vector<LOTMask>& cmasks() {return mCApiData->mMasks;}
-   std::vector<LOTNode *>& cnodes() {return mCApiData->mCNodeList;}
-   const char* name() const {return mLayerData->name();}
-   virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value);
-protected:
-   virtual void preprocessStage(const VRect& clip) = 0;
-   virtual void updateContent() = 0;
-   inline VMatrix combinedMatrix() const {return mCombinedMatrix;}
-   inline int frameNo() const {return mFrameNo;}
-   inline float combinedAlpha() const {return mCombinedAlpha;}
-   inline bool isStatic() const {return mLayerData->isStatic();}
-   float opacity(int frameNo) const {return mLayerData->opacity(frameNo);}
-   inline DirtyFlag flag() const {return mDirtyFlag;}
-   bool skipRendering() const {return (!visible() || vIsZero(combinedAlpha()));}
-protected:
-   std::unique_ptr<LOTLayerMaskItem>           mLayerMask;
-   LOTLayerData                               *mLayerData{nullptr};
-   LOTLayerItem                               *mParentLayer{nullptr};
-   VMatrix                                     mCombinedMatrix;
-   float                                       mCombinedAlpha{0.0};
-   int                                         mFrameNo{-1};
-   DirtyFlag                                   mDirtyFlag{DirtyFlagBit::All};
-   bool                                        mComplexContent{false};
-   std::unique_ptr<LOTCApiData>                mCApiData;
+enum class DirtyFlagBit : uchar {
+    None = 0x00,
+    Matrix = 0x01,
+    Alpha = 0x02,
+    All = (Matrix | Alpha)
 };
+typedef vFlag<DirtyFlagBit> DirtyFlag;
 
-class LOTCompLayerItem: public LOTLayerItem
-{
+class SurfaceCache {
 public:
-   explicit LOTCompLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
+    SurfaceCache() { mCache.reserve(10); }
 
-   void render(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache) final;
-   void buildLayerNode() final;
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
-protected:
-   void preprocessStage(const VRect& clip) final;
-   void updateContent() final;
+    VBitmap make_surface(
+        size_t width, size_t height,
+        VBitmap::Format format = VBitmap::Format::ARGB32_Premultiplied)
+    {
+        if (mCache.empty()) return {width, height, format};
+
+        auto surface = mCache.back();
+        surface.reset(width, height, format);
+
+        mCache.pop_back();
+        return surface;
+    }
+
+    void release_surface(VBitmap &surface) { mCache.push_back(surface); }
+
 private:
-    void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle, SurfaceCache& cache);
-    void renderMatteLayer(VPainter *painter, const VRle &inheritMask, const VRle &matteRle,
-                          LOTLayerItem *layer, LOTLayerItem *src, SurfaceCache& cache);
-private:
-   std::vector<LOTLayerItem*>            mLayers;
-   std::unique_ptr<LOTClipperItem>       mClipper;
+    std::vector<VBitmap> mCache;
 };
 
-class LOTSolidLayerItem: public LOTLayerItem
-{
+class Drawable : public VDrawable {
 public:
-   explicit LOTSolidLayerItem(LOTLayerData *layerData);
-   void buildLayerNode() final;
-   DrawableList renderList() final;
-protected:
-   void preprocessStage(const VRect& clip) final;
-   void updateContent() final;
-private:
-   LOTDrawable                  mRenderNode;
-   VDrawable                   *mDrawableList{nullptr}; //to work with the Span api
+    void sync();
+
+public:
+    std::unique_ptr<LOTNode> mCNode{nullptr};
+
+    ~Drawable()
+    {
+        if (mCNode && mCNode->mGradient.stopPtr)
+            free(mCNode->mGradient.stopPtr);
+    }
 };
 
-class LOTContentItem;
-class LOTContentGroupItem;
-class LOTShapeLayerItem: public LOTLayerItem
-{
-public:
-   explicit LOTShapeLayerItem(LOTLayerData *layerData, VArenaAlloc* allocator);
-   DrawableList renderList() final;
-   void buildLayerNode() final;
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
-protected:
-   void preprocessStage(const VRect& clip) final;
-   void updateContent() final;
-   std::vector<VDrawable *>             mDrawableList;
-   LOTContentGroupItem                 *mRoot{nullptr};
+struct CApiData {
+    CApiData();
+    LOTLayerNode                mLayer;
+    std::vector<LOTMask>        mMasks;
+    std::vector<LOTLayerNode *> mLayers;
+    std::vector<LOTNode *>      mCNodeList;
 };
 
-class LOTNullLayerItem: public LOTLayerItem
-{
+class Clipper {
 public:
-   explicit LOTNullLayerItem(LOTLayerData *layerData);
-protected:
-   void preprocessStage(const VRect&) final {}
-   void updateContent() final;
-};
-
-class LOTImageLayerItem: public LOTLayerItem
-{
-public:
-   explicit LOTImageLayerItem(LOTLayerData *layerData);
-   void buildLayerNode() final;
-   DrawableList renderList() final;
-protected:
-   void preprocessStage(const VRect& clip) final;
-   void updateContent() final;
-private:
-   LOTDrawable                  mRenderNode;
-   VTexture                     mTexture;
-   VDrawable                   *mDrawableList{nullptr}; //to work with the Span api
-};
-
-class LOTMaskItem
-{
-public:
-    explicit LOTMaskItem(LOTMaskData *data): mData(data){}
-    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag);
-    LOTMaskData::Mode maskMode() const { return mData->mMode;}
-    VRle rle();
+    explicit Clipper(VSize size) : mSize(size) {}
+    void update(const VMatrix &matrix);
     void preprocess(const VRect &clip);
+    VRle rle(const VRle &mask);
+
 public:
-    LOTMaskData             *mData{nullptr};
-    VPath                    mLocalPath;
-    VPath                    mFinalPath;
-    VRasterizer              mRasterizer;
-    float                    mCombinedAlpha{0};
-    bool                     mRasterRequest{false};
+    VSize       mSize;
+    VPath       mPath;
+    VRle        mMaskedRle;
+    VRasterizer mRasterizer;
+    bool        mRasterRequest{false};
+};
+
+class Mask {
+public:
+    explicit Mask(model::Mask *data) : mData(data) {}
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag);
+    model::Mask::Mode maskMode() const { return mData->mMode; }
+    VRle              rle();
+    void              preprocess(const VRect &clip);
+
+public:
+    model::Mask *mData{nullptr};
+    VPath        mLocalPath;
+    VPath        mFinalPath;
+    VRasterizer  mRasterizer;
+    float        mCombinedAlpha{0};
+    bool         mRasterRequest{false};
 };
 
 /*
  * Handels mask property of a layer item
  */
-class LOTLayerMaskItem
-{
+class LayerMask {
 public:
-    explicit LOTLayerMaskItem(LOTLayerData *layerData);
-    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag);
-    bool isStatic() const {return mStatic;}
+    explicit LayerMask(model::Layer *layerData);
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag);
+    bool isStatic() const { return mStatic; }
     VRle maskRle(const VRect &clipRect);
     void preprocess(const VRect &clip);
+
 public:
-    std::vector<LOTMaskItem>   mMasks;
-    VRle                       mRle;
-    bool                       mStatic{true};
-    bool                       mDirty{true};
+    std::vector<Mask> mMasks;
+    VRle              mRle;
+    bool              mStatic{true};
+    bool              mDirty{true};
 };
 
-class LOTPathDataItem;
-class LOTPaintDataItem;
-class LOTTrimItem;
+class Layer;
 
-enum class ContentType : uchar
-{
-    Unknown,
-    Group,
-    Path,
-    Paint,
-    Trim
+class Composition {
+public:
+    explicit Composition(std::shared_ptr<model::Composition> composition);
+    bool  update(int frameNo, const VSize &size, bool keepAspectRatio);
+    VSize size() const { return mViewSize; }
+    void  buildRenderTree();
+    const LOTLayerNode *renderTree() const;
+    bool                render(const rlottie::Surface &surface);
+    void                setValue(const std::string &keypath, LOTVariant &value);
+
+private:
+    SurfaceCache                        mSurfaceCache;
+    VBitmap                             mSurface;
+    VMatrix                             mScaleMatrix;
+    VSize                               mViewSize;
+    std::shared_ptr<model::Composition> mModel;
+    Layer *                             mRootLayer{nullptr};
+    VArenaAlloc                         mAllocator{2048};
+    int                                 mCurFrameNo;
+    bool                                mKeepAspectRatio{true};
 };
 
-class LOTContentGroupItem;
-class LOTContentItem
-{
+class Layer {
 public:
-   virtual ~LOTContentItem() = default;
-   LOTContentItem& operator=(LOTContentItem&&) noexcept = delete;
-   virtual void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) = 0;   virtual void renderList(std::vector<VDrawable *> &){}
-   virtual bool resolveKeyPath(LOTKeyPath &, uint, LOTVariant &) {return false;}
-   virtual ContentType type() const {return ContentType::Unknown;}
-};
+    virtual ~Layer() = default;
+    Layer &operator=(Layer &&) noexcept = delete;
+    Layer(model::Layer *layerData);
+    int          id() const { return mLayerData->id(); }
+    int          parentId() const { return mLayerData->parentId(); }
+    void         setParentLayer(Layer *parent) { mParentLayer = parent; }
+    void         setComplexContent(bool value) { mComplexContent = value; }
+    bool         complexContent() const { return mComplexContent; }
+    virtual void update(int frameNo, const VMatrix &parentMatrix,
+                        float parentAlpha);
+    VMatrix      matrix(int frameNo) const;
+    void         preprocess(const VRect &clip);
+    virtual DrawableList renderList() { return {}; }
+    virtual void         render(VPainter *painter, const VRle &mask,
+                                const VRle &matteRle, SurfaceCache &cache);
+    bool                 hasMatte()
+    {
+        if (mLayerData->mMatteType == model::MatteType::None) return false;
+        return true;
+    }
+    model::MatteType matteType() const { return mLayerData->mMatteType; }
+    bool             visible() const;
+    virtual void     buildLayerNode();
+    LOTLayerNode &   clayer() { return mCApiData->mLayer; }
+    std::vector<LOTLayerNode *> &clayers() { return mCApiData->mLayers; }
+    std::vector<LOTMask> &       cmasks() { return mCApiData->mMasks; }
+    std::vector<LOTNode *> &     cnodes() { return mCApiData->mCNodeList; }
+    const char *                 name() const { return mLayerData->name(); }
+    virtual bool                 resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                                LOTVariant &value);
 
-class LOTContentGroupItem: public LOTContentItem
-{
-public:
-   LOTContentGroupItem() = default;
-   explicit LOTContentGroupItem(LOTGroupData *data, VArenaAlloc* allocator);
-   void addChildren(LOTGroupData *data, VArenaAlloc* allocator);
-   void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) override;
-   void applyTrim();
-   void processTrimItems(std::vector<LOTPathDataItem *> &list);
-   void processPaintItems(std::vector<LOTPathDataItem *> &list);
-   void renderList(std::vector<VDrawable *> &list) override;
-   ContentType type() const final {return ContentType::Group;}
-   const VMatrix & matrix() const { return mMatrix;}
-   const char* name() const
-   {
-       static const char* TAG = "__";
-       return mModel.hasModel() ? mModel.name() : TAG;
-   }
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
 protected:
-   std::vector<LOTContentItem*>   mContents;
-   VMatrix                                        mMatrix;
-private:
-   LOTProxyModel<LOTGroupData> mModel;
-};
+    virtual void   preprocessStage(const VRect &clip) = 0;
+    virtual void   updateContent() = 0;
+    inline VMatrix combinedMatrix() const { return mCombinedMatrix; }
+    inline int     frameNo() const { return mFrameNo; }
+    inline float   combinedAlpha() const { return mCombinedAlpha; }
+    inline bool    isStatic() const { return mLayerData->isStatic(); }
+    float opacity(int frameNo) const { return mLayerData->opacity(frameNo); }
+    inline DirtyFlag flag() const { return mDirtyFlag; }
+    bool             skipRendering() const
+    {
+        return (!visible() || vIsZero(combinedAlpha()));
+    }
 
-class LOTPathDataItem : public LOTContentItem
-{
-public:
-   LOTPathDataItem(bool staticPath): mStaticPath(staticPath){}
-   void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
-   ContentType type() const final {return ContentType::Path;}
-   bool dirty() const {return mDirtyPath;}
-   const VPath &localPath() const {return mTemp;}
-   void finalPath(VPath& result);
-   void updatePath(const VPath &path) {mTemp = path; mDirtyPath = true;}
-   bool staticPath() const { return mStaticPath; }
-   void setParent(LOTContentGroupItem *parent) {mParent = parent;}
-   LOTContentGroupItem *parent() const {return mParent;}
 protected:
-   virtual void updatePath(VPath& path, int frameNo) = 0;
-   virtual bool hasChanged(int prevFrame, int curFrame) = 0;
-private:
-   bool hasChanged(int frameNo) {
-       int prevFrame = mFrameNo;
-       mFrameNo = frameNo;
-       if (prevFrame == -1) return true;
-       if (mStaticPath ||
-           (prevFrame == frameNo)) return false;
-       return hasChanged(prevFrame, frameNo);
-   }
-   LOTContentGroupItem                    *mParent{nullptr};
-   VPath                                   mLocalPath;
-   VPath                                   mTemp;
-   int                                     mFrameNo{-1};
-   bool                                    mDirtyPath{true};
-   bool                                    mStaticPath;
+    std::unique_ptr<LayerMask> mLayerMask;
+    model::Layer *             mLayerData{nullptr};
+    Layer *                    mParentLayer{nullptr};
+    VMatrix                    mCombinedMatrix;
+    float                      mCombinedAlpha{0.0};
+    int                        mFrameNo{-1};
+    DirtyFlag                  mDirtyFlag{DirtyFlagBit::All};
+    bool                       mComplexContent{false};
+    std::unique_ptr<CApiData>  mCApiData;
 };
 
-class LOTRectItem: public LOTPathDataItem
-{
+class CompLayer : public Layer {
 public:
-   explicit LOTRectItem(LOTRectData *data);
+    explicit CompLayer(model::Layer *layerData, VArenaAlloc *allocator);
+
+    void render(VPainter *painter, const VRle &mask, const VRle &matteRle,
+                SurfaceCache &cache) final;
+    void buildLayerNode() final;
+    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                        LOTVariant &value) override;
+
 protected:
-   void updatePath(VPath& path, int frameNo) final;
-   LOTRectData           *mData{nullptr};
+    void preprocessStage(const VRect &clip) final;
+    void updateContent() final;
 
-   bool hasChanged(int prevFrame, int curFrame) final {
-       return (mData->mPos.changed(prevFrame, curFrame) ||
-               mData->mSize.changed(prevFrame, curFrame) ||
-               mData->mRound.changed(prevFrame, curFrame));
-   }
-};
-
-class LOTEllipseItem: public LOTPathDataItem
-{
-public:
-   explicit LOTEllipseItem(LOTEllipseData *data);
 private:
-   void updatePath(VPath& path, int frameNo) final;
-   LOTEllipseData           *mData{nullptr};
-   bool hasChanged(int prevFrame, int curFrame) final {
-       return (mData->mPos.changed(prevFrame, curFrame) ||
-               mData->mSize.changed(prevFrame, curFrame));
-   }
-};
+    void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle,
+                      SurfaceCache &cache);
+    void renderMatteLayer(VPainter *painter, const VRle &inheritMask,
+                          const VRle &matteRle, Layer *layer, Layer *src,
+                          SurfaceCache &cache);
 
-class LOTShapeItem: public LOTPathDataItem
-{
-public:
-   explicit LOTShapeItem(LOTShapeData *data);
 private:
-   void updatePath(VPath& path, int frameNo) final;
-   LOTShapeData             *mData{nullptr};
-   bool hasChanged(int prevFrame, int curFrame) final {
-       return mData->mShape.changed(prevFrame, curFrame);
-   }
+    std::vector<Layer *>     mLayers;
+    std::unique_ptr<Clipper> mClipper;
 };
 
-class LOTPolystarItem: public LOTPathDataItem
-{
+class SolidLayer : public Layer {
 public:
-   explicit LOTPolystarItem(LOTPolystarData *data);
-private:
-   void updatePath(VPath& path, int frameNo) final;
-   LOTPolystarData             *mData{nullptr};
+    explicit SolidLayer(model::Layer *layerData);
+    void         buildLayerNode() final;
+    DrawableList renderList() final;
 
-   bool hasChanged(int prevFrame, int curFrame) final {
-       return (mData->mPos.changed(prevFrame, curFrame) ||
-               mData->mPointCount.changed(prevFrame, curFrame) ||
-               mData->mInnerRadius.changed(prevFrame, curFrame) ||
-               mData->mOuterRadius.changed(prevFrame, curFrame) ||
-               mData->mInnerRoundness.changed(prevFrame, curFrame) ||
-               mData->mOuterRoundness.changed(prevFrame, curFrame) ||
-               mData->mRotation.changed(prevFrame, curFrame));
-   }
-};
-
-
-
-class LOTPaintDataItem : public LOTContentItem
-{
-public:
-   LOTPaintDataItem(bool staticContent);
-   void addPathItems(std::vector<LOTPathDataItem *> &list, size_t startOffset);
-   void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) override;
-   void renderList(std::vector<VDrawable *> &list) final;
-   ContentType type() const final {return ContentType::Paint;}
 protected:
-   virtual bool updateContent(int frameNo, const VMatrix &matrix, float alpha) = 0;
+    void preprocessStage(const VRect &clip) final;
+    void updateContent() final;
+
 private:
-   void updateRenderNode();
+    Drawable   mRenderNode;
+    VDrawable *mDrawableList{nullptr};  // to work with the Span api
+};
+
+class Group;
+
+class ShapeLayer : public Layer {
+public:
+    explicit ShapeLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    DrawableList renderList() final;
+    void         buildLayerNode() final;
+    bool         resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                LOTVariant &value) override;
+
 protected:
-   std::vector<LOTPathDataItem *>   mPathItems;
-   LOTDrawable                      mDrawable;
-   VPath                            mPath;
-   DirtyFlag                        mFlag;
-   bool                             mStaticContent;
-   bool                             mRenderNodeUpdate{true};
-   bool                             mContentToRender{true};
+    void                     preprocessStage(const VRect &clip) final;
+    void                     updateContent() final;
+    std::vector<VDrawable *> mDrawableList;
+    Group *                  mRoot{nullptr};
 };
 
-class LOTFillItem : public LOTPaintDataItem
-{
+class NullLayer : public Layer {
 public:
-   explicit LOTFillItem(LOTFillData *data);
+    explicit NullLayer(model::Layer *layerData);
+
 protected:
-   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
-private:
-   LOTProxyModel<LOTFillData> mModel;
+    void preprocessStage(const VRect &) final {}
+    void updateContent() final;
 };
 
-class LOTGFillItem : public LOTPaintDataItem
-{
+class ImageLayer : public Layer {
 public:
-   explicit LOTGFillItem(LOTGFillData *data);
+    explicit ImageLayer(model::Layer *layerData);
+    void         buildLayerNode() final;
+    DrawableList renderList() final;
+
 protected:
-   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+    void preprocessStage(const VRect &clip) final;
+    void updateContent() final;
+
 private:
-   LOTGFillData                 *mData{nullptr};
-   std::unique_ptr<VGradient>    mGradient;
+    Drawable   mRenderNode;
+    VTexture   mTexture;
+    VDrawable *mDrawableList{nullptr};  // to work with the Span api
 };
 
-class LOTStrokeItem : public LOTPaintDataItem
-{
+class Object {
 public:
-   explicit LOTStrokeItem(LOTStrokeData *data);
+    enum class Type : uchar { Unknown, Group, Shape, Paint, Trim };
+    virtual ~Object() = default;
+    Object &     operator=(Object &&) noexcept = delete;
+    virtual void update(int frameNo, const VMatrix &parentMatrix,
+                        float parentAlpha, const DirtyFlag &flag) = 0;
+    virtual void renderList(std::vector<VDrawable *> &) {}
+    virtual bool resolveKeyPath(LOTKeyPath &, uint, LOTVariant &)
+    {
+        return false;
+    }
+    virtual Object::Type type() const { return Object::Type::Unknown; }
+};
+
+class Shape;
+class Group : public Object {
+public:
+    Group() = default;
+    explicit Group(model::Group *data, VArenaAlloc *allocator);
+    void addChildren(model::Group *data, VArenaAlloc *allocator);
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag) override;
+    void applyTrim();
+    void processTrimItems(std::vector<Shape *> &list);
+    void processPaintItems(std::vector<Shape *> &list);
+    void renderList(std::vector<VDrawable *> &list) override;
+    Object::Type   type() const final { return Object::Type::Group; }
+    const VMatrix &matrix() const { return mMatrix; }
+    const char *   name() const
+    {
+        static const char *TAG = "__";
+        return mModel.hasModel() ? mModel.name() : TAG;
+    }
+    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                        LOTVariant &value) override;
+
 protected:
-   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) final;
+    std::vector<Object *> mContents;
+    VMatrix               mMatrix;
+
 private:
-   LOTProxyModel<LOTStrokeData> mModel;
+    LOTProxyModel<model::Group> mModel;
 };
 
-class LOTGStrokeItem : public LOTPaintDataItem
-{
+class Shape : public Object {
 public:
-   explicit LOTGStrokeItem(LOTGStrokeData *data);
+    Shape(bool staticPath) : mStaticPath(staticPath) {}
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag) final;
+    Object::Type type() const final { return Object::Type::Shape; }
+    bool         dirty() const { return mDirtyPath; }
+    const VPath &localPath() const { return mTemp; }
+    void         finalPath(VPath &result);
+    void         updatePath(const VPath &path)
+    {
+        mTemp = path;
+        mDirtyPath = true;
+    }
+    bool   staticPath() const { return mStaticPath; }
+    void   setParent(Group *parent) { mParent = parent; }
+    Group *parent() const { return mParent; }
+
 protected:
-   bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+    virtual void updatePath(VPath &path, int frameNo) = 0;
+    virtual bool hasChanged(int prevFrame, int curFrame) = 0;
+
 private:
-   LOTGStrokeData               *mData{nullptr};
-   std::unique_ptr<VGradient>    mGradient;
+    bool hasChanged(int frameNo)
+    {
+        int prevFrame = mFrameNo;
+        mFrameNo = frameNo;
+        if (prevFrame == -1) return true;
+        if (mStaticPath || (prevFrame == frameNo)) return false;
+        return hasChanged(prevFrame, frameNo);
+    }
+    Group *mParent{nullptr};
+    VPath  mLocalPath;
+    VPath  mTemp;
+    int    mFrameNo{-1};
+    bool   mDirtyPath{true};
+    bool   mStaticPath;
 };
 
-
-// Trim Item
-
-class LOTTrimItem : public LOTContentItem
-{
+class Rect : public Shape {
 public:
-   explicit LOTTrimItem(LOTTrimData *data);
-   void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
-   ContentType type() const final {return ContentType::Trim;}
-   void update();
-   void addPathItems(std::vector<LOTPathDataItem *> &list, size_t startOffset);
-private:
-   bool pathDirty() const {
-       for (auto &i : mPathItems) {
-           if (i->dirty())
-               return true;
-       }
-       return false;
-   }
-   struct Cache {
-        int                     mFrameNo{-1};
-        LOTTrimData::Segment    mSegment{};
-   };
-   Cache                            mCache;
-   std::vector<LOTPathDataItem *>   mPathItems;
-   LOTTrimData                     *mData{nullptr};
-   VPathMesure                      mPathMesure;
-   bool                             mDirty{true};
+    explicit Rect(model::Rect *data);
+
+protected:
+    void         updatePath(VPath &path, int frameNo) final;
+    model::Rect *mData{nullptr};
+
+    bool hasChanged(int prevFrame, int curFrame) final
+    {
+        return (mData->mPos.changed(prevFrame, curFrame) ||
+                mData->mSize.changed(prevFrame, curFrame) ||
+                mData->mRound.changed(prevFrame, curFrame));
+    }
 };
 
-class LOTRepeaterItem : public LOTContentGroupItem
-{
+class Ellipse : public Shape {
 public:
-   explicit LOTRepeaterItem(LOTRepeaterData *data, VArenaAlloc* allocator);
-   void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha, const DirtyFlag &flag) final;
-   void renderList(std::vector<VDrawable *> &list) final;
+    explicit Ellipse(model::Ellipse *data);
+
 private:
-   LOTRepeaterData             *mRepeaterData{nullptr};
-   bool                         mHidden{false};
-   int                          mCopies{0};
+    void            updatePath(VPath &path, int frameNo) final;
+    model::Ellipse *mData{nullptr};
+    bool            hasChanged(int prevFrame, int curFrame) final
+    {
+        return (mData->mPos.changed(prevFrame, curFrame) ||
+                mData->mSize.changed(prevFrame, curFrame));
+    }
 };
 
+class Path : public Shape {
+public:
+    explicit Path(model::Path *data);
 
-#endif // LOTTIEITEM_H
+private:
+    void         updatePath(VPath &path, int frameNo) final;
+    model::Path *mData{nullptr};
+    bool         hasChanged(int prevFrame, int curFrame) final
+    {
+        return mData->mShape.changed(prevFrame, curFrame);
+    }
+};
 
+class Polystar : public Shape {
+public:
+    explicit Polystar(model::Polystar *data);
 
+private:
+    void             updatePath(VPath &path, int frameNo) final;
+    model::Polystar *mData{nullptr};
+
+    bool hasChanged(int prevFrame, int curFrame) final
+    {
+        return (mData->mPos.changed(prevFrame, curFrame) ||
+                mData->mPointCount.changed(prevFrame, curFrame) ||
+                mData->mInnerRadius.changed(prevFrame, curFrame) ||
+                mData->mOuterRadius.changed(prevFrame, curFrame) ||
+                mData->mInnerRoundness.changed(prevFrame, curFrame) ||
+                mData->mOuterRoundness.changed(prevFrame, curFrame) ||
+                mData->mRotation.changed(prevFrame, curFrame));
+    }
+};
+
+class Paint : public Object {
+public:
+    Paint(bool staticContent);
+    void addPathItems(std::vector<Shape *> &list, size_t startOffset);
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag) override;
+    void renderList(std::vector<VDrawable *> &list) final;
+    Object::Type type() const final { return Object::Type::Paint; }
+
+protected:
+    virtual bool updateContent(int frameNo, const VMatrix &matrix,
+                               float alpha) = 0;
+
+private:
+    void updateRenderNode();
+
+protected:
+    std::vector<Shape *> mPathItems;
+    Drawable             mDrawable;
+    VPath                mPath;
+    DirtyFlag            mFlag;
+    bool                 mStaticContent;
+    bool                 mRenderNodeUpdate{true};
+    bool                 mContentToRender{true};
+};
+
+class Fill : public Paint {
+public:
+    explicit Fill(model::Fill *data);
+
+protected:
+    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                        LOTVariant &value) final;
+
+private:
+    LOTProxyModel<model::Fill> mModel;
+};
+
+class GradientFill : public Paint {
+public:
+    explicit GradientFill(model::GradientFill *data);
+
+protected:
+    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+
+private:
+    model::GradientFill *      mData{nullptr};
+    std::unique_ptr<VGradient> mGradient;
+};
+
+class Stroke : public Paint {
+public:
+    explicit Stroke(model::Stroke *data);
+
+protected:
+    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+    bool resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                        LOTVariant &value) final;
+
+private:
+    LOTProxyModel<model::Stroke> mModel;
+};
+
+class GradientStroke : public Paint {
+public:
+    explicit GradientStroke(model::GradientStroke *data);
+
+protected:
+    bool updateContent(int frameNo, const VMatrix &matrix, float alpha) final;
+
+private:
+    model::GradientStroke *    mData{nullptr};
+    std::unique_ptr<VGradient> mGradient;
+};
+
+class Trim : public Object {
+public:
+    explicit Trim(model::Trim *data) : mData(data) {}
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag) final;
+    Object::Type type() const final { return Object::Type::Trim; }
+    void         update();
+    void         addPathItems(std::vector<Shape *> &list, size_t startOffset);
+
+private:
+    bool pathDirty() const
+    {
+        for (auto &i : mPathItems) {
+            if (i->dirty()) return true;
+        }
+        return false;
+    }
+    struct Cache {
+        int                  mFrameNo{-1};
+        model::Trim::Segment mSegment{};
+    };
+    Cache                mCache;
+    std::vector<Shape *> mPathItems;
+    model::Trim *        mData{nullptr};
+    VPathMesure          mPathMesure;
+    bool                 mDirty{true};
+};
+
+class Repeater : public Group {
+public:
+    explicit Repeater(model::Repeater *data, VArenaAlloc *allocator);
+    void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
+                const DirtyFlag &flag) final;
+    void renderList(std::vector<VDrawable *> &list) final;
+
+private:
+    model::Repeater *mRepeaterData{nullptr};
+    bool             mHidden{false};
+    int              mCopies{0};
+};
+
+}  // namespace renderer
+
+}  // namespace internal
+
+}  // namespace rlottie
+
+#endif  // LOTTIEITEM_H

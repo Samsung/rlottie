@@ -13,66 +13,74 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
 #ifndef LOTTIEPROXYMODEL_H
 #define LOTTIEPROXYMODEL_H
 
-#include<bitset>
-#include<algorithm>
-#include<cassert>
+#include <algorithm>
+#include <bitset>
+#include <cassert>
 #include "lottiemodel.h"
 #include "rlottie.h"
 
+using namespace rlottie::internal;
 // Naive way to implement std::variant
 // refactor it when we move to c++17
 // users should make sure proper combination
 // of id and value are passed while creating the object.
-class LOTVariant
-{
+class LOTVariant {
 public:
-    using ValueFunc = std::function<float(const rlottie::FrameInfo &)>;
-    using ColorFunc = std::function<rlottie::Color(const rlottie::FrameInfo &)>;
-    using PointFunc = std::function<rlottie::Point(const rlottie::FrameInfo &)>;
-    using SizeFunc = std::function<rlottie::Size(const rlottie::FrameInfo &)>;
+    using ValueFunc = std::function<float(const rlottie::FrameInfo&)>;
+    using ColorFunc = std::function<rlottie::Color(const rlottie::FrameInfo&)>;
+    using PointFunc = std::function<rlottie::Point(const rlottie::FrameInfo&)>;
+    using SizeFunc = std::function<rlottie::Size(const rlottie::FrameInfo&)>;
 
-    LOTVariant(rlottie::Property prop, const ValueFunc &v):mPropery(prop), mTag(Value)
+    LOTVariant(rlottie::Property prop, const ValueFunc& v)
+        : mPropery(prop), mTag(Value)
     {
         construct(impl.valueFunc, v);
     }
 
-    LOTVariant(rlottie::Property prop, ValueFunc &&v):mPropery(prop), mTag(Value)
+    LOTVariant(rlottie::Property prop, ValueFunc&& v)
+        : mPropery(prop), mTag(Value)
     {
         moveConstruct(impl.valueFunc, std::move(v));
     }
 
-    LOTVariant(rlottie::Property prop, const ColorFunc &v):mPropery(prop), mTag(Color)
+    LOTVariant(rlottie::Property prop, const ColorFunc& v)
+        : mPropery(prop), mTag(Color)
     {
         construct(impl.colorFunc, v);
     }
 
-    LOTVariant(rlottie::Property prop, ColorFunc &&v):mPropery(prop), mTag(Color)
+    LOTVariant(rlottie::Property prop, ColorFunc&& v)
+        : mPropery(prop), mTag(Color)
     {
         moveConstruct(impl.colorFunc, std::move(v));
     }
 
-    LOTVariant(rlottie::Property prop, const PointFunc &v):mPropery(prop), mTag(Point)
+    LOTVariant(rlottie::Property prop, const PointFunc& v)
+        : mPropery(prop), mTag(Point)
     {
         construct(impl.pointFunc, v);
     }
 
-    LOTVariant(rlottie::Property prop, PointFunc &&v):mPropery(prop), mTag(Point)
+    LOTVariant(rlottie::Property prop, PointFunc&& v)
+        : mPropery(prop), mTag(Point)
     {
         moveConstruct(impl.pointFunc, std::move(v));
     }
 
-    LOTVariant(rlottie::Property prop, const SizeFunc &v):mPropery(prop), mTag(Size)
+    LOTVariant(rlottie::Property prop, const SizeFunc& v)
+        : mPropery(prop), mTag(Size)
     {
         construct(impl.sizeFunc, v);
     }
 
-    LOTVariant(rlottie::Property prop, SizeFunc &&v):mPropery(prop), mTag(Size)
+    LOTVariant(rlottie::Property prop, SizeFunc&& v)
+        : mPropery(prop), mTag(Size)
     {
         moveConstruct(impl.sizeFunc, std::move(v));
     }
@@ -104,11 +112,22 @@ public:
     }
 
     LOTVariant() = default;
-    ~LOTVariant() noexcept {Destroy();}
-    LOTVariant(const LOTVariant& other) { Copy(other);}
-    LOTVariant(LOTVariant&& other) noexcept { Move(std::move(other));}
-    LOTVariant& operator=(LOTVariant&& other) { Destroy(); Move(std::move(other)); return *this;}
-    LOTVariant& operator=(const LOTVariant& other) { Destroy(); Copy(other); return *this;}
+    ~LOTVariant() noexcept { Destroy(); }
+    LOTVariant(const LOTVariant& other) { Copy(other); }
+    LOTVariant(LOTVariant&& other) noexcept { Move(std::move(other)); }
+    LOTVariant& operator=(LOTVariant&& other)
+    {
+        Destroy();
+        Move(std::move(other));
+        return *this;
+    }
+    LOTVariant& operator=(const LOTVariant& other)
+    {
+        Destroy();
+        Copy(other);
+        return *this;
+    }
+
 private:
     template <typename T>
     void construct(T& member, const T& val)
@@ -169,7 +188,7 @@ private:
 
     void Destroy()
     {
-        switch(mTag) {
+        switch (mTag) {
         case MonoState: {
             break;
         }
@@ -192,29 +211,29 @@ private:
         }
     }
 
-    enum Type {MonoState, Value, Color, Point , Size};
+    enum Type { MonoState, Value, Color, Point, Size };
     rlottie::Property mPropery;
     Type              mTag{MonoState};
-    union details{
-      ColorFunc   colorFunc;
-      ValueFunc   valueFunc;
-      PointFunc   pointFunc;
-      SizeFunc    sizeFunc;
-      details(){}
-      ~details(){}
-    }impl;
+    union details {
+        ColorFunc colorFunc;
+        ValueFunc valueFunc;
+        PointFunc pointFunc;
+        SizeFunc  sizeFunc;
+        details() {}
+        ~details() {}
+    } impl;
 };
 
-class LOTFilter
-{
+class LOTFilter {
 public:
-    void addValue(LOTVariant &value)
+    void addValue(LOTVariant& value)
     {
         uint index = static_cast<uint>(value.property());
         if (mBitset.test(index)) {
-            std::replace_if(mFilters.begin(),
-                            mFilters.end(),
-                            [&value](const LOTVariant &e) {return e.property() == value.property();},
+            std::replace_if(mFilters.begin(), mFilters.end(),
+                            [&value](const LOTVariant& e) {
+                                return e.property() == value.property();
+                            },
                             value);
         } else {
             mBitset.set(index);
@@ -222,14 +241,16 @@ public:
         }
     }
 
-    void removeValue(LOTVariant &value)
+    void removeValue(LOTVariant& value)
     {
         uint index = static_cast<uint>(value.property());
         if (mBitset.test(index)) {
             mBitset.reset(index);
-            mFilters.erase(std::remove_if(mFilters.begin(),
-                                          mFilters.end(),
-                                          [&value](const LOTVariant &e) {return e.property() == value.property();}),
+            mFilters.erase(std::remove_if(mFilters.begin(), mFilters.end(),
+                                          [&value](const LOTVariant& e) {
+                                              return e.property() ==
+                                                     value.property();
+                                          }),
                            mFilters.end());
         }
     }
@@ -237,55 +258,55 @@ public:
     {
         return mBitset.test(static_cast<uint>(prop));
     }
-    LottieColor color(rlottie::Property prop, int frame) const
+    model::Color color(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
-        rlottie::Color col = data(prop).color()(info);
-        return LottieColor(col.r(), col.g(), col.b());
+        rlottie::Color     col = data(prop).color()(info);
+        return model::Color(col.r(), col.g(), col.b());
     }
     VPointF point(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
-        rlottie::Point pt = data(prop).point()(info);
+        rlottie::Point     pt = data(prop).point()(info);
         return VPointF(pt.x(), pt.y());
     }
     VSize scale(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
-        rlottie::Size sz = data(prop).size()(info);
+        rlottie::Size      sz = data(prop).size()(info);
         return VSize(sz.w(), sz.h());
     }
     float opacity(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
-        float val = data(prop).value()(info);
-        return val/100;
+        float              val = data(prop).value()(info);
+        return val / 100;
     }
     float value(rlottie::Property prop, int frame) const
     {
         rlottie::FrameInfo info(frame);
         return data(prop).value()(info);
     }
+
 private:
     const LOTVariant& data(rlottie::Property prop) const
     {
-        auto result = std::find_if(mFilters.begin(),
-                                   mFilters.end(),
-                                   [prop](const LOTVariant &e){return e.property() == prop;});
+        auto result = std::find_if(
+            mFilters.begin(), mFilters.end(),
+            [prop](const LOTVariant& e) { return e.property() == prop; });
         return *result;
     }
-    std::bitset<32>            mBitset{0};
-    std::vector<LOTVariant>    mFilters;
+    std::bitset<32>         mBitset{0};
+    std::vector<LOTVariant> mFilters;
 };
 
 template <typename T>
-class LOTProxyModel
-{
+class LOTProxyModel {
 public:
-    LOTProxyModel(T *model): _modelData(model) {}
-    LOTFilter& filter() {return mFilter;}
-    const char* name() const {return _modelData->name();}
-    LottieColor color(int frame) const
+    LOTProxyModel(T* model) : _modelData(model) {}
+    LOTFilter&   filter() { return mFilter; }
+    const char*  name() const { return _modelData->name(); }
+    model::Color color(int frame) const
     {
         if (mFilter.hasFilter(rlottie::Property::StrokeColor)) {
             return mFilter.color(rlottie::Property::StrokeColor, frame);
@@ -306,27 +327,27 @@ public:
         }
         return _modelData->strokeWidth(frame);
     }
-    float miterLimit() const {return _modelData->miterLimit();}
-    CapStyle capStyle() const {return _modelData->capStyle();}
-    JoinStyle joinStyle() const {return _modelData->joinStyle();}
-    bool hasDashInfo() const { return _modelData->hasDashInfo();}
-    void getDashInfo(int frameNo, std::vector<float>& result) const {
+    float     miterLimit() const { return _modelData->miterLimit(); }
+    CapStyle  capStyle() const { return _modelData->capStyle(); }
+    JoinStyle joinStyle() const { return _modelData->joinStyle(); }
+    bool      hasDashInfo() const { return _modelData->hasDashInfo(); }
+    void      getDashInfo(int frameNo, std::vector<float>& result) const
+    {
         return _modelData->getDashInfo(frameNo, result);
     }
 
 private:
-    T                         *_modelData;
-    LOTFilter                  mFilter;
+    T*        _modelData;
+    LOTFilter mFilter;
 };
 
 template <>
-class LOTProxyModel<LOTFillData>
-{
+class LOTProxyModel<model::Fill> {
 public:
-    LOTProxyModel(LOTFillData *model): _modelData(model) {}
-    LOTFilter& filter() {return mFilter;}
-    const char* name() const {return _modelData->name();}
-    LottieColor color(int frame) const
+    LOTProxyModel(model::Fill* model) : _modelData(model) {}
+    LOTFilter&   filter() { return mFilter; }
+    const char*  name() const { return _modelData->name(); }
+    model::Color color(int frame) const
     {
         if (mFilter.hasFilter(rlottie::Property::FillColor)) {
             return mFilter.color(rlottie::Property::FillColor, frame);
@@ -340,22 +361,22 @@ public:
         }
         return _modelData->opacity(frame);
     }
-    FillRule fillRule() const {return _modelData->fillRule();}
+    FillRule fillRule() const { return _modelData->fillRule(); }
+
 private:
-    LOTFillData               *_modelData;
-    LOTFilter                  mFilter;
+    model::Fill* _modelData;
+    LOTFilter    mFilter;
 };
 
 template <>
-class LOTProxyModel<LOTGroupData>
-{
+class LOTProxyModel<model::Group> {
 public:
-    LOTProxyModel(LOTGroupData *model = nullptr): _modelData(model) {}
-    bool hasModel() const { return _modelData ? true : false; }
-    LOTFilter& filter() {return mFilter;}
-    const char* name() const {return _modelData->name();}
-    LOTTransformData* transform() const { return _modelData->mTransform; }
-    VMatrix matrix(int frame) const
+    LOTProxyModel(model::Group* model = nullptr) : _modelData(model) {}
+    bool              hasModel() const { return _modelData ? true : false; }
+    LOTFilter&        filter() { return mFilter; }
+    const char*       name() const { return _modelData->name(); }
+    model::Transform* transform() const { return _modelData->mTransform; }
+    VMatrix           matrix(int frame) const
     {
         VMatrix mS, mR, mT;
         if (mFilter.hasFilter(rlottie::Property::TrScale)) {
@@ -371,8 +392,9 @@ public:
 
         return _modelData->mTransform->matrix(frame) * mS * mR * mT;
     }
+
 private:
-    LOTGroupData               *_modelData;
-    LOTFilter                  mFilter;
+    model::Group* _modelData;
+    LOTFilter     mFilter;
 };
-#endif // LOTTIEITEM_H
+#endif  // LOTTIEITEM_H
