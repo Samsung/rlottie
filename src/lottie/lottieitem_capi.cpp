@@ -9,7 +9,9 @@
 #include "lottieitem.h"
 #include "vdasher.h"
 
-LOTCApiData::LOTCApiData()
+using namespace rlottie::internal;
+
+renderer::CApiData::CApiData()
 {
     mLayer.mMaskList.ptr = nullptr;
     mLayer.mMaskList.size = 0;
@@ -27,24 +29,24 @@ LOTCApiData::LOTCApiData()
     mLayer.keypath = nullptr;
 }
 
-void LOTCompItem::buildRenderTree()
+void renderer::Composition::buildRenderTree()
 {
     mRootLayer->buildLayerNode();
 }
 
-const LOTLayerNode *LOTCompItem::renderTree() const
+const LOTLayerNode *renderer::Composition::renderTree() const
 {
     return &mRootLayer->clayer();
 }
 
-void LOTCompLayerItem::buildLayerNode()
+void renderer::CompLayer::buildLayerNode()
 {
-    LOTLayerItem::buildLayerNode();
+    renderer::Layer::buildLayerNode();
     if (mClipper) {
         const auto &elm = mClipper->mPath.elements();
         const auto &pts = mClipper->mPath.points();
-        auto ptPtr = reinterpret_cast<const float *>(pts.data());
-        auto elmPtr = reinterpret_cast<const char *>(elm.data());
+        auto        ptPtr = reinterpret_cast<const float *>(pts.data());
+        auto        elmPtr = reinterpret_cast<const char *>(elm.data());
         clayer().mClipPath.ptPtr = ptPtr;
         clayer().mClipPath.elmPtr = elmPtr;
         clayer().mClipPath.ptCount = 2 * pts.size();
@@ -64,16 +66,15 @@ void LOTCompLayerItem::buildLayerNode()
     }
 }
 
-
-void LOTShapeLayerItem::buildLayerNode()
+void renderer::ShapeLayer::buildLayerNode()
 {
-    LOTLayerItem::buildLayerNode();
+    renderer::Layer::buildLayerNode();
 
     auto renderlist = renderList();
 
     cnodes().clear();
     for (auto &i : renderlist) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
+        auto lotDrawable = static_cast<renderer::Drawable *>(i);
         lotDrawable->sync();
         cnodes().push_back(lotDrawable->mCNode.get());
     }
@@ -81,10 +82,10 @@ void LOTShapeLayerItem::buildLayerNode()
     clayer().mNodeList.size = cnodes().size();
 }
 
-void LOTLayerItem::buildLayerNode()
+void renderer::Layer::buildLayerNode()
 {
     if (!mCApiData) {
-        mCApiData = std::make_unique<LOTCApiData>();
+        mCApiData = std::make_unique<renderer::CApiData>();
         clayer().keypath = name();
     }
     if (complexContent()) clayer().mAlpha = uchar(combinedAlpha() * 255.f);
@@ -92,16 +93,16 @@ void LOTLayerItem::buildLayerNode()
     // update matte
     if (hasMatte()) {
         switch (mLayerData->mMatteType) {
-        case MatteType::Alpha:
+        case model::MatteType::Alpha:
             clayer().mMatte = MatteAlpha;
             break;
-        case MatteType::AlphaInv:
+        case model::MatteType::AlphaInv:
             clayer().mMatte = MatteAlphaInv;
             break;
-        case MatteType::Luma:
+        case model::MatteType::Luma:
             clayer().mMatte = MatteLuma;
             break;
-        case MatteType::LumaInv:
+        case model::MatteType::LumaInv:
             clayer().mMatte = MatteLumaInv;
             break;
         default:
@@ -114,27 +115,27 @@ void LOTLayerItem::buildLayerNode()
         cmasks().resize(mLayerMask->mMasks.size());
         size_t i = 0;
         for (const auto &mask : mLayerMask->mMasks) {
-            auto       &cNode = cmasks()[i++];
+            auto &      cNode = cmasks()[i++];
             const auto &elm = mask.mFinalPath.elements();
             const auto &pts = mask.mFinalPath.points();
-            auto ptPtr = reinterpret_cast<const float *>(pts.data());
-            auto elmPtr = reinterpret_cast<const char *>(elm.data());
+            auto        ptPtr = reinterpret_cast<const float *>(pts.data());
+            auto        elmPtr = reinterpret_cast<const char *>(elm.data());
             cNode.mPath.ptPtr = ptPtr;
             cNode.mPath.ptCount = pts.size();
             cNode.mPath.elmPtr = elmPtr;
             cNode.mPath.elmCount = elm.size();
             cNode.mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
             switch (mask.maskMode()) {
-            case LOTMaskData::Mode::Add:
+            case model::Mask::Mode::Add:
                 cNode.mMode = MaskAdd;
                 break;
-            case LOTMaskData::Mode::Substarct:
+            case model::Mask::Mode::Substarct:
                 cNode.mMode = MaskSubstract;
                 break;
-            case LOTMaskData::Mode::Intersect:
+            case model::Mask::Mode::Intersect:
                 cNode.mMode = MaskIntersect;
                 break;
-            case LOTMaskData::Mode::Difference:
+            case model::Mask::Mode::Difference:
                 cNode.mMode = MaskDifference;
                 break;
             default:
@@ -147,15 +148,15 @@ void LOTLayerItem::buildLayerNode()
     }
 }
 
-void LOTSolidLayerItem::buildLayerNode()
+void renderer::SolidLayer::buildLayerNode()
 {
-    LOTLayerItem::buildLayerNode();
+    renderer::Layer::buildLayerNode();
 
     auto renderlist = renderList();
 
     cnodes().clear();
     for (auto &i : renderlist) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
+        auto lotDrawable = static_cast<renderer::Drawable *>(i);
         lotDrawable->sync();
         cnodes().push_back(lotDrawable->mCNode.get());
     }
@@ -163,15 +164,15 @@ void LOTSolidLayerItem::buildLayerNode()
     clayer().mNodeList.size = cnodes().size();
 }
 
-void LOTImageLayerItem::buildLayerNode()
+void renderer::ImageLayer::buildLayerNode()
 {
-    LOTLayerItem::buildLayerNode();
+    renderer::Layer::buildLayerNode();
 
     auto renderlist = renderList();
 
     cnodes().clear();
     for (auto &i : renderlist) {
-        auto lotDrawable = static_cast<LOTDrawable *>(i);
+        auto lotDrawable = static_cast<renderer::Drawable *>(i);
         lotDrawable->sync();
 
         lotDrawable->mCNode->mImageInfo.data =
@@ -194,7 +195,8 @@ void LOTImageLayerItem::buildLayerNode()
         lotDrawable->mCNode->mImageInfo.mMatrix.m33 = combinedMatrix().m_33();
 
         // Alpha calculation already combined.
-        lotDrawable->mCNode->mImageInfo.mAlpha = uchar(lotDrawable->mBrush.mTexture->mAlpha);
+        lotDrawable->mCNode->mImageInfo.mAlpha =
+            uchar(lotDrawable->mBrush.mTexture->mAlpha);
 
         cnodes().push_back(lotDrawable->mCNode.get());
     }
@@ -222,7 +224,7 @@ static void updateGStops(LOTNode *n, const VGradient *grad)
     }
 }
 
-void LOTDrawable::sync()
+void renderer::Drawable::sync()
 {
     if (!mCNode) {
         mCNode = std::make_unique<LOTNode>();
@@ -335,4 +337,3 @@ void LOTDrawable::sync()
         break;
     }
 }
-

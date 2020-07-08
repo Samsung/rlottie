@@ -23,6 +23,8 @@
 #include "vimageloader.h"
 #include "vline.h"
 
+using namespace rlottie::internal;
+
 /*
  * We process the iterator objects in the children list
  * by iterating from back to front. when we find a repeater object
@@ -36,14 +38,14 @@
  */
 class LottieRepeaterProcesser {
 public:
-    void visitChildren(LOTGroupData *obj)
+    void visitChildren(model::Group *obj)
     {
         for (auto i = obj->mChildren.rbegin(); i != obj->mChildren.rend();
              ++i) {
             auto child = (*i);
-            if (child->type() == LOTData::Type::Repeater) {
-                LOTRepeaterData *repeater =
-                    static_cast<LOTRepeaterData *>(child);
+            if (child->type() == model::Object::Type::Repeater) {
+                model::Repeater *repeater =
+                    static_cast<model::Repeater *>(child);
                 // check if this repeater is already processed
                 // can happen if the layer is an asset and referenced by
                 // multiple layer.
@@ -51,7 +53,7 @@ public:
 
                 repeater->markProcessed();
 
-                LOTShapeGroupData *content = repeater->content();
+                auto content = repeater->content();
                 // 1. increment the reverse iterator to point to the
                 //   object before the repeater
                 ++i;
@@ -71,12 +73,12 @@ public:
         }
     }
 
-    void visit(LOTData *obj)
+    void visit(model::Object *obj)
     {
         switch (obj->type()) {
-        case LOTData::Type::ShapeGroup:
-        case LOTData::Type::Layer: {
-            visitChildren(static_cast<LOTGroupData *>(obj));
+        case model::Object::Type::Group:
+        case model::Object::Type::Layer: {
+            visitChildren(static_cast<model::Group *>(obj));
             break;
         }
         default:
@@ -86,31 +88,32 @@ public:
 };
 
 class LottieUpdateStatVisitor {
-    LOTModelStat *stat;
+    model::Composition::Stats *stat;
+
 public:
-    explicit LottieUpdateStatVisitor(LOTModelStat *s):stat(s){}
-    void visitChildren(LOTGroupData *obj)
+    explicit LottieUpdateStatVisitor(model::Composition::Stats *s) : stat(s) {}
+    void visitChildren(model::Group *obj)
     {
         for (const auto &child : obj->mChildren) {
             if (child) visit(child);
         }
     }
-    void visitLayer(LOTLayerData *layer)
+    void visitLayer(model::Layer *layer)
     {
         switch (layer->mLayerType) {
-        case LayerType::Precomp:
+        case model::Layer::Type::Precomp:
             stat->precompLayerCount++;
             break;
-        case LayerType::Null:
+        case model::Layer::Type::Null:
             stat->nullLayerCount++;
             break;
-        case LayerType::Shape:
+        case model::Layer::Type::Shape:
             stat->shapeLayerCount++;
             break;
-        case LayerType::Solid:
+        case model::Layer::Type::Solid:
             stat->solidLayerCount++;
             break;
-        case LayerType::Image:
+        case model::Layer::Type::Image:
             stat->imageLayerCount++;
             break;
         default:
@@ -118,41 +121,40 @@ public:
         }
         visitChildren(layer);
     }
-    void visit(LOTData *obj)
+    void visit(model::Object *obj)
     {
         switch (obj->type()) {
-        case LOTData::Type::Layer: {
-            visitLayer(static_cast<LOTLayerData *>(obj));
+        case model::Object::Type::Layer: {
+            visitLayer(static_cast<model::Layer *>(obj));
             break;
         }
-        case LOTData::Type::Repeater: {
-            visitChildren(static_cast<LOTRepeaterData *>(obj)->content());
+        case model::Object::Type::Repeater: {
+            visitChildren(static_cast<model::Repeater *>(obj)->content());
             break;
         }
-        case LOTData::Type::ShapeGroup: {
-            visitChildren(static_cast<LOTGroupData *>(obj));
+        case model::Object::Type::Group: {
+            visitChildren(static_cast<model::Group *>(obj));
             break;
         }
         default:
             break;
         }
     }
-
 };
 
-void LOTCompositionData::processRepeaterObjects()
+void model::Composition::processRepeaterObjects()
 {
     LottieRepeaterProcesser visitor;
     visitor.visit(mRootLayer);
 }
 
-void LOTCompositionData::updateStats()
+void model::Composition::updateStats()
 {
     LottieUpdateStatVisitor visitor(&mStats);
     visitor.visit(mRootLayer);
 }
 
-VMatrix LOTRepeaterTransform::matrix(int frameNo, float multiplier) const
+VMatrix model::Repeater::Transform::matrix(int frameNo, float multiplier) const
 {
     VPointF scale = mScale.value(frameNo) / 100.f;
     scale.setX(std::pow(scale.x(), multiplier));
@@ -167,7 +169,7 @@ VMatrix LOTRepeaterTransform::matrix(int frameNo, float multiplier) const
     return m;
 }
 
-VMatrix TransformData::matrix(int frameNo, bool autoOrient) const
+VMatrix model::Transform::Data::matrix(int frameNo, bool autoOrient) const
 {
     VMatrix m;
     VPointF position;
@@ -195,7 +197,7 @@ VMatrix TransformData::matrix(int frameNo, bool autoOrient) const
     return m;
 }
 
-void LOTDashProperty::getDashInfo(int frameNo, std::vector<float>& result) const
+void model::Dash::getDashInfo(int frameNo, std::vector<float> &result) const
 {
     result.clear();
 
@@ -203,8 +205,7 @@ void LOTDashProperty::getDashInfo(int frameNo, std::vector<float>& result) const
 
     if (result.capacity() < mData.size()) result.reserve(mData.size() + 1);
 
-    for (const auto &elm : mData)
-        result.push_back(elm.value(frameNo));
+    for (const auto &elm : mData) result.push_back(elm.value(frameNo));
 
     // if the size is even then we are missing last
     // gap information which is same as the last dash value
@@ -212,10 +213,10 @@ void LOTDashProperty::getDashInfo(int frameNo, std::vector<float>& result) const
     // NOTE: last value is the offset and last-1 is the last dash value.
     auto size = result.size();
     if ((size % 2) == 0) {
-        //copy offset value to end.
+        // copy offset value to end.
         result.push_back(result.back());
         // copy dash value to gap.
-        result[size-1] = result[size-2];
+        result[size - 1] = result[size - 2];
     }
 }
 
@@ -239,22 +240,22 @@ void LOTDashProperty::getDashInfo(int frameNo, std::vector<float>& result) const
  *     ...
  * ]
  */
-void LOTGradient::populate(VGradientStops &stops, int frameNo)
+void model::Gradient::populate(VGradientStops &stops, int frameNo)
 {
-    LottieGradient gradData = mGradient.value(frameNo);
-    auto            size = gradData.mGradient.size();
-    float *        ptr = gradData.mGradient.data();
-    int            colorPoints = mColorPoints;
+    model::Gradient::Data gradData = mGradient.value(frameNo);
+    auto                  size = gradData.mGradient.size();
+    float *               ptr = gradData.mGradient.data();
+    int                   colorPoints = mColorPoints;
     if (colorPoints == -1) {  // for legacy bodymovin (ref: lottie-android)
         colorPoints = int(size / 4);
     }
-    auto    opacityArraySize = size - colorPoints * 4;
+    auto   opacityArraySize = size - colorPoints * 4;
     float *opacityPtr = ptr + (colorPoints * 4);
     stops.clear();
     size_t j = 0;
     for (int i = 0; i < colorPoints; i++) {
-        float       colorStop = ptr[0];
-        LottieColor color = LottieColor(ptr[1], ptr[2], ptr[3]);
+        float        colorStop = ptr[0];
+        model::Color color = model::Color(ptr[1], ptr[2], ptr[3]);
         if (opacityArraySize) {
             if (j == opacityArraySize) {
                 // already reached the end
@@ -304,7 +305,7 @@ void LOTGradient::populate(VGradientStops &stops, int frameNo)
     }
 }
 
-void LOTGradient::update(std::unique_ptr<VGradient> &grad, int frameNo)
+void model::Gradient::update(std::unique_ptr<VGradient> &grad, int frameNo)
 {
     bool init = false;
     if (!grad) {
@@ -344,8 +345,8 @@ void LOTGradient::update(std::unique_ptr<VGradient> &grad, int frameNo)
          */
         float progress = mHighlightLength.value(frameNo) / 100.0f;
         if (vCompare(progress, 1.0f)) progress = 0.99f;
-        float startAngle = VLine(start, end).angle();
-        float highlightAngle = mHighlightAngle.value(frameNo);
+        float                  startAngle = VLine(start, end).angle();
+        float                  highlightAngle = mHighlightAngle.value(frameNo);
         static constexpr float K_PI = 3.1415926f;
         float angle = (startAngle + highlightAngle) * (K_PI / 180.0f);
         grad->radial.fx =
@@ -357,18 +358,18 @@ void LOTGradient::update(std::unique_ptr<VGradient> &grad, int frameNo)
     }
 }
 
-void LOTAsset::loadImageData(std::string data)
+void model::Asset::loadImageData(std::string data)
 {
     if (!data.empty())
         mBitmap = VImageLoader::instance().load(data.c_str(), data.length());
 }
 
-void LOTAsset::loadImagePath(std::string path)
+void model::Asset::loadImagePath(std::string path)
 {
     if (!path.empty()) mBitmap = VImageLoader::instance().load(path.c_str());
 }
 
-std::vector<LayerInfo> LOTCompositionData::layerInfoList() const
+std::vector<LayerInfo> model::Composition::layerInfoList() const
 {
     if (!mRootLayer || mRootLayer->mChildren.empty()) return {};
 
@@ -377,7 +378,7 @@ std::vector<LayerInfo> LOTCompositionData::layerInfoList() const
     result.reserve(mRootLayer->mChildren.size());
 
     for (auto it : mRootLayer->mChildren) {
-        auto layer = static_cast<LOTLayerData *>(it);
+        auto layer = static_cast<model::Layer *>(it);
         result.emplace_back(layer->name(), layer->mInFrame, layer->mOutFrame);
     }
 

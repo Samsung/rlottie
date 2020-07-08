@@ -16,26 +16,27 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include "lottieloader.h"
-#include "lottieparser.h"
-
 #include <cstring>
 #include <fstream>
 #include <sstream>
 
+#include "lottiemodel.h"
+
 #ifdef LOTTIE_CACHE_SUPPORT
 
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 
-class LottieModelCache {
+using namespace rlottie::internal;
+
+class ModelCache {
 public:
-    static LottieModelCache &instance()
+    static ModelCache &instance()
     {
-        static LottieModelCache CACHE;
-        return CACHE;
+        static ModelCache singleton;
+        return singleton;
     }
-    std::shared_ptr<LOTModel> find(const std::string &key)
+    std::shared_ptr<model::Composition> find(const std::string &key)
     {
         std::lock_guard<std::mutex> guard(mMutex);
 
@@ -44,9 +45,8 @@ public:
         auto search = mHash.find(key);
 
         return (search != mHash.end()) ? search->second : nullptr;
-
     }
-    void add(const std::string &key, std::shared_ptr<LOTModel> value)
+    void add(const std::string &key, std::shared_ptr<model::Composition> value)
     {
         std::lock_guard<std::mutex> guard(mMutex);
 
@@ -68,33 +68,31 @@ public:
     }
 
 private:
-    LottieModelCache() = default;
+    ModelCache() = default;
 
-    std::unordered_map<std::string, std::shared_ptr<LOTModel>>  mHash;
-    std::mutex                                                  mMutex;
-    size_t                                                      mcacheSize{10};
+    std::unordered_map<std::string, std::shared_ptr<model::Composition>> mHash;
+    std::mutex                                                           mMutex;
+    size_t mcacheSize{10};
 };
 
 #else
 
-class LottieModelCache {
+class ModelCache {
 public:
-    static LottieModelCache &instance()
+    static ModelCache &instance()
     {
-        static LottieModelCache CACHE;
-        return CACHE;
+        static ModelCache singleton;
+        return singleton;
     }
-    std::shared_ptr<LOTModel> find(const std::string &) { return nullptr; }
-    void add(const std::string &, std::shared_ptr<LOTModel>) {}
+    std::shared_ptr<model::Composition> find(const std::string &)
+    {
+        return nullptr;
+    }
+    void add(const std::string &, std::shared_ptr<model::Composition>) {}
     void configureCacheSize(size_t) {}
 };
 
 #endif
-
-void LottieLoader::configureModelCacheSize(size_t cacheSize)
-{
-    LottieModelCache::instance().configureCacheSize(cacheSize);
-}
 
 static std::string dirname(const std::string &path)
 {
@@ -102,15 +100,21 @@ static std::string dirname(const std::string &path)
 #ifdef _WIN32
     if (ptr) ptr = strrchr(ptr + 1, '\\');
 #endif
-    int         len = int(ptr + 1 - path.c_str());  // +1 to include '/'
+    int len = int(ptr + 1 - path.c_str());  // +1 to include '/'
     return std::string(path, 0, len);
 }
 
-bool LottieLoader::load(const std::string &path, bool cachePolicy)
+void model::configureModelCacheSize(size_t cacheSize)
+{
+    ModelCache::instance().configureCacheSize(cacheSize);
+}
+
+std::shared_ptr<model::Composition> model::loadFromFile(const std::string &path,
+                                                        bool cachePolicy)
 {
     if (cachePolicy) {
-        mModel = LottieModelCache::instance().find(path);
-        if (mModel) return true;
+        auto obj = ModelCache::instance().find(path);
+        if (obj) return obj;
     }
 
     std::ifstream f;
@@ -118,56 +122,44 @@ bool LottieLoader::load(const std::string &path, bool cachePolicy)
 
     if (!f.is_open()) {
         vCritical << "failed to open file = " << path.c_str();
-        return false;
+        return {};
     } else {
         std::string content;
 
-        std::getline(f, content, '\0') ;
+        std::getline(f, content, '\0');
         f.close();
 
-        if (content.empty()) return false;
+        if (content.empty()) return {};
 
-        const char *str = content.c_str();
-        LottieParser parser(const_cast<char *>(str), dirname(path));
-        mModel = parser.model();
+        auto obj = internal::model::parse(const_cast<char *>(content.c_str()),
+                                          dirname(path));
 
-        if (!mModel) return false;
+        if (obj && cachePolicy) ModelCache::instance().add(path, obj);
 
-        if (cachePolicy)
-            LottieModelCache::instance().add(path, mModel);
+        return obj;
     }
-
-    return true;
 }
 
-bool LottieLoader::loadFromData(std::string jsonData, const std::string &key,
-                                std::string resourcePath, bool cachePolicy)
+std::shared_ptr<model::Composition> model::loadFromData(
+    std::string jsonData, const std::string &key, std::string resourcePath,
+    bool cachePolicy)
 {
     if (cachePolicy) {
-        mModel = LottieModelCache::instance().find(key);
-        if (mModel) return true;
+        auto obj = ModelCache::instance().find(key);
+        if (obj) return obj;
     }
 
-    LottieParser parser(const_cast<char *>(jsonData.c_str()), std::move(resourcePath));
-    mModel = parser.model();
+    auto obj = internal::model::parse(const_cast<char *>(jsonData.c_str()),
+                                      std::move(resourcePath));
 
-    if (!mModel) return false;
+    if (obj && cachePolicy) ModelCache::instance().add(key, obj);
 
-    if (cachePolicy)
-        LottieModelCache::instance().add(key, mModel);
-
-    return true;
+    return obj;
 }
 
-bool LottieLoader::loadFromData(std::string jsonData, std::string resourcePath, ColorFilter filter)
+std::shared_ptr<model::Composition> model::loadFromData(
+    std::string jsonData, std::string resourcePath, model::ColorFilter filter)
 {
-    LottieParser parser(const_cast<char *>(jsonData.c_str()), std::move(resourcePath), std::move(filter));
-    mModel = parser.model();
-
-    return mModel ? true : false;
-}
-
-std::shared_ptr<LOTModel> LottieLoader::model()
-{
-    return mModel;
+    return internal::model::parse(const_cast<char *>(jsonData.c_str()),
+                                  std::move(resourcePath), std::move(filter));
 }

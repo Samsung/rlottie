@@ -17,17 +17,17 @@
  */
 #include "config.h"
 #include "lottieitem.h"
-#include "lottieloader.h"
 #include "lottiemodel.h"
 #include "rlottie.h"
 
 #include <fstream>
 
 using namespace rlottie;
+using namespace rlottie::internal;
 
 LOT_EXPORT void rlottie::configureModelCacheSize(size_t cacheSize)
 {
-    LottieLoader::configureModelCacheSize(cacheSize);
+    internal::model::configureModelCacheSize(cacheSize);
 }
 
 struct RenderTask {
@@ -43,15 +43,17 @@ using SharedRenderTask = std::shared_ptr<RenderTask>;
 
 class AnimationImpl {
 public:
-    void    init(const std::shared_ptr<LOTModel> &model);
+    void    init(std::shared_ptr<model::Composition> composition);
     bool    update(size_t frameNo, const VSize &size, bool keepAspectRatio);
     VSize   size() const { return mModel->size(); }
     double  duration() const { return mModel->duration(); }
     double  frameRate() const { return mModel->frameRate(); }
     size_t  totalFrame() const { return mModel->totalFrame(); }
     size_t  frameAtPos(double pos) const { return mModel->frameAtPos(pos); }
-    Surface render(size_t frameNo, const Surface &surface, bool keepAspectRatio);
-    std::future<Surface> renderAsync(size_t frameNo, Surface &&surface, bool keepAspectRatio);
+    Surface render(size_t frameNo, const Surface &surface,
+                   bool keepAspectRatio);
+    std::future<Surface> renderAsync(size_t frameNo, Surface &&surface,
+                                     bool keepAspectRatio);
     const LOTLayerNode * renderTree(size_t frameNo, const VSize &size);
 
     const LayerInfoList &layerInfoList() const
@@ -61,37 +63,34 @@ public:
         }
         return mLayerList;
     }
-    const MarkerList &markers() const
-    {
-        return mModel->markers();
-    }
-    void setValue(const std::string &keypath, LOTVariant &&value);
-    void removeFilter(const std::string &keypath, Property prop);
+    const MarkerList &markers() const { return mModel->markers(); }
+    void              setValue(const std::string &keypath, LOTVariant &&value);
+    void              removeFilter(const std::string &keypath, Property prop);
 
 private:
-    mutable LayerInfoList        mLayerList;
-    std::string                  mFilePath;
-    std::shared_ptr<LOTModel>    mModel;
-    std::unique_ptr<LOTCompItem> mCompItem;
-    SharedRenderTask             mTask;
-    std::atomic<bool>            mRenderInProgress;
+    mutable LayerInfoList                  mLayerList;
+    model::Composition *                   mModel;
+    SharedRenderTask                       mTask;
+    std::atomic<bool>                      mRenderInProgress;
+    std::unique_ptr<renderer::Composition> mRenderer{nullptr};
 };
 
 void AnimationImpl::setValue(const std::string &keypath, LOTVariant &&value)
 {
     if (keypath.empty()) return;
-    mCompItem->setValue(keypath, value);
+    mRenderer->setValue(keypath, value);
 }
 
 const LOTLayerNode *AnimationImpl::renderTree(size_t frameNo, const VSize &size)
 {
     if (update(frameNo, size, true)) {
-        mCompItem->buildRenderTree();
+        mRenderer->buildRenderTree();
     }
-    return mCompItem->renderTree();
+    return mRenderer->renderTree();
 }
 
-bool AnimationImpl::update(size_t frameNo, const VSize &size, bool keepAspectRatio)
+bool AnimationImpl::update(size_t frameNo, const VSize &size,
+                           bool keepAspectRatio)
 {
     frameNo += mModel->startFrame();
 
@@ -99,10 +98,11 @@ bool AnimationImpl::update(size_t frameNo, const VSize &size, bool keepAspectRat
 
     if (frameNo < mModel->startFrame()) frameNo = mModel->startFrame();
 
-    return mCompItem->update(int(frameNo), size, keepAspectRatio);
+    return mRenderer->update(int(frameNo), size, keepAspectRatio);
 }
 
-Surface AnimationImpl::render(size_t frameNo, const Surface &surface, bool keepAspectRatio)
+Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
+                              bool keepAspectRatio)
 {
     bool renderInProgress = mRenderInProgress.load();
     if (renderInProgress) {
@@ -111,18 +111,20 @@ Surface AnimationImpl::render(size_t frameNo, const Surface &surface, bool keepA
     }
 
     mRenderInProgress.store(true);
-    update(frameNo,
-           VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())), keepAspectRatio);
-    mCompItem->render(surface);
+    update(
+        frameNo,
+        VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())),
+        keepAspectRatio);
+    mRenderer->render(surface);
     mRenderInProgress.store(false);
 
     return surface;
 }
 
-void AnimationImpl::init(const std::shared_ptr<LOTModel> &model)
+void AnimationImpl::init(std::shared_ptr<model::Composition> composition)
 {
-    mModel = model;
-    mCompItem = std::make_unique<LOTCompItem>(mModel.get());
+    mModel = composition.get();
+    mRenderer = std::make_unique<renderer::Composition>(composition);
     mRenderInProgress = false;
 }
 
@@ -161,8 +163,8 @@ class RenderTaskScheduler {
             }
             if (!success && !_q[i].pop(task)) break;
 
-            auto result =
-                task->playerImpl->render(task->frameNo, task->surface, task->keepAspectRatio);
+            auto result = task->playerImpl->render(task->frameNo, task->surface,
+                                                   task->keepAspectRatio);
             task->sender.set_value(result);
         }
     }
@@ -216,7 +218,8 @@ public:
 
     std::future<Surface> process(SharedRenderTask task)
     {
-        auto result = task->playerImpl->render(task->frameNo, task->surface, task->keepAspectRatio);
+        auto result = task->playerImpl->render(task->frameNo, task->surface,
+                                               task->keepAspectRatio);
         task->sender.set_value(result);
         return std::move(task->receiver);
     }
@@ -225,7 +228,7 @@ public:
 
 std::future<Surface> AnimationImpl::renderAsync(size_t    frameNo,
                                                 Surface &&surface,
-                                                bool keepAspectRatio)
+                                                bool      keepAspectRatio)
 {
     if (!mTask) {
         mTask = std::make_shared<RenderTask>();
@@ -255,43 +258,48 @@ std::unique_ptr<Animation> Animation::loadFromData(
         return nullptr;
     }
 
-    LottieLoader loader;
-    if (loader.loadFromData(std::move(jsonData), key, resourcePath, cachePolicy)) {
+    auto composition = model::loadFromData(std::move(jsonData), key,
+                                           resourcePath, cachePolicy);
+    if (composition) {
         auto animation = std::unique_ptr<Animation>(new Animation);
-        animation->d->init(loader.model());
+        animation->d->init(std::move(composition));
         return animation;
     }
+
     return nullptr;
 }
 
-std::unique_ptr<Animation> Animation::loadFromData( std::string jsonData, std::string resourcePath, ColorFilter filter)
+std::unique_ptr<Animation> Animation::loadFromData(std::string jsonData,
+                                                   std::string resourcePath,
+                                                   ColorFilter filter)
 {
     if (jsonData.empty()) {
         vWarning << "jason data is empty";
         return nullptr;
     }
 
-    LottieLoader loader;
-    if (loader.loadFromData(std::move(jsonData), std::move(resourcePath), std::move(filter))) {
+    auto composition = model::loadFromData(
+        std::move(jsonData), std::move(resourcePath), std::move(filter));
+    if (composition) {
         auto animation = std::unique_ptr<Animation>(new Animation);
-        animation->d->init(loader.model());
+        animation->d->init(std::move(composition));
         return animation;
     }
     return nullptr;
 }
 
-std::unique_ptr<Animation>
-Animation::loadFromFile(const std::string &path, bool cachePolicy)
+std::unique_ptr<Animation> Animation::loadFromFile(const std::string &path,
+                                                   bool cachePolicy)
 {
     if (path.empty()) {
         vWarning << "File path is empty";
         return nullptr;
     }
 
-    LottieLoader loader;
-    if (loader.load(path, cachePolicy)) {
+    auto composition = model::loadFromFile(path, cachePolicy);
+    if (composition) {
         auto animation = std::unique_ptr<Animation>(new Animation);
-        animation->d->init(loader.model());
+        animation->d->init(std::move(composition));
         return animation;
     }
     return nullptr;
@@ -331,12 +339,14 @@ const LOTLayerNode *Animation::renderTree(size_t frameNo, size_t width,
     return d->renderTree(frameNo, VSize(int(width), int(height)));
 }
 
-std::future<Surface> Animation::render(size_t frameNo, Surface surface, bool keepAspectRatio)
+std::future<Surface> Animation::render(size_t frameNo, Surface surface,
+                                       bool keepAspectRatio)
 {
     return d->renderAsync(frameNo, std::move(surface), keepAspectRatio);
 }
 
-void Animation::renderSync(size_t frameNo, Surface surface, bool keepAspectRatio)
+void Animation::renderSync(size_t frameNo, Surface surface,
+                           bool keepAspectRatio)
 {
     d->render(frameNo, surface, keepAspectRatio);
 }
