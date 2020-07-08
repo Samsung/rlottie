@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -325,6 +325,30 @@ public:
         return isStatic() ? value() : animation().value(frameNo);
     }
 
+    // special function only for type T=LottieShapeData
+    template <typename SpecialT = LottieShapeData>
+    auto value(int frameNo, VPath& path) const-> typename std::enable_if_t<std::is_same<T, SpecialT>::value, void>
+    {
+        if (isStatic()) {
+            value().toPath(path);
+        } else {
+            const auto &vec = animation().mKeyFrames;
+            if (vec.front().mStartFrame >= frameNo)
+                return vec.front().mValue.mStartValue.toPath(path);
+            if(vec.back().mEndFrame <= frameNo)
+                return vec.back().mValue.mEndValue.toPath(path);
+
+            for(const auto &keyFrame : vec) {
+                if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame) {
+                    LottieShapeData::lerp(keyFrame.mValue.mStartValue,
+                                          keyFrame.mValue.mEndValue,
+                                          keyFrame.progress(frameNo),
+                                          path);
+                }
+            }
+        }
+    }
+
     float angle(int frameNo) const {
         return isStatic() ? 0 : animation().angle(frameNo);
     }
@@ -359,33 +383,6 @@ private:
     }impl;
     bool                                 mStatic{true};
 };
-
-
-class LOTAnimatableShape : public LOTAnimatable<LottieShapeData>
-{
-public:
-    void updatePath(int frameNo, VPath &path) const {
-        if (isStatic()) {
-            value().toPath(path);
-        } else {
-            const auto &vec = animation().mKeyFrames;
-            if (vec.front().mStartFrame >= frameNo)
-                return vec.front().mValue.mStartValue.toPath(path);
-            if(vec.back().mEndFrame <= frameNo)
-                return vec.back().mValue.mEndValue.toPath(path);
-
-            for(const auto &keyFrame : vec) {
-                if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame) {
-                    LottieShapeData::lerp(keyFrame.mValue.mStartValue,
-                                          keyFrame.mValue.mEndValue,
-                                          keyFrame.progress(frameNo),
-                                          path);
-                }
-            }
-        }
-    }
-};
-
 
 enum class LottieBlendMode: uchar
 {
@@ -896,7 +893,7 @@ class LOTShapeData : public LOTPath
 public:
     LOTShapeData():LOTPath(LOTData::Type::Shape){}
 public:
-    LOTAnimatableShape    mShape;
+    LOTAnimatable<LottieShapeData>    mShape;
 };
 
 class LOTMaskData
@@ -912,7 +909,7 @@ public:
     float opacity(int frameNo) const {return mOpacity.value(frameNo)/100.0f;}
     bool isStatic() const {return mIsStatic;}
 public:
-    LOTAnimatableShape                mShape;
+    LOTAnimatable<LottieShapeData>    mShape;
     LOTAnimatable<float>              mOpacity{100};
     bool                              mInv{false};
     bool                              mIsStatic{true};
