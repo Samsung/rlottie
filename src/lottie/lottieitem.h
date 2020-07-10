@@ -381,48 +381,42 @@ protected:
        }
    }
 
-   float getTextOpacity(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextOpacity(frameNo);
-   }
-
-   float getTextRotation(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextRotation(frameNo);
-   }
-
-   float getTextTracking(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextTracking(frameNo);
-   }
-
-   float getTextStrokeWidth(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextStrokeWidth(frameNo);
-   }
-
-   model::Color getTextStrokeColor(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextStrokeColor(frameNo);
-   }
-
-   VPointF getTextPosition(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextPosition(frameNo);
-   }
-
-   VPointF getTextScale(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextScale(frameNo);
-   }
-
-   VPointF getTextAnchor(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextAnchor(frameNo);
-   }
-
-   model::Color getTextFillColor(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextFillColor(frameNo);
-   }
-
-   bool getTextStrokeOverFill(int frameNo) {
-       return mLayerData->extra()->textLayer()->getTextStrokeOverFill(frameNo);
-   }
-
    bool isStatic() {
        return mLayerData->extra()->textLayer()->isStatic();
+   }
+
+   void getLottieTextProperties(model::LottieTextProperties &obj, int frameNo) {
+        mLayerData->extra()->textLayer()->getLottieTextProperties(obj, frameNo);
+   }
+
+   void doStroke(VPath &path, model::Color &strokeColor, float opacity, float strokeWidth) {
+       auto strokeDrawable = std::make_unique<Drawable>();
+       mRenderNode.push_back(std::move(strokeDrawable));
+       auto renderNode = mRenderNode.back().get();
+
+       renderNode->setType(VDrawable::Type::Stroke);
+       renderNode->mFlag |= VDrawable::DirtyState::Path;
+       renderNode->mPath = path;
+
+       VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
+       renderNode->setBrush(strokeBrush);
+
+       // FIXME: The magic number 1.5!
+       renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
+               10.0, strokeWidth * 1.5);
+       renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+   }
+
+   void doFill(VPath &path, model::Color &fillColor, float opacity) {
+       auto fillDrawable = std::make_unique<Drawable>();
+       mRenderNode.push_back(std::move(fillDrawable));
+       auto renderNode = mRenderNode.back().get();
+       renderNode->mFlag |= VDrawable::DirtyState::Path;
+       renderNode->mPath = path;
+
+       VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity / 100 * 255);
+       renderNode->setBrush(fillBrush);
+       renderNode->mFlag |= VDrawable::DirtyState::Brush;
    }
 };
 

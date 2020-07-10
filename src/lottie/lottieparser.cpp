@@ -799,39 +799,30 @@ void LottieParserImpl::parseTextAnimatedProperties(model::TextAnimator &obj)
         if (0 == strcmp(key, "o")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Opacity);
             parseProperty(obj.mAnimators.back().opacity());
-            obj.mProperty |= model::TextAnimator::Props::Opacity;
         } else if (0 == strcmp(key, "r")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Rotation);
             parseProperty(obj.mAnimators.back().rotation());
-            obj.mProperty |= model::TextAnimator::Props::Rotation;
         } else if (0 == strcmp(key, "t")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Tracking);
             parseProperty(obj.mAnimators.back().tracking());
-            obj.mProperty |= model::TextAnimator::Props::Tracking;
         } else if (0 == strcmp(key, "sw")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeWidth);
             parseProperty(obj.mAnimators.back().strokeWidth());
-            obj.mProperty |= model::TextAnimator::Props::StrokeWidth;
         } else if (0 == strcmp(key, "p")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Position);
             parseProperty(obj.mAnimators.back().position());
-            obj.mProperty |= model::TextAnimator::Props::Position;
         } else if (0 == strcmp(key, "s")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Scale);
             parseProperty(obj.mAnimators.back().scale());
-            obj.mProperty |= model::TextAnimator::Props::Scale;
         } else if (0 == strcmp(key, "a")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::Anchor);
             parseProperty(obj.mAnimators.back().anchor());
-            obj.mProperty |= model::TextAnimator::Props::Anchor;
         } else if (0 == strcmp(key, "fc")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::FillColor);
             parseProperty(obj.mAnimators.back().fillColor());
-            obj.mProperty |= model::TextAnimator::Props::FillColor;
         } else if (0 == strcmp(key, "sc")) {
             obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeColor);
             parseProperty(obj.mAnimators.back().strokeColor());
-            obj.mProperty |= model::TextAnimator::Props::StrokeColor;
         } else {
             Skip(key);
         }
@@ -844,16 +835,17 @@ void LottieParserImpl::parseTextRangeSelection(model::TextAnimator &obj)
     EnterObject();
 
     while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "a")){
-            //parseProperty(??);
-            Skip(key);
-        } else if (0 == strcmp(key, "b")) {
-            Skip(key);
-        } else if (0 == strcmp(key, "t")) {
-            Skip(key);
+        if (0 == strcmp(key, "t")) {
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mRangeType = GetInt();
+        } else if (0 == strcmp(key, "r")) {
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mRangeUnit = GetInt();
         } else if (0 == strcmp(key, "s")) {
+            obj.mHasRange = true;
             parseProperty(obj.mRangeStart);
         } else if (0 == strcmp(key, "e")) {
+            obj.mHasRange = true;
             parseProperty(obj.mRangeEnd);
         } else {
             Skip(key);
@@ -914,10 +906,8 @@ void LottieParserImpl::parseText(model::TextLayerData *obj)
         } else if (0 == strcmp(key, "a")) {
              parseTextAnimators(obj);
         } else if (0 == strcmp(key, "p")) {
-             //printf("TEXT(p) ... SKIP! \n");
              Skip(key);
         } else if (0 == strcmp(key, "m")) {
-             //printf("TEXT(m) ... SKIP! \n");
              Skip(key);
         } else {
              Skip(key);
@@ -947,7 +937,6 @@ void LottieParserImpl::parseFont()
              RAPIDJSON_ASSERT(PeekType() == kNumberType);
              fonts.mFontAscent = GetDouble();
         } else {
-             printf("ERR! UNKNOWN KEYWORD for Font! key[%s] type[%d]\n", key, PeekType());
              Skip(key);
         }
    }
@@ -966,7 +955,6 @@ void LottieParserImpl::parseFonts()
                   parseFont();
              }
         } else {
-             printf("ERR! FONTS has NO LIST!\n");
              Skip(key);
         }
    }
