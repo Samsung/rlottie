@@ -73,7 +73,8 @@ public:
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
-    friend inline bool operator==(const Color &c1, const Color &c2);
+    friend inline bool  operator==(const Color &c1, const Color &c2);
+
 public:
     float r{1};
     float g{1};
@@ -101,14 +102,10 @@ inline const Color operator*(float m, const Color &c)
 
 inline bool operator==(const Color &c1, const Color &c2)
 {
-    if (vCompare(c1.r, c2.r) &&
-        vCompare(c1.g, c2.g) &&
-        vCompare(c1.b, c2.b))
-      return true;
+    if (vCompare(c1.r, c2.r) && vCompare(c1.g, c2.g) && vCompare(c1.b, c2.b))
+        return true;
     return false;
 }
-
-
 
 struct PathData {
     std::vector<VPointF> mPoints;
@@ -381,8 +378,7 @@ private:
 /* *
  * Hand written std::variant equivalent till c++17
  */
-class PropertyText
-{
+class PropertyText {
 public:
     enum class Type {
         Opacity = 0,
@@ -395,102 +391,143 @@ public:
         StrokeColor,
         FillColor,
     };
-    PropertyText(PropertyText::Type prop):mProperty(prop) {
+    PropertyText(PropertyText::Type prop) : mProperty(prop)
+    {
         switch (mProperty) {
-            case Type::Opacity:
-            case Type::Rotation:
-            case Type::Tracking:
-            case Type::StrokeWidth:
-                construct(impl.mFloat, {});
-                break;
-            case Type::Position:
-            case Type::Scale:
-            case Type::Anchor:
-                construct(impl.mPoint, {});
-                break;
-            case Type::StrokeColor:
-            case Type::FillColor:
-                construct(impl.mColor, {});
-                break;
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            construct(impl.mFloat, {});
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            construct(impl.mPoint, {});
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            construct(impl.mColor, {});
+            break;
         }
     }
     ~PropertyText() { destroy(); }
 
-    PropertyText(PropertyText &&other) noexcept {
+    PropertyText(PropertyText &&other) noexcept
+    {
         switch (other.mProperty) {
-            case Type::Opacity:
-            case Type::Rotation:
-            case Type::Tracking:
-            case Type::StrokeWidth:
-                construct(impl.mFloat, std::move(other.impl.mFloat));
-                break;
-            case Type::Position:
-            case Type::Scale:
-            case Type::Anchor:
-                construct(impl.mPoint, std::move(other.impl.mPoint));
-                break;
-            case Type::StrokeColor:
-            case Type::FillColor:
-                construct(impl.mColor, std::move(other.impl.mColor));
-                break;
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            construct(impl.mFloat, std::move(other.impl.mFloat));
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            construct(impl.mPoint, std::move(other.impl.mPoint));
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            construct(impl.mColor, std::move(other.impl.mColor));
+            break;
         }
         mProperty = other.mProperty;
     }
 
     // delete special member functions
     PropertyText(const PropertyText &) = delete;
-    PropertyText& operator=(const PropertyText&) = delete;
-    PropertyText& operator=(PropertyText&&) = delete;
+    PropertyText &operator=(const PropertyText &) = delete;
+    PropertyText &operator=(PropertyText &&) = delete;
 
-    PropertyText::Type type() const {return mProperty;}
+    PropertyText::Type type() const { return mProperty; }
 
-    Property<float>& opacity() {assert(mProperty == Type::Opacity); return impl.mFloat;}
-    Property<float>& rotation() {assert(mProperty == Type::Rotation); return impl.mFloat;}
-    Property<float>& tracking() {assert(mProperty == Type::Tracking); return impl.mFloat;}
-    Property<float>& strokeWidth() {assert(mProperty == Type::StrokeWidth); return impl.mFloat;}
-    Property<VPointF>& position() {assert(mProperty == Type::Position); return impl.mPoint;}
-    Property<VPointF>& scale() {assert(mProperty == Type::Scale); return impl.mPoint;}
-    Property<VPointF>& anchor() {assert(mProperty == Type::Anchor); return impl.mPoint;}
-    Property<Color>& strokeColor() {assert(mProperty == Type::StrokeColor); return impl.mColor;}
-    Property<Color>& fillColor() {assert(mProperty == Type::FillColor); return impl.mColor;}
+    Property<float> &opacity()
+    {
+        assert(mProperty == Type::Opacity);
+        return impl.mFloat;
+    }
+    Property<float> &rotation()
+    {
+        assert(mProperty == Type::Rotation);
+        return impl.mFloat;
+    }
+    Property<float> &tracking()
+    {
+        assert(mProperty == Type::Tracking);
+        return impl.mFloat;
+    }
+    Property<float> &strokeWidth()
+    {
+        assert(mProperty == Type::StrokeWidth);
+        return impl.mFloat;
+    }
+    Property<VPointF> &position()
+    {
+        assert(mProperty == Type::Position);
+        return impl.mPoint;
+    }
+    Property<VPointF> &scale()
+    {
+        assert(mProperty == Type::Scale);
+        return impl.mPoint;
+    }
+    Property<VPointF> &anchor()
+    {
+        assert(mProperty == Type::Anchor);
+        return impl.mPoint;
+    }
+    Property<Color> &strokeColor()
+    {
+        assert(mProperty == Type::StrokeColor);
+        return impl.mColor;
+    }
+    Property<Color> &fillColor()
+    {
+        assert(mProperty == Type::FillColor);
+        return impl.mColor;
+    }
+
 private:
     template <typename Tp>
-    void construct(Tp& member, Tp&& val)
+    void construct(Tp &member, Tp &&val)
     {
         new (&member) Tp(std::move(val));
     }
-    void destroy() {
+    void destroy()
+    {
         switch (mProperty) {
-            case Type::Opacity:
-            case Type::Rotation:
-            case Type::Tracking:
-            case Type::StrokeWidth:
-                impl.mFloat.~Property<float>();
-                break;
-            case Type::Position:
-            case Type::Scale:
-            case Type::Anchor:
-                impl.mPoint.~Property<VPointF>();
-                break;
-            case Type::StrokeColor:
-            case Type::FillColor:
-                impl.mColor.~Property<Color>();
-                break;
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            impl.mFloat.~Property<float>();
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            impl.mPoint.~Property<VPointF>();
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            impl.mColor.~Property<Color>();
+            break;
         }
     }
+
 private:
-    PropertyText::Type     mProperty;
+    PropertyText::Type mProperty;
     union details {
-        Property<float>        mFloat;
-        Property<VPointF>      mPoint;
-        Property<Color>  mColor;
+        Property<float>   mFloat;
+        Property<VPointF> mPoint;
+        Property<Color>   mColor;
         details(){};
-        details(const details&) = delete;
-        details(details&&) = delete;
-        details& operator=(details&&) = delete;
-        details& operator=(const details&) = delete;
+        details(const details &) = delete;
+        details(details &&) = delete;
+        details &operator=(details &&) = delete;
+        details &operator=(const details &) = delete;
         ~details(){};
-    }impl;
+    } impl;
 };
 
 class Path;
@@ -615,20 +652,20 @@ struct Asset {
 
 class Fonts {
 public:
-	std::string		mFontName;
-	std::string		mFontFamily;
-	std::string		mFontStyle;
-	double			mFontAscent;
+    std::string mFontName;
+    std::string mFontFamily;
+    std::string mFontStyle;
+    double      mFontAscent;
 };
 
 class Chars {
 public:
-    std::string              mCh;            /* ch */
-    std::string              mStyle;         /* style */
-    std::string              mFontFamily;    /* fFamily */
-    double                   mSize;          /* size */
-    double                   mWidth;         /* w */
-    std::vector<VPath>       mShapePathData; /* data */
+    std::string        mCh;            /* ch */
+    std::string        mStyle;         /* style */
+    std::string        mFontFamily;    /* fFamily */
+    double             mSize;          /* size */
+    double             mWidth;         /* w */
+    std::vector<VPath> mShapePathData; /* data */
 };
 
 class Layer;
@@ -661,13 +698,14 @@ public:
     void   processRepeaterObjects();
     void   updateStats();
 
-    int compareFontFamily(std::string fName, std::string fFamily) {
+    int compareFontFamily(std::string fName, std::string fFamily)
+    {
         for (auto &fontData : mFonts) {
             if (fontData.mFontName.compare(fName) == 0) {
                 return fontData.mFontFamily.compare(fFamily);
             }
         }
-        return 1; // 1=fail, 0=success
+        return 1;  // 1=fail, 0=success
     }
 
 public:
@@ -690,8 +728,8 @@ public:
     std::unordered_map<std::string, Asset *> mAssets;
 
     std::vector<Marker> mMarkers;
-    std::vector<Fonts>   mFonts;
-    std::vector<Chars>   mChars;
+    std::vector<Fonts>  mFonts;
+    std::vector<Chars>  mChars;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
 };
@@ -789,135 +827,125 @@ public:
     Transform *           mTransform{nullptr};
 };
 
-
-enum class Justification {
-    Left,
-    Right,
-    Center
-};
+enum class Justification { Left, Right, Center };
 
 struct LottieCharAnimatableProperties {
-    float               opacity{100.};
-    float               rotation{0.};
-    float               tracking{0.};
-    float               strokeWidth{0.};
-    VPointF             position{0., 0.};
-    VPointF             scale{100., 100.};
-    VPointF             anchor{0., 0.};
-    Color         fillColor{0., 0., 0.};
-    Color         strokeColor{0.,0.,0.};
+    float   opacity{100.};
+    float   rotation{0.};
+    float   tracking{0.};
+    float   strokeWidth{0.};
+    VPointF position{0., 0.};
+    VPointF scale{100., 100.};
+    VPointF anchor{0., 0.};
+    Color   fillColor{0., 0., 0.};
+    Color   strokeColor{0., 0., 0.};
 };
 
 // This structure would have a properties snapshot of a specific frame.
 struct LottieTextProperties {
-    bool                strokeOverFill{false};
-    Justification       justification{Justification::Left};
-    int                 fontSize{0};
-    float               ascent{0.};
-    float               lineHeight{0.};
-    float               baselineShift{0.};
+    bool          strokeOverFill{false};
+    Justification justification{Justification::Left};
+    int           fontSize{0};
+    float         ascent{0.};
+    float         lineHeight{0.};
+    float         baselineShift{0.};
 
     // Animatable Properties per each character
     std::vector<LottieCharAnimatableProperties> charAnimPropList;
 };
 
-class TextProperties
-{
+class TextProperties {
 public:
-    int                 mSize{0};                   /* "s" */
-    std::string         mFont;                      /* "f" */
-    std::string         mText;                      /* "t" */
+    int           mSize{0};                            /* "s" */
+    std::string   mFont;                               /* "f" */
+    std::string   mText;                               /* "t" */
     Justification mJustification{Justification::Left}; /* "j" */
-    float               mTracking{0.0};             /* "tr" */
-    float               mLineHeight{0.0};           /* "lh" */
-    float               mBaselineShift{0.0};        /* "ls" */
-    Color         mFillColor;                 /* "fc" */
-    Color         mStrokeColor;               /* "sc" */
-    float               mStrokeWidth{0.0};          /* "sw" */
-    bool                mStrokeOverFill{false};     /* "of" */
+    float         mTracking{0.0};                      /* "tr" */
+    float         mLineHeight{0.0};                    /* "lh" */
+    float         mBaselineShift{0.0};                 /* "ls" */
+    Color         mFillColor;                          /* "fc" */
+    Color         mStrokeColor;                        /* "sc" */
+    float         mStrokeWidth{0.0};                   /* "sw" */
+    bool          mStrokeOverFill{false};              /* "of" */
 
-    inline bool operator==(const TextProperties &a) {
-         if ((mSize == a.mSize) &&
-	     (mFont.compare(a.mFont) == 0) &&
-             (mText.compare(a.mText) == 0) &&
-             (mJustification == a.mJustification) &&
-             vCompare(mTracking, a.mTracking) &&
-             vCompare(mLineHeight, a.mLineHeight) &&
-             vCompare(mBaselineShift, a.mBaselineShift) &&
-             (mFillColor == a.mFillColor) &&
-             (mStrokeColor == a.mStrokeColor) &&
-             vCompare(mStrokeWidth, a.mStrokeWidth) &&
-             (mStrokeOverFill == a.mStrokeOverFill))
-             return true;
-	 return false;
+    inline bool operator==(const TextProperties &a)
+    {
+        if ((mSize == a.mSize) && (mFont.compare(a.mFont) == 0) &&
+            (mText.compare(a.mText) == 0) &&
+            (mJustification == a.mJustification) &&
+            vCompare(mTracking, a.mTracking) &&
+            vCompare(mLineHeight, a.mLineHeight) &&
+            vCompare(mBaselineShift, a.mBaselineShift) &&
+            (mFillColor == a.mFillColor) && (mStrokeColor == a.mStrokeColor) &&
+            vCompare(mStrokeWidth, a.mStrokeWidth) &&
+            (mStrokeOverFill == a.mStrokeOverFill))
+            return true;
+        return false;
     }
 };
 
-class TextDocument
-{
+class TextDocument {
 public:
     TextProperties mTextProperties;
-    int               mTime;
+    int            mTime;
 };
 
-class TextAnimator
-{
+class TextAnimator {
 public:
-    std::string            mName;
+    std::string mName;
 
     // Animated Properties
-    std::vector<PropertyText>      mAnimators;
+    std::vector<PropertyText> mAnimators;
 
     // Range Selection
-    int                           mRangeType{0};
+    int mRangeType{0};
 
     // Unit: 1 = Percentage, Unit: 2 = Index
-    int                           mRangeUnit{0};
-    Property<float>          mRangeStart{0.};
-    Property<float>          mRangeEnd{100.};
-    bool                          mHasRange{false};
+    int             mRangeUnit{0};
+    Property<float> mRangeStart{0.};
+    Property<float> mRangeEnd{100.};
+    bool            mHasRange{false};
 };
 
-class TextLayerData
-{
-
+class TextLayerData {
 private:
-    TextProperties textProperties(int frameNo) {
+    TextProperties textProperties(int frameNo)
+    {
         for (auto &textDocument : mTextDocument) {
             if (textDocument.mTime >= frameNo)
                 return textDocument.mTextProperties;
-            }
+        }
         return mTextDocument.back().mTextProperties;
     }
 
 public:
-    std::vector<TextDocument>       mTextDocument;
-    std::vector<TextAnimator>       mTextAnimator;
+    std::vector<TextDocument> mTextDocument;
+    std::vector<TextAnimator> mTextAnimator;
 
-
-    TextProperties getTextProperties(int frameNo) {
+    TextProperties getTextProperties(int frameNo)
+    {
         return textProperties(frameNo);
     }
 
-    bool isStatic() {
-        if (mTextAnimator.empty() && (mTextDocument.size() <= 1))
-            return true;
+    bool isStatic()
+    {
+        if (mTextAnimator.empty() && (mTextDocument.size() <= 1)) return true;
         return false;
     }
 
-    bool hasRange() {
-        if (mTextAnimator.empty())
-            return false;
+    bool hasRange()
+    {
+        if (mTextAnimator.empty()) return false;
         for (auto &textAnim : mTextAnimator) {
-            if (textAnim.mHasRange)
-                return true;
+            if (textAnim.mHasRange) return true;
         }
         return false;
     }
 
-    void getLottieTextProperties(LottieTextProperties &obj, int frameNo) {
+    void getLottieTextProperties(LottieTextProperties &obj, int frameNo)
+    {
         auto textProp = getTextProperties(frameNo);
-        int textLength = textProp.mText.size();
+        int  textLength = textProp.mText.size();
 
         // Non Animatable Properties & Common Text Properties
         obj.fontSize = textProp.mSize;
@@ -928,8 +956,7 @@ public:
 
         // If it is static or it has no range,
         // there is no need to create animation properties for each character.
-        if (isStatic() || !hasRange())
-            textLength = 1;
+        if (isStatic() || !hasRange()) textLength = 1;
 
         // Animatable Properties
         for (int i = 0; i < textLength; i++) {
@@ -945,7 +972,7 @@ public:
                 for (auto &textAnim : mTextAnimator) {
                     float rangeStartIndex = textAnim.mRangeStart.value(frameNo);
                     float rangeEndIndex = textAnim.mRangeEnd.value(frameNo);
-                    float applyPercentage; // 0.0 ~ 1.0
+                    float applyPercentage;  // 0.0 ~ 1.0
 
                     // If the current unit is percentage, change it to index
                     if (textAnim.mRangeUnit == 1) {
@@ -956,11 +983,15 @@ public:
                     if ((rangeStartIndex <= i) && (i + 1 <= rangeEndIndex)) {
                         // Apply values fully
                         applyPercentage = 1.;
-                    } else if ((rangeStartIndex >= i) && (rangeEndIndex <= i + 1)) {
+                    } else if ((rangeStartIndex >= i) &&
+                               (rangeEndIndex <= i + 1)) {
                         applyPercentage = rangeEndIndex - rangeStartIndex;
-                    } else if ((rangeStartIndex <= i) && (rangeEndIndex >= i) && (rangeEndIndex <= i + 1)) {
+                    } else if ((rangeStartIndex <= i) && (rangeEndIndex >= i) &&
+                               (rangeEndIndex <= i + 1)) {
                         applyPercentage = rangeEndIndex - i;
-                    } else if ((rangeStartIndex >= i) && (rangeStartIndex <= i + 1) && (rangeEndIndex >= i + 1)) {
+                    } else if ((rangeStartIndex >= i) &&
+                               (rangeStartIndex <= i + 1) &&
+                               (rangeEndIndex >= i + 1)) {
                         applyPercentage = i + 1 - rangeStartIndex;
                     } else {
                         applyPercentage = 0.;
@@ -969,35 +1000,65 @@ public:
                     if (applyPercentage > 0.) {
                         for (auto &animators : textAnim.mAnimators) {
                             switch (animators.type()) {
-                                case PropertyText::Type::Opacity:
-                                    animProp.opacity = animProp.opacity * (1. - applyPercentage) + animators.opacity().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::Rotation:
-                                    animProp.rotation = animProp.rotation * (1. - applyPercentage) + animators.rotation().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::Tracking:
-                                    animProp.tracking = animProp.tracking * (1. - applyPercentage) + animators.tracking().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::StrokeWidth:
-                                    animProp.strokeWidth = animProp.strokeWidth * (1. - applyPercentage) + animators.strokeWidth().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::Position:
-                                    animProp.position = animProp.position * (1. - applyPercentage) + animators.position().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::Scale:
-                                    animProp.scale = animProp.scale * (1. - applyPercentage) + animators.scale().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::Anchor:
-                                    animProp.anchor = animProp.anchor * (1. - applyPercentage) + animators.anchor().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::FillColor:
-                                    animProp.fillColor = animProp.fillColor * (1. - applyPercentage) + animators.fillColor().value(frameNo) * applyPercentage;
-                                    break;
-                                case PropertyText::Type::StrokeColor:
-                                    animProp.strokeColor = animProp.strokeColor * (1. - applyPercentage) + animators.strokeColor().value(frameNo) * applyPercentage;
-                                    break;
-                                default:
-                                    break;
+                            case PropertyText::Type::Opacity:
+                                animProp.opacity =
+                                    animProp.opacity * (1. - applyPercentage) +
+                                    animators.opacity().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::Rotation:
+                                animProp.rotation =
+                                    animProp.rotation * (1. - applyPercentage) +
+                                    animators.rotation().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::Tracking:
+                                animProp.tracking =
+                                    animProp.tracking * (1. - applyPercentage) +
+                                    animators.tracking().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::StrokeWidth:
+                                animProp.strokeWidth =
+                                    animProp.strokeWidth *
+                                        (1. - applyPercentage) +
+                                    animators.strokeWidth().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::Position:
+                                animProp.position =
+                                    animProp.position * (1. - applyPercentage) +
+                                    animators.position().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::Scale:
+                                animProp.scale =
+                                    animProp.scale * (1. - applyPercentage) +
+                                    animators.scale().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::Anchor:
+                                animProp.anchor =
+                                    animProp.anchor * (1. - applyPercentage) +
+                                    animators.anchor().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::FillColor:
+                                animProp.fillColor =
+                                    animProp.fillColor *
+                                        (1. - applyPercentage) +
+                                    animators.fillColor().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            case PropertyText::Type::StrokeColor:
+                                animProp.strokeColor =
+                                    animProp.strokeColor *
+                                        (1. - applyPercentage) +
+                                    animators.strokeColor().value(frameNo) *
+                                        applyPercentage;
+                                break;
+                            default:
+                                break;
                             }
                         }
                     }
@@ -1006,8 +1067,6 @@ public:
         }
     }
 };
-
-
 
 class Layer : public Group {
 public:
@@ -1049,18 +1108,19 @@ public:
         return (mExtra && mExtra->mAsset) ? mExtra->mAsset : nullptr;
     }
     struct Extra {
-        Color               mSolidColor;
-        std::string         mPreCompRefId;
-        Property<float>     mTimeRemap; /* "tm" */
-        Composition *       mCompRef{nullptr};
-        Asset *             mAsset{nullptr};
-        std::vector<Mask *> mMasks;
+        Color                          mSolidColor;
+        std::string                    mPreCompRefId;
+        Property<float>                mTimeRemap; /* "tm" */
+        Composition *                  mCompRef{nullptr};
+        Asset *                        mAsset{nullptr};
+        std::vector<Mask *>            mMasks;
         std::unique_ptr<TextLayerData> mTextLayerData{nullptr};
 
-        TextLayerData* textLayer()
+        TextLayerData *textLayer()
         {
-        if (!mTextLayerData) mTextLayerData = std::make_unique<TextLayerData>();
-        return mTextLayerData.get();
+            if (!mTextLayerData)
+                mTextLayerData = std::make_unique<TextLayerData>();
+            return mTextLayerData.get();
         }
     };
 
