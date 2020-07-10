@@ -854,7 +854,7 @@ public:
 
 enum class Justification { Left, Right, Center };
 
-struct LottieCharAnimatableProperties {
+struct CharAnimatedProperties {
     float   opacity{100.};
     float   rotation{0.};
     float   tracking{0.};
@@ -867,7 +867,7 @@ struct LottieCharAnimatableProperties {
 };
 
 // This structure would have a properties snapshot of a specific frame.
-struct LottieTextProperties {
+struct TextData {
     bool          strokeOverFill{false};
     Justification justification{Justification::Left};
     int           fontSize{0};
@@ -876,11 +876,14 @@ struct LottieTextProperties {
     float         baselineShift{0.};
 
     // Animatable Properties per each character
-    std::vector<LottieCharAnimatableProperties> charAnimPropList;
+    std::vector<CharAnimatedProperties> charAnimPropList;
 };
 
-class TextProperties {
+class TextDocument {
 public:
+    int           mTime;                               /* "t" */
+
+    /* The folloing values are member of a object "s". */
     int           mSize{0};                            /* "s" */
     std::string   mFont;                               /* "f" */
     std::string   mText;                               /* "t" */
@@ -893,7 +896,7 @@ public:
     float         mStrokeWidth{0.0};                   /* "sw" */
     bool          mStrokeOverFill{false};              /* "of" */
 
-    inline bool operator==(const TextProperties &a)
+    inline bool operator==(const TextDocument &a)
     {
         if ((mSize == a.mSize) && (mFont.compare(a.mFont) == 0) &&
             (mText.compare(a.mText) == 0) &&
@@ -909,18 +912,12 @@ public:
     }
 };
 
-class TextDocument {
-public:
-    TextProperties mTextProperties;
-    int            mTime;
-};
-
 class TextAnimator {
 public:
     std::string mName;
 
     // Animated Properties
-    std::vector<PropertyText> mAnimators;
+    std::vector<PropertyText> mAnimatedProperties;
 
     // Range Selection
     int mRangeType{0};
@@ -934,22 +931,22 @@ public:
 
 class TextLayerData {
 private:
-    TextProperties textProperties(int frameNo)
+    TextDocument textDocument(int frameNo)
     {
         for (auto &textDocument : mTextDocument) {
             if (textDocument.mTime >= frameNo)
-                return textDocument.mTextProperties;
+                return textDocument;
         }
-        return mTextDocument.back().mTextProperties;
+        return mTextDocument.back();
     }
 
 public:
     std::vector<TextDocument> mTextDocument;
     std::vector<TextAnimator> mTextAnimator;
 
-    TextProperties getTextProperties(int frameNo)
+    TextDocument getTextDocument(int frameNo)
     {
-        return textProperties(frameNo);
+        return textDocument(frameNo);
     }
 
     bool isStatic()
@@ -967,17 +964,17 @@ public:
         return false;
     }
 
-    void getLottieTextProperties(LottieTextProperties &obj, int frameNo)
+    void getTextData(TextData &obj, int frameNo)
     {
-        auto textProp = getTextProperties(frameNo);
-        int  textLength = textProp.mText.size();
+        auto textDocument = getTextDocument(frameNo);
+        int  textLength = textDocument.mText.size();
 
         // Non Animatable Properties & Common Text Properties
-        obj.fontSize = textProp.mSize;
-        obj.justification = textProp.mJustification;
-        obj.lineHeight = textProp.mLineHeight;
-        obj.baselineShift = textProp.mBaselineShift;
-        obj.strokeOverFill = textProp.mStrokeOverFill;
+        obj.fontSize = textDocument.mSize;
+        obj.justification = textDocument.mJustification;
+        obj.lineHeight = textDocument.mLineHeight;
+        obj.baselineShift = textDocument.mBaselineShift;
+        obj.strokeOverFill = textDocument.mStrokeOverFill;
 
         // If it is static or it has no range,
         // there is no need to create animation properties for each character.
@@ -989,15 +986,15 @@ public:
             obj.charAnimPropList.emplace_back();
             auto &animProp = obj.charAnimPropList.back();
 
-            animProp.strokeWidth = textProp.mStrokeWidth;
-            animProp.fillColor = textProp.mFillColor;
-            animProp.strokeColor = textProp.mStrokeColor;
+            animProp.strokeWidth = textDocument.mStrokeWidth;
+            animProp.fillColor = textDocument.mFillColor;
+            animProp.strokeColor = textDocument.mStrokeColor;
 
             if (!mTextAnimator.empty()) {
                 for (auto &textAnim : mTextAnimator) {
                     float rangeStartIndex = textAnim.mRangeStart.value(frameNo);
                     float rangeEndIndex = textAnim.mRangeEnd.value(frameNo);
-                    float applyPercentage;  // 0.0 ~ 1.0
+                    float progress;  // 0.0 ~ 1.0
 
                     // If the current unit is percentage, change it to index
                     if (textAnim.mRangeUnit == 1) {
@@ -1007,80 +1004,50 @@ public:
 
                     if ((rangeStartIndex <= i) && (i + 1 <= rangeEndIndex)) {
                         // Apply values fully
-                        applyPercentage = 1.;
+                        progress = 1.;
                     } else if ((rangeStartIndex >= i) &&
                                (rangeEndIndex <= i + 1)) {
-                        applyPercentage = rangeEndIndex - rangeStartIndex;
+                        progress = rangeEndIndex - rangeStartIndex;
                     } else if ((rangeStartIndex <= i) && (rangeEndIndex >= i) &&
                                (rangeEndIndex <= i + 1)) {
-                        applyPercentage = rangeEndIndex - i;
+                        progress = rangeEndIndex - i;
                     } else if ((rangeStartIndex >= i) &&
                                (rangeStartIndex <= i + 1) &&
                                (rangeEndIndex >= i + 1)) {
-                        applyPercentage = i + 1 - rangeStartIndex;
+                        progress = i + 1 - rangeStartIndex;
                     } else {
-                        applyPercentage = 0.;
+                        progress = 0.;
                     }
 
-                    if (applyPercentage > 0.) {
-                        for (auto &animators : textAnim.mAnimators) {
-                            switch (animators.type()) {
+                    if (progress > 0.) {
+                        for (auto &property : textAnim.mAnimatedProperties) {
+                            switch (property.type()) {
                             case PropertyText::Type::Opacity:
-                                animProp.opacity =
-                                    animProp.opacity * (1. - applyPercentage) +
-                                    animators.opacity().value(frameNo) *
-                                        applyPercentage;
+                                animProp.opacity = lerp(animProp.opacity, property.opacity().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::Rotation:
-                                animProp.rotation =
-                                    animProp.rotation * (1. - applyPercentage) +
-                                    animators.rotation().value(frameNo) *
-                                        applyPercentage;
+                                animProp.rotation = lerp(animProp.rotation, property.rotation().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::Tracking:
-                                animProp.tracking =
-                                    animProp.tracking * (1. - applyPercentage) +
-                                    animators.tracking().value(frameNo) *
-                                        applyPercentage;
+                                animProp.tracking = lerp(animProp.tracking, property.tracking().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::StrokeWidth:
-                                animProp.strokeWidth =
-                                    animProp.strokeWidth *
-                                        (1. - applyPercentage) +
-                                    animators.strokeWidth().value(frameNo) *
-                                        applyPercentage;
+                                animProp.strokeWidth = lerp(animProp.strokeWidth, property.strokeWidth().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::Position:
-                                animProp.position =
-                                    animProp.position * (1. - applyPercentage) +
-                                    animators.position().value(frameNo) *
-                                        applyPercentage;
+                                animProp.position = lerp(animProp.position, property.position().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::Scale:
-                                animProp.scale =
-                                    animProp.scale * (1. - applyPercentage) +
-                                    animators.scale().value(frameNo) *
-                                        applyPercentage;
+                                animProp.scale = lerp(animProp.scale, property.scale().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::Anchor:
-                                animProp.anchor =
-                                    animProp.anchor * (1. - applyPercentage) +
-                                    animators.anchor().value(frameNo) *
-                                        applyPercentage;
+                                animProp.anchor = lerp(animProp.anchor, property.anchor().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::FillColor:
-                                animProp.fillColor =
-                                    animProp.fillColor *
-                                        (1. - applyPercentage) +
-                                    animators.fillColor().value(frameNo) *
-                                        applyPercentage;
+                                animProp.fillColor = lerp(animProp.fillColor, property.fillColor().value(frameNo), progress);
                                 break;
                             case PropertyText::Type::StrokeColor:
-                                animProp.strokeColor =
-                                    animProp.strokeColor *
-                                        (1. - applyPercentage) +
-                                    animators.strokeColor().value(frameNo) *
-                                        applyPercentage;
+                                animProp.strokeColor = lerp(animProp.strokeColor, property.strokeColor().value(frameNo), progress);
                                 break;
                             default:
                                 break;

@@ -879,46 +879,46 @@ renderer::TextLayer::TextLayer(model::Layer *layerData, VArenaAlloc *allocator)
 void renderer::TextLayer::updateContent()
 {
     std::vector<LottieTextPath> textPathList;
-    model::LottieTextProperties ltp;
+    model::TextData             data;
     float                       curX = 0., curY = 0.;
     int                         index = 0, numOfIndex;
 
     mRenderNode.clear();
 
     getTextPath(textPathList, frameNo());
-    getLottieTextProperties(ltp, frameNo());
-    numOfIndex = ltp.charAnimPropList.size();
+    getTextData(data, frameNo());
+    numOfIndex = data.charAnimPropList.size();
 
     for (auto &textPath : textPathList) {
         VMatrix m;
-        auto &  charAnimProp = ltp.charAnimPropList.at(index++);
+        auto &  charAnimProp = data.charAnimPropList.at(index++);
 
         // The animation properties could be less than actual number of
         // characters. It is for reducing memory usage and for improving
         // performance.
         if (numOfIndex == index) index--;
 
-        m.translate(curX + textPath.x_advance / 2. * ltp.fontSize / 100. +
+        m.translate(curX + textPath.x_advance / 2. * data.fontSize / 100. +
                         charAnimProp.position.x(),
                     curY + charAnimProp.position.y());
         m.rotate(charAnimProp.rotation);
         curX +=
-            textPath.x_advance * ltp.fontSize / 100. + charAnimProp.tracking;
+            textPath.x_advance * data.fontSize / 100. + charAnimProp.tracking;
         m.translate(-charAnimProp.anchor -
-                    VPointF(textPath.x_advance / 2. * ltp.fontSize / 100., 0));
-        m.scale(ltp.fontSize / 100. * charAnimProp.scale.x() / 100,
-                ltp.fontSize / 100. * charAnimProp.scale.y() / 100);
+                    VPointF(textPath.x_advance / 2. * data.fontSize / 100., 0));
+        m.scale(data.fontSize / 100. * charAnimProp.scale.x() / 100,
+                data.fontSize / 100. * charAnimProp.scale.y() / 100);
         m = m * combinedMatrix();
         textPath.path.transform(m);
 
-        if (!ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+        if (!data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
                      charAnimProp.opacity, charAnimProp.strokeWidth);
         }
 
         doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
 
-        if (ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+        if (data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
                      charAnimProp.opacity, charAnimProp.strokeWidth);
         }

@@ -727,48 +727,48 @@ void LottieParserImpl::parseTextProperties(model::TextDocument &obj)
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "s")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTextProperties.mSize = GetInt();
+            obj.mSize = GetInt();
         } else if (0 == strcmp(key, "f")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
-            obj.mTextProperties.mFont = std::string(GetString());
+            obj.mFont = std::string(GetString());
         } else if (0 == strcmp(key, "t")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
-            obj.mTextProperties.mText = std::string(GetString());
+            obj.mText = std::string(GetString());
         } else if (0 == strcmp(key, "j")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
             int j = GetInt();
             switch (j) {
             case 0:
-                obj.mTextProperties.mJustification = model::Justification::Left;
+                obj.mJustification = model::Justification::Left;
                 break;
             case 1:
-                obj.mTextProperties.mJustification =
+                obj.mJustification =
                     model::Justification::Right;
                 break;
             case 2:
             default:
-                obj.mTextProperties.mJustification =
+                obj.mJustification =
                     model::Justification::Center;
                 break;
             }
         } else if (0 == strcmp(key, "tr")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTextProperties.mTracking = GetDouble();
+            obj.mTracking = GetDouble();
         } else if (0 == strcmp(key, "lh")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTextProperties.mLineHeight = GetDouble();
+            obj.mLineHeight = GetDouble();
         } else if (0 == strcmp(key, "ls")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTextProperties.mBaselineShift = GetDouble();
+            obj.mBaselineShift = GetDouble();
         } else if (0 == strcmp(key, "fc")) {
-            getValue(obj.mTextProperties.mFillColor);
+            getValue(obj.mFillColor);
         } else if (0 == strcmp(key, "sc")) {
-            getValue(obj.mTextProperties.mStrokeColor);
+            getValue(obj.mStrokeColor);
         } else if (0 == strcmp(key, "sw")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-            obj.mTextProperties.mStrokeWidth = GetDouble();
+            obj.mStrokeWidth = GetDouble();
         } else if (0 == strcmp(key, "of")) {
-            obj.mTextProperties.mStrokeOverFill = GetBool();
+            obj.mStrokeOverFill = GetBool();
         } else {
             Skip(key);
         }
@@ -809,32 +809,32 @@ void LottieParserImpl::parseTextAnimatedProperties(model::TextAnimator &obj)
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "o")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Opacity);
-            parseProperty(obj.mAnimators.back().opacity());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Opacity);
+            parseProperty(obj.mAnimatedProperties.back().opacity());
         } else if (0 == strcmp(key, "r")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Rotation);
-            parseProperty(obj.mAnimators.back().rotation());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Rotation);
+            parseProperty(obj.mAnimatedProperties.back().rotation());
         } else if (0 == strcmp(key, "t")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Tracking);
-            parseProperty(obj.mAnimators.back().tracking());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Tracking);
+            parseProperty(obj.mAnimatedProperties.back().tracking());
         } else if (0 == strcmp(key, "sw")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeWidth);
-            parseProperty(obj.mAnimators.back().strokeWidth());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::StrokeWidth);
+            parseProperty(obj.mAnimatedProperties.back().strokeWidth());
         } else if (0 == strcmp(key, "p")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Position);
-            parseProperty(obj.mAnimators.back().position());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Position);
+            parseProperty(obj.mAnimatedProperties.back().position());
         } else if (0 == strcmp(key, "s")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Scale);
-            parseProperty(obj.mAnimators.back().scale());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Scale);
+            parseProperty(obj.mAnimatedProperties.back().scale());
         } else if (0 == strcmp(key, "a")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::Anchor);
-            parseProperty(obj.mAnimators.back().anchor());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::Anchor);
+            parseProperty(obj.mAnimatedProperties.back().anchor());
         } else if (0 == strcmp(key, "fc")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::FillColor);
-            parseProperty(obj.mAnimators.back().fillColor());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::FillColor);
+            parseProperty(obj.mAnimatedProperties.back().fillColor());
         } else if (0 == strcmp(key, "sc")) {
-            obj.mAnimators.emplace_back(model::PropertyText::Type::StrokeColor);
-            parseProperty(obj.mAnimators.back().strokeColor());
+            obj.mAnimatedProperties.emplace_back(model::PropertyText::Type::StrokeColor);
+            parseProperty(obj.mAnimatedProperties.back().strokeColor());
         } else {
             Skip(key);
         }
