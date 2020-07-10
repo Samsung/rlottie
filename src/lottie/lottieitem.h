@@ -335,8 +335,6 @@ class LottieTextPath {
 public:
     VPath path;
     float x_advance;
-    float y_advance;
-    float size;
 };
 
 class TextLayer : public Layer {
@@ -351,23 +349,23 @@ protected:
     void                  preprocessStage(const VRect &clip) final;
     void                  updateContent() final;
     Group *               mRoot{nullptr};
-    model::TextProperties curTextProperties;
+    model::TextDocument   curTextDocument;
     std::vector<std::unique_ptr<Drawable>> mRenderNode;
     std::vector<VDrawable *>               mDrawableList;
     std::vector<LottieTextPath>            mLastTextPathList;
 
     void getTextPath(std::vector<LottieTextPath> &textPathList, int frameNo)
     {
-        auto curTextProperties =
-            mLayerData->extra()->textLayer()->getTextProperties(frameNo);
+        curTextDocument =
+            mLayerData->extra()->textLayer()->getTextDocument(frameNo);
         if (mLayerData->extra()->mCompRef &&
             !mLayerData->extra()->mCompRef->mChars.empty()) {
-            for (auto textChar : curTextProperties.mText) {
+            for (auto textChar : curTextDocument.mText) {
                 for (auto charData : mLayerData->extra()->mCompRef->mChars) {
                     if ((textChar == *charData.mCh.c_str()) &&
-                        (curTextProperties.mSize == charData.mSize) &&
+                        (curTextDocument.mSize == charData.mSize) &&
                         (mLayerData->extra()->mCompRef->compareFontFamily(
-                             curTextProperties.mFont, charData.mFontFamily) ==
+                             curTextDocument.mFont, charData.mFontFamily) ==
                          0)) {
                         textPathList.emplace_back();
                         auto &textPath = textPathList.back();
@@ -377,8 +375,6 @@ protected:
                             break;
                         }
                         textPath.x_advance = charData.mWidth;
-                        textPath.y_advance = curTextProperties.mLineHeight;
-                        textPath.size = charData.mSize;
                     }
                 }
             }
@@ -388,9 +384,9 @@ protected:
 
     bool isStatic() { return mLayerData->extra()->textLayer()->isStatic(); }
 
-    void getLottieTextProperties(model::LottieTextProperties &obj, int frameNo)
+    void getTextData(model::TextData &obj, int frameNo)
     {
-        mLayerData->extra()->textLayer()->getLottieTextProperties(obj, frameNo);
+        mLayerData->extra()->textLayer()->getTextData(obj, frameNo);
     }
 
     void doStroke(VPath &path, model::Color &strokeColor, float opacity,
