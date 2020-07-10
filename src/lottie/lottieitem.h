@@ -363,82 +363,92 @@ public:
 class TextLayer final : public Layer
 {
 public:
-   explicit TextLayer(model::Layer *layerData, VArenaAlloc* allocator);
-   DrawableList renderList() final;
-   void buildLayerNode() final;
-   bool resolveKeyPath(LOTKeyPath &keyPath, uint depth, LOTVariant &value) override;
+    explicit TextLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    DrawableList renderList() final;
+    void         buildLayerNode() final;
+    bool         resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                LOTVariant &value) override;
+
 protected:
-   void preprocessStage(const VRect& clip) final;
-   void updateContent() final;
-   Group                       *mRoot{nullptr};
-   model::TextProperties                         curTextProperties;
-   std::vector<std::unique_ptr<Drawable>> mRenderNode;
-   std::vector<VDrawable *>                  mDrawableList;
-   std::vector<LottieTextPath>               mLastTextPathList;
+    void                  preprocessStage(const VRect &clip) final;
+    void                  updateContent() final;
+    Group *               mRoot{nullptr};
+    model::TextProperties curTextProperties;
+    std::vector<std::unique_ptr<Drawable>> mRenderNode;
+    std::vector<VDrawable *>               mDrawableList;
+    std::vector<LottieTextPath>            mLastTextPathList;
 
-   void getTextPath(std::vector<LottieTextPath> &textPathList, int frameNo) {
-       auto curTextProperties = mLayerData->extra()->textLayer()->getTextProperties(frameNo);
-       if (mLayerData->extra()->mCompRef &&
-               !mLayerData->extra()->mCompRef->mChars.empty()) {
-           for (auto textChar : curTextProperties.mText) {
-               for (auto  charData : mLayerData->extra()->mCompRef->mChars) {
-                   if ((textChar == *charData.mCh.c_str()) &&
-                           (curTextProperties.mSize == charData.mSize) &&
-                           (mLayerData->extra()->mCompRef->compareFontFamily(curTextProperties.mFont, charData.mFontFamily) == 0)) {
-                       textPathList.emplace_back();
-                       auto &textPath = textPathList.back();
+    void getTextPath(std::vector<LottieTextPath> &textPathList, int frameNo)
+    {
+        auto curTextProperties =
+            mLayerData->extra()->textLayer()->getTextProperties(frameNo);
+        if (mLayerData->extra()->mCompRef &&
+            !mLayerData->extra()->mCompRef->mChars.empty()) {
+            for (auto textChar : curTextProperties.mText) {
+                for (auto charData : mLayerData->extra()->mCompRef->mChars) {
+                    if ((textChar == *charData.mCh.c_str()) &&
+                        (curTextProperties.mSize == charData.mSize) &&
+                        (mLayerData->extra()->mCompRef->compareFontFamily(
+                             curTextProperties.mFont, charData.mFontFamily) ==
+                         0)) {
+                        textPathList.emplace_back();
+                        auto &textPath = textPathList.back();
 
-                       for (auto shapeData : charData.mShapePathData) {
-                           textPath.path.addPath(shapeData);
-                           break;
-                       }
-                       textPath.x_advance = charData.mWidth;
-                       textPath.y_advance = curTextProperties.mLineHeight;
-                       textPath.size = charData.mSize;
-                   }
-               }
-           }
-           mLastTextPathList = textPathList;
-       }
-   }
+                        for (auto shapeData : charData.mShapePathData) {
+                            textPath.path.addPath(shapeData);
+                            break;
+                        }
+                        textPath.x_advance = charData.mWidth;
+                        textPath.y_advance = curTextProperties.mLineHeight;
+                        textPath.size = charData.mSize;
+                    }
+                }
+            }
+            mLastTextPathList = textPathList;
+        }
+    }
 
-   bool isStatic() {
-       return mLayerData->extra()->textLayer()->isStatic();
-   }
+    bool isStatic() { return mLayerData->extra()->textLayer()->isStatic(); }
 
-   void getLottieTextProperties(model::LottieTextProperties &obj, int frameNo) {
+    void getLottieTextProperties(model::LottieTextProperties &obj, int frameNo)
+    {
         mLayerData->extra()->textLayer()->getLottieTextProperties(obj, frameNo);
-   }
+    }
 
-   void doStroke(VPath &path, model::Color &strokeColor, float opacity, float strokeWidth) {
-       auto strokeDrawable = std::make_unique<Drawable>();
-       mRenderNode.push_back(std::move(strokeDrawable));
-       auto renderNode = mRenderNode.back().get();
+    void doStroke(VPath &path, model::Color &strokeColor, float opacity,
+                  float strokeWidth)
+    {
+        auto strokeDrawable = std::make_unique<Drawable>();
+        mRenderNode.push_back(std::move(strokeDrawable));
+        auto renderNode = mRenderNode.back().get();
 
-       renderNode->setType(VDrawable::Type::Stroke);
-       renderNode->mFlag |= VDrawable::DirtyState::Path;
-       renderNode->mPath = path;
+        renderNode->setType(VDrawable::Type::Stroke);
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
 
-       VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
-       renderNode->setBrush(strokeBrush);
+        VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255,
+                           strokeColor.b * 255, opacity / 100 * 255);
+        renderNode->setBrush(strokeBrush);
 
-       // FIXME: The magic number 1.5!
-       renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
-               10.0, strokeWidth * 1.5);
-       renderNode->mFlag |= VDrawable::DirtyState::Stroke;
-   }
+        // FIXME: The magic number 1.5!
+        renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter, 10.0,
+                                  strokeWidth * 1.5);
+        renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+    }
 
-   void doFill(VPath &path, model::Color &fillColor, float opacity) {
-       auto fillDrawable = std::make_unique<Drawable>();
-       mRenderNode.push_back(std::move(fillDrawable));
-       auto renderNode = mRenderNode.back().get();
-       renderNode->mFlag |= VDrawable::DirtyState::Path;
-       renderNode->mPath = path;
+    void doFill(VPath &path, model::Color &fillColor, float opacity)
+    {
+        auto fillDrawable = std::make_unique<Drawable>();
+        mRenderNode.push_back(std::move(fillDrawable));
+        auto renderNode = mRenderNode.back().get();
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
 
-       VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity / 100 * 255);
-       renderNode->setBrush(fillBrush);
-       renderNode->mFlag |= VDrawable::DirtyState::Brush;
-   }
+        VBrush fillBrush(fillColor.r * 255, fillColor.g * 255,
+                         fillColor.b * 255, opacity / 100 * 255);
+        renderNode->setBrush(fillBrush);
+        renderNode->mFlag |= VDrawable::DirtyState::Brush;
+    }
 };
 
 class Object {

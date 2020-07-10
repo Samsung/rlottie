@@ -242,12 +242,12 @@ public:
 
     void parseGradientProperty(model::Gradient *gradient, const char *key);
 
-    void                         parseFonts();
-    void                         parseFont();
-    void                         parseChars();
-    void                         parseChar();
-    void                         parseCharData(model::Chars &obj);
-    void                         parseCharDataShape(VPath &obj);
+    void parseFonts();
+    void parseFont();
+    void parseChars();
+    void parseChar();
+    void parseCharData(model::Chars &obj);
+    void parseCharDataShape(VPath &obj);
 
     VPointF parseInperpolatorPoint();
 
@@ -287,7 +287,6 @@ public:
     void parseTextDocument(model::TextLayerData *obj);
     void parseTextAnimators(model::TextLayerData *obj);
     void parseText(model::TextLayerData *obj);
-
 
     model::Color toColor(const char *str);
 
@@ -690,9 +689,9 @@ void LottieParserImpl::parseComposition()
         } else if (0 == strcmp(key, "markers")) {
             parseMarkers();
         } else if (0 == strcmp(key, "fonts")) {
-             parseFonts();
+            parseFonts();
         } else if (0 == strcmp(key, "chars")) {
-             parseChars();
+            parseChars();
         } else {
 #ifdef DEBUG_PARSER
             vWarning << "Composition Attribute Skipped : " << key;
@@ -722,56 +721,58 @@ void LottieParserImpl::parseComposition()
  */
 void LottieParserImpl::parseTextProperties(model::TextDocument &obj)
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "s")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             obj.mTextProperties.mSize = GetInt();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTextProperties.mSize = GetInt();
         } else if (0 == strcmp(key, "f")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             obj.mTextProperties.mFont = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            obj.mTextProperties.mFont = std::string(GetString());
         } else if (0 == strcmp(key, "t")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             obj.mTextProperties.mText = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            obj.mTextProperties.mText = std::string(GetString());
         } else if (0 == strcmp(key, "j")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             int j = GetInt();
-             switch (j) {
-                case 0:
-                   obj.mTextProperties.mJustification = model::Justification::Left;
-                   break;
-                case 1:
-                   obj.mTextProperties.mJustification = model::Justification::Right;
-                   break;
-                case 2:
-                default:
-                   obj.mTextProperties.mJustification = model::Justification::Center;
-                   break;
-             }
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            int j = GetInt();
+            switch (j) {
+            case 0:
+                obj.mTextProperties.mJustification = model::Justification::Left;
+                break;
+            case 1:
+                obj.mTextProperties.mJustification =
+                    model::Justification::Right;
+                break;
+            case 2:
+            default:
+                obj.mTextProperties.mJustification =
+                    model::Justification::Center;
+                break;
+            }
         } else if (0 == strcmp(key, "tr")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             obj.mTextProperties.mTracking = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTextProperties.mTracking = GetDouble();
         } else if (0 == strcmp(key, "lh")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             obj.mTextProperties.mLineHeight = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTextProperties.mLineHeight = GetDouble();
         } else if (0 == strcmp(key, "ls")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             obj.mTextProperties.mBaselineShift = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTextProperties.mBaselineShift = GetDouble();
         } else if (0 == strcmp(key, "fc")) {
-             getValue(obj.mTextProperties.mFillColor);
+            getValue(obj.mTextProperties.mFillColor);
         } else if (0 == strcmp(key, "sc")) {
-             getValue(obj.mTextProperties.mStrokeColor);
+            getValue(obj.mTextProperties.mStrokeColor);
         } else if (0 == strcmp(key, "sw")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             obj.mTextProperties.mStrokeWidth = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            obj.mTextProperties.mStrokeWidth = GetDouble();
         } else if (0 == strcmp(key, "of")) {
-             obj.mTextProperties.mStrokeOverFill = GetBool();
+            obj.mTextProperties.mStrokeOverFill = GetBool();
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 /*
@@ -869,10 +870,10 @@ void LottieParserImpl::parseTextRangeSelection(model::TextAnimator &obj)
  */
 void LottieParserImpl::parseTextAnimators(model::TextLayerData *obj)
 {
-   RAPIDJSON_ASSERT(PeekType() == kArrayType);
-   EnterArray();
+    RAPIDJSON_ASSERT(PeekType() == kArrayType);
+    EnterArray();
 
-   while (NextArrayValue()) {
+    while (NextArrayValue()) {
         RAPIDJSON_ASSERT(PeekType() == kObjectType);
         EnterObject();
 
@@ -880,18 +881,18 @@ void LottieParserImpl::parseTextAnimators(model::TextLayerData *obj)
         model::TextAnimator &animatorObj = obj->mTextAnimator.back();
 
         while (const char *key = NextObjectKey()) {
-             if (0 == strcmp(key, "nm")) {
-                  RAPIDJSON_ASSERT(PeekType() == kStringType);
-                  animatorObj.mName = std::string(GetString());
-             } else if (0 == strcmp(key, "a")) {
-                  parseTextAnimatedProperties(animatorObj);
-             } else if (0 == strcmp(key, "s")) {
-                  parseTextRangeSelection(animatorObj);
-             } else {
-                  Skip(key);
-             }
+            if (0 == strcmp(key, "nm")) {
+                RAPIDJSON_ASSERT(PeekType() == kStringType);
+                animatorObj.mName = std::string(GetString());
+            } else if (0 == strcmp(key, "a")) {
+                parseTextAnimatedProperties(animatorObj);
+            } else if (0 == strcmp(key, "s")) {
+                parseTextRangeSelection(animatorObj);
+            } else {
+                Skip(key);
+            }
         }
-   }
+    }
 }
 
 /*
@@ -899,115 +900,115 @@ void LottieParserImpl::parseTextAnimators(model::TextLayerData *obj)
  */
 void LottieParserImpl::parseText(model::TextLayerData *obj)
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "d")) {
-             RAPIDJSON_ASSERT(PeekType() == kObjectType);
-             EnterObject();
+            RAPIDJSON_ASSERT(PeekType() == kObjectType);
+            EnterObject();
 
-             while (const char *dKey = NextObjectKey()) {
-                  if (0 == strcmp(dKey, "k")) {
-                       parseTextDocument(obj);
-                  } else {
-                       Skip(dKey);
-                  }
-             }
+            while (const char *dKey = NextObjectKey()) {
+                if (0 == strcmp(dKey, "k")) {
+                    parseTextDocument(obj);
+                } else {
+                    Skip(dKey);
+                }
+            }
         } else if (0 == strcmp(key, "a")) {
-             parseTextAnimators(obj);
+            parseTextAnimators(obj);
         } else if (0 == strcmp(key, "p")) {
-             Skip(key);
+            Skip(key);
         } else if (0 == strcmp(key, "m")) {
-             Skip(key);
+            Skip(key);
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 void LottieParserImpl::parseFont()
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   compRef->mFonts.emplace_back();
-   model::Fonts &fonts = compRef->mFonts.back();
+    compRef->mFonts.emplace_back();
+    model::Fonts &fonts = compRef->mFonts.back();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "fName")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             fonts.mFontName = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            fonts.mFontName = std::string(GetString());
         } else if (0 == strcmp(key, "fFamily")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             fonts.mFontFamily = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            fonts.mFontFamily = std::string(GetString());
         } else if (0 == strcmp(key, "fStyle")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             fonts.mFontStyle = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            fonts.mFontStyle = std::string(GetString());
         } else if (0 == strcmp(key, "ascent")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             fonts.mFontAscent = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            fonts.mFontAscent = GetDouble();
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 void LottieParserImpl::parseFonts()
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "list")) {
-             RAPIDJSON_ASSERT(PeekType() == kArrayType);
-             EnterArray();
-             while (NextArrayValue()) {
-                  parseFont();
-             }
+            RAPIDJSON_ASSERT(PeekType() == kArrayType);
+            EnterArray();
+            while (NextArrayValue()) {
+                parseFont();
+            }
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 void LottieParserImpl::parseCharDataShape(VPath &obj)
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "it")) {
-             RAPIDJSON_ASSERT(PeekType() == kArrayType);
-             EnterArray();
+            RAPIDJSON_ASSERT(PeekType() == kArrayType);
+            EnterArray();
 
-             while (NextArrayValue()) {
-                  RAPIDJSON_ASSERT(PeekType() == kObjectType);
-                  EnterObject();
+            while (NextArrayValue()) {
+                RAPIDJSON_ASSERT(PeekType() == kObjectType);
+                EnterObject();
 
-                  VPath pathItem;
-                  while (const char *itKey = NextObjectKey()) {
-                       if (0 == strcmp(itKey, "ks")) {
-                            RAPIDJSON_ASSERT(PeekType() == kObjectType);
-                            EnterObject();
+                VPath pathItem;
+                while (const char *itKey = NextObjectKey()) {
+                    if (0 == strcmp(itKey, "ks")) {
+                        RAPIDJSON_ASSERT(PeekType() == kObjectType);
+                        EnterObject();
 
-                            while (const char *ksKey = NextObjectKey()) {
-                                 if (0 == strcmp(ksKey, "k")) {
-                                      parsePathInfo();
-                                      mPathInfo.updatePath(obj);
-                                 } else {
-                                      Skip(ksKey);
-                                 }
+                        while (const char *ksKey = NextObjectKey()) {
+                            if (0 == strcmp(ksKey, "k")) {
+                                parsePathInfo();
+                                mPathInfo.updatePath(obj);
+                            } else {
+                                Skip(ksKey);
                             }
-                       } else {
-                            Skip(itKey);
-                       }
-                  }
-             }
+                        }
+                    } else {
+                        Skip(itKey);
+                    }
+                }
+            }
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 /*
@@ -1015,33 +1016,33 @@ void LottieParserImpl::parseCharDataShape(VPath &obj)
  */
 void LottieParserImpl::parseCharData(model::Chars &obj)
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "shapes")) {
-             // Instead of parsing a shape group,
-             // parse a shape data and save as a VPath.
-             //parseShapesAttr(obj.getShapesData());
+            // Instead of parsing a shape group,
+            // parse a shape data and save as a VPath.
+            // parseShapesAttr(obj.getShapesData());
 
-             RAPIDJSON_ASSERT(PeekType() == kArrayType);
-             EnterArray();
-             while (NextArrayValue()) {
-                  //obj.mShapesData.emplace_back();
-                  //model::PathData &shapeDataObj = obj.mShapesData.back();
-                  //
-                  //parseCharDataShape(shapeDataObj);
+            RAPIDJSON_ASSERT(PeekType() == kArrayType);
+            EnterArray();
+            while (NextArrayValue()) {
+                // obj.mShapesData.emplace_back();
+                // model::PathData &shapeDataObj = obj.mShapesData.back();
+                //
+                // parseCharDataShape(shapeDataObj);
 
-                  obj.mShapePathData.emplace_back();
-                  VPath &pathObj = obj.mShapePathData.back();
+                obj.mShapePathData.emplace_back();
+                VPath &pathObj = obj.mShapePathData.back();
 
-                  parseCharDataShape(pathObj);
-             }
+                parseCharDataShape(pathObj);
+            }
         } else {
-             printf("parseCharData - UNKNOWN KEY!\n");
-             Skip(key);
+            printf("parseCharData - UNKNOWN KEY!\n");
+            Skip(key);
         }
-   }
+    }
 }
 
 /*
@@ -1049,34 +1050,34 @@ void LottieParserImpl::parseCharData(model::Chars &obj)
  */
 void LottieParserImpl::parseChar()
 {
-   RAPIDJSON_ASSERT(PeekType() == kObjectType);
-   EnterObject();
+    RAPIDJSON_ASSERT(PeekType() == kObjectType);
+    EnterObject();
 
-   compRef->mChars.emplace_back();
-   model::Chars &chars = compRef->mChars.back();
+    compRef->mChars.emplace_back();
+    model::Chars &chars = compRef->mChars.back();
 
-   while (const char *key = NextObjectKey()) {
+    while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ch")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             chars.mCh = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            chars.mCh = std::string(GetString());
         } else if (0 == strcmp(key, "size")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             chars.mSize = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            chars.mSize = GetDouble();
         } else if (0 == strcmp(key, "style")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             chars.mStyle = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            chars.mStyle = std::string(GetString());
         } else if (0 == strcmp(key, "w")) {
-             RAPIDJSON_ASSERT(PeekType() == kNumberType);
-             chars.mWidth = GetDouble();
+            RAPIDJSON_ASSERT(PeekType() == kNumberType);
+            chars.mWidth = GetDouble();
         } else if (0 == strcmp(key, "data")) {
-             parseCharData(chars);
+            parseCharData(chars);
         } else if (0 == strcmp(key, "fFamily")) {
-             RAPIDJSON_ASSERT(PeekType() == kStringType);
-             chars.mFontFamily = std::string(GetString());
+            RAPIDJSON_ASSERT(PeekType() == kStringType);
+            chars.mFontFamily = std::string(GetString());
         } else {
-             Skip(key);
+            Skip(key);
         }
-   }
+    }
 }
 
 /*
@@ -1088,8 +1089,8 @@ void LottieParserImpl::parseChars()
     EnterArray();
 
     while (NextArrayValue()) {
-		parseChar();
-	}
+        parseChar();
+    }
 }
 
 void LottieParserImpl::parseMarker()

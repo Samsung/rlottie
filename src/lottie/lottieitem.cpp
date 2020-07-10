@@ -376,7 +376,7 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 }
 
 bool renderer::TextLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
-                                            LOTVariant &value)
+                                         LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
@@ -387,7 +387,6 @@ bool renderer::TextLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     }
     return false;
 }
-
 
 bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
                                          LOTVariant &value)
@@ -870,55 +869,63 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
     return {mDrawableList.data(), mDrawableList.size()};
 }
 
-renderer::TextLayer::TextLayer(model::Layer *layerData, VArenaAlloc* allocator)
+renderer::TextLayer::TextLayer(model::Layer *layerData, VArenaAlloc *allocator)
     : renderer::Layer(layerData),
       mRoot(allocator->make<renderer::Group>(nullptr, allocator))
 {
-   // TODO: Constructor
+    // TODO: Constructor
 }
 
 void renderer::TextLayer::updateContent()
 {
-   std::vector<LottieTextPath> textPathList;
-   model::LottieTextProperties ltp;
-   float curX = 0., curY = 0.;
-   int index = 0, numOfIndex;
+    std::vector<LottieTextPath> textPathList;
+    model::LottieTextProperties ltp;
+    float                       curX = 0., curY = 0.;
+    int                         index = 0, numOfIndex;
 
-   mRenderNode.clear();
+    mRenderNode.clear();
 
-   getTextPath(textPathList, frameNo());
-   getLottieTextProperties(ltp, frameNo());
-   numOfIndex = ltp.charAnimPropList.size();
+    getTextPath(textPathList, frameNo());
+    getLottieTextProperties(ltp, frameNo());
+    numOfIndex = ltp.charAnimPropList.size();
 
-   for (auto &textPath : textPathList) {
-       VMatrix m;
-       auto &charAnimProp = ltp.charAnimPropList.at(index++);
+    for (auto &textPath : textPathList) {
+        VMatrix m;
+        auto &  charAnimProp = ltp.charAnimPropList.at(index++);
 
-       // The animation properties could be less than actual number of characters.
-       // It is for reducing memory usage and for improving performance.
-       if (numOfIndex == index) index--;
+        // The animation properties could be less than actual number of
+        // characters. It is for reducing memory usage and for improving
+        // performance.
+        if (numOfIndex == index) index--;
 
-       m.translate(curX + textPath.x_advance / 2. * ltp.fontSize / 100. + charAnimProp.position.x(), curY + charAnimProp.position.y());
-       m.rotate(charAnimProp.rotation);
-       curX += textPath.x_advance * ltp.fontSize / 100. + charAnimProp.tracking;
-       m.translate(-charAnimProp.anchor - VPointF(textPath.x_advance / 2. * ltp.fontSize / 100., 0));
-       m.scale(ltp.fontSize / 100. * charAnimProp.scale.x() / 100, ltp.fontSize / 100. * charAnimProp.scale.y() / 100);
-       m = m * combinedMatrix();
-       textPath.path.transform(m);
+        m.translate(curX + textPath.x_advance / 2. * ltp.fontSize / 100. +
+                        charAnimProp.position.x(),
+                    curY + charAnimProp.position.y());
+        m.rotate(charAnimProp.rotation);
+        curX +=
+            textPath.x_advance * ltp.fontSize / 100. + charAnimProp.tracking;
+        m.translate(-charAnimProp.anchor -
+                    VPointF(textPath.x_advance / 2. * ltp.fontSize / 100., 0));
+        m.scale(ltp.fontSize / 100. * charAnimProp.scale.x() / 100,
+                ltp.fontSize / 100. * charAnimProp.scale.y() / 100);
+        m = m * combinedMatrix();
+        textPath.path.transform(m);
 
-       if (!ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
-           doStroke(textPath.path, charAnimProp.strokeColor, charAnimProp.opacity, charAnimProp.strokeWidth);
-       }
+        if (!ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+            doStroke(textPath.path, charAnimProp.strokeColor,
+                     charAnimProp.opacity, charAnimProp.strokeWidth);
+        }
 
-       doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
+        doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
 
-       if (ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
-           doStroke(textPath.path, charAnimProp.strokeColor, charAnimProp.opacity, charAnimProp.strokeWidth);
-       }
-   }
+        if (ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+            doStroke(textPath.path, charAnimProp.strokeColor,
+                     charAnimProp.opacity, charAnimProp.strokeWidth);
+        }
+    }
 }
 
-void renderer::TextLayer::preprocessStage(const VRect& clip)
+void renderer::TextLayer::preprocessStage(const VRect &clip)
 {
     mDrawableList.clear();
     auto renderlist = renderList();
@@ -933,11 +940,11 @@ renderer::DrawableList renderer::TextLayer::renderList()
     for (auto &renderNode : mRenderNode)
         mDrawableList.emplace_back((VDrawable *)renderNode.get());
 
-    return {mDrawableList.data() , mDrawableList.size()};
+    return {mDrawableList.data(), mDrawableList.size()};
 }
 
 bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
-                                         LOTVariant &value)
+                                     LOTVariant &value)
 {
     if (!keyPath.skip(name())) {
         if (!keyPath.matches(mModel.name(), depth)) {
