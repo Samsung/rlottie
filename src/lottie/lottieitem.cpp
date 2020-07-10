@@ -853,90 +853,41 @@ LOTTextLayerItem::LOTTextLayerItem(LOTLayerData *layerData, VArenaAlloc* allocat
 
 void LOTTextLayerItem::updateContent()
 {
-   LOTDrawable *renderNode;
    std::vector<LottieTextPath> textPathList;
-   float opacity;
-   float rotation;
-   float tracking;
-   float strokeWidth;
-   VPointF pos;
-   VPointF scale;
-   VPointF anchor;
-   LottieColor fillColor;
-   LottieColor strokeColor;
-   bool strokeOverFill;
+   LottieTextProperties ltp;
    float curX = 0., curY = 0.;
+   int index = 0, numOfIndex;
 
    mRenderNode.clear();
 
    getTextPath(textPathList, frameNo());
-
-   opacity = getTextOpacity(frameNo());
-   rotation = getTextRotation(frameNo());
-   tracking = getTextTracking(frameNo());
-   strokeWidth = getTextStrokeWidth(frameNo());
-   pos = getTextPosition(frameNo());
-   scale = getTextScale(frameNo());
-   anchor = getTextAnchor(frameNo());
-   fillColor = getTextFillColor(frameNo());
-   strokeColor = getTextStrokeColor(frameNo());
-   strokeOverFill = getTextStrokeOverFill(frameNo());
+   getLottieTextProperties(ltp, frameNo());
+   numOfIndex = ltp.charAnimPropList.size();
 
    for (auto &textPath : textPathList) {
        VMatrix m;
+       auto &charAnimProp = ltp.charAnimPropList.at(index++);
 
-       m.translate(curX + textPath.x_advance / 2. * textPath.size / 100. + pos.x(), curY + pos.y());
-       m.rotate(rotation);
-       curX += textPath.x_advance * textPath.size / 100. + tracking;
-       m.translate(-anchor - VPointF(textPath.x_advance / 2. * textPath.size / 100., 0));
-       m.scale(textPath.size / 100. * scale.x() / 100, textPath.size / 100. * scale.y() / 100);
+       // The animation properties could be less than actual number of characters.
+       // It is for reducing memory usage and for improving performance.
+       if (numOfIndex == index) index--;
+
+       m.translate(curX + textPath.x_advance / 2. * ltp.fontSize / 100. + charAnimProp.position.x(), curY + charAnimProp.position.y());
+       m.rotate(charAnimProp.rotation);
+       curX += textPath.x_advance * ltp.fontSize / 100. + charAnimProp.tracking;
+       m.translate(-charAnimProp.anchor - VPointF(textPath.x_advance / 2. * ltp.fontSize / 100., 0));
+       m.scale(ltp.fontSize / 100. * charAnimProp.scale.x() / 100, ltp.fontSize / 100. * charAnimProp.scale.y() / 100);
        m = m * combinedMatrix();
        textPath.path.transform(m);
 
-       if (!strokeOverFill && (strokeWidth != 0)) {
-           auto strokeDrawable = std::make_unique<LOTDrawable>();
-           mRenderNode.push_back(std::move(strokeDrawable));
-           renderNode = mRenderNode.back().get();
-
-           renderNode->setType(VDrawable::Type::Stroke);
-           renderNode->mFlag |= VDrawable::DirtyState::Path;
-           renderNode->mPath = textPath.path;
-
-           VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
-           renderNode->setBrush(strokeBrush);
-
-           // FIXME: The magic number 1.5!
-           renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
-                   10.0, strokeWidth * 1.5);
-           renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+       if (!ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+           doStroke(textPath.path, charAnimProp.strokeColor, charAnimProp.opacity, charAnimProp.strokeWidth);
        }
 
-       auto fillDrawable = std::make_unique<LOTDrawable>();
-       mRenderNode.push_back(std::move(fillDrawable));
-       renderNode = mRenderNode.back().get();
-       renderNode->mFlag |= VDrawable::DirtyState::Path;
-       renderNode->mPath = textPath.path;
+       doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
 
-       VBrush fillBrush(fillColor.r * 255, fillColor.g * 255, fillColor.b * 255, opacity / 100 * 255);
-       renderNode->setBrush(fillBrush);
-       renderNode->mFlag |= VDrawable::DirtyState::Brush;
-
-       if (strokeOverFill && (strokeWidth != 0)) {
-           auto strokeDrawable = std::make_unique<LOTDrawable>();
-           mRenderNode.push_back(std::move(strokeDrawable));
-           renderNode = mRenderNode.back().get();
-
-           renderNode->setType(VDrawable::Type::Stroke);
-           renderNode->mFlag |= VDrawable::DirtyState::Path;
-           renderNode->mPath = textPath.path;
-
-           VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255, strokeColor.b * 255, opacity / 100 * 255);
-           renderNode->setBrush(strokeBrush);
-
-           // FIXME: The magic number 1.5!
-           renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter,
-                   10.0, strokeWidth * 1.5);
-           renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+       if (ltp.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+           doStroke(textPath.path, charAnimProp.strokeColor, charAnimProp.opacity, charAnimProp.strokeWidth);
        }
    }
 }
