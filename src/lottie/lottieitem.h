@@ -331,7 +331,7 @@ protected:
     void updateContent() final;
 };
 
-class LottieTextPath {
+class CharPath {
 public:
     VPath path;
     float x_advance;
@@ -352,10 +352,12 @@ protected:
     model::TextDocument   curTextDocument;
     std::vector<std::unique_ptr<Drawable>> mRenderNode;
     std::vector<VDrawable *>               mDrawableList;
-    std::vector<LottieTextPath>            mLastTextPathList;
+    std::vector<CharPath>                  mCharPathList;
 
-    void getTextPath(std::vector<LottieTextPath> &textPathList, int frameNo)
+    void updateTextPath(int frameNo)
     {
+        mCharPathList.clear();
+
         curTextDocument =
             mLayerData->extra()->textLayer()->getTextDocument(frameNo);
         if (mLayerData->extra()->mCompRef &&
@@ -367,18 +369,14 @@ protected:
                         (mLayerData->extra()->mCompRef->compareFontFamily(
                              curTextDocument.mFont, charData.mFontFamily) ==
                          0)) {
-                        textPathList.emplace_back();
-                        auto &textPath = textPathList.back();
+                        mCharPathList.emplace_back();
+                        auto &charPath = mCharPathList.back();
 
-                        for (auto shapeData : charData.mShapePathData) {
-                            textPath.path.addPath(shapeData);
-                            break;
-                        }
-                        textPath.x_advance = charData.mWidth;
+                        charPath.path = charData.mShapePathData;
+                        charPath.x_advance = charData.mWidth;
                     }
                 }
             }
-            mLastTextPathList = textPathList;
         }
     }
 

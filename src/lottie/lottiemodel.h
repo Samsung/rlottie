@@ -665,7 +665,7 @@ public:
     std::string        mFontFamily;    /* fFamily */
     double             mSize;          /* size */
     double             mWidth;         /* w */
-    std::vector<VPath> mShapePathData; /* data */
+    VPath              mShapePathData; /* data */
 };
 
 class Layer;
