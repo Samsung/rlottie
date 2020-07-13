@@ -733,7 +733,7 @@ void LottieParserImpl::parseTextProperties(model::TextDocument &obj)
             obj.mFont = std::string(GetString());
         } else if (0 == strcmp(key, "t")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
-            obj.mText = std::string(GetString());
+            obj.mText.setUtf8Text(GetString());
         } else if (0 == strcmp(key, "j")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
             int j = GetInt();
@@ -1051,7 +1051,7 @@ void LottieParserImpl::parseChar()
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ch")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
-            chars.mCh = std::string(GetString());
+            chars.mCh.setUtf8Text(GetString());
         } else if (0 == strcmp(key, "size")) {
             RAPIDJSON_ASSERT(PeekType() == kNumberType);
             chars.mSize = GetDouble();

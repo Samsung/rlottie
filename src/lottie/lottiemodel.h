@@ -658,6 +658,206 @@ private:
     };
 };
 
+class Unicode {
+private:
+    std::unique_ptr<uint32_t[]> mUnicodeText;
+    std::string                 mUtf8Text;
+    unsigned int                mUnicodeLength{0};
+    inline bool isInvalidByte(unsigned char x) {
+        return ((x == 192) || (x == 193) || (x >= 245));
+    }
+
+    inline bool isContinuationByte(unsigned char x) {
+        return ((x & 0xc0) == 0x80);
+    }
+
+public:
+    Unicode() = default;
+
+    Unicode(std::string input) {
+        setUtf8Text(std::move(input));
+    };
+
+    using iterator = uint32_t *;
+    using const_iterator = const uint32_t *;
+
+    iterator       begin() const { return mUnicodeText.get(); }
+    iterator       end() const { return mUnicodeText.get() + mUnicodeLength; }
+
+    bool convertToUnicode(const std::string &input, std::vector<uint32_t> &out) {
+        out.reserve(input.size());
+
+        for (unsigned int i = 0; i < input.size(); i++) {
+            unsigned char d = input.at(i);
+            uint32_t r = 0;
+
+            // FIXME: Need to handle error cases.
+            if ((d & 0x80) == 0) {              // 1 byte
+                out.push_back((uint32_t)d);
+            } else if ((d & 0xe0) == 0xc0) {    // 2 bytes
+                r = (d & 0x1f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x7F) return false;
+                out.push_back(r);
+            } else if ((d & 0xf0) == 0xe0) {    // 3 bytes
+                r  = (d & 0x0f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x7FF) return false;
+                out.push_back(r);
+            } else if ((d & 0xf8) == 0xf0) {    // 4 bytes
+                r  = (d & 0x07) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0xFFFF) return false;
+                out.push_back(r);
+            } else if ((d & 0xfc) == 0xf8) {    // 5 bytes
+                r  = (d & 0x03) << 24;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x1FFFFF) return false;
+                out.push_back(r);
+            } else if ((d & 0xfe) == 0xfc) {    // 6 bytes
+                r  = (d & 0x01) << 30;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 24;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x3FFFFFF) return false;
+                out.push_back(r);
+            } else {
+                printf("ERROR....  UTF8 Text[%s], index[%d]\n",
+                        input.c_str(), i);
+                i++;
+            }
+        }
+
+        return true;
+    }
+
+    void setUtf8Text(std::string input) {
+        std::vector<uint32_t> out;
+
+        if (convertToUnicode(input, out)) {
+            mUtf8Text = std::move(input);
+
+            mUnicodeLength = out.size();
+            mUnicodeText = std::make_unique<uint32_t[]>(mUnicodeLength);
+            memcpy(mUnicodeText.get(), out.data(), sizeof(uint32_t) * mUnicodeLength);
+        }
+    }
+
+    const std::string &getUtf8Text() const {
+        return mUtf8Text;
+    }
+
+    uint32_t *getUnicodeText() const {
+        return mUnicodeText.get();
+    }
+
+    int compare(const Unicode &input) {
+        auto t = input.getUnicodeText();
+
+        for (unsigned int i = 0; i < mUnicodeLength; i++) {
+            if (mUnicodeText[i] != t[i])
+                return 1;
+        }
+        return 0;
+    }
+
+    unsigned int size() {
+        return mUnicodeLength;
+    }
+
+    uint32_t at(unsigned int i) {
+        assert(i < mUnicodeLength);
+        return mUnicodeText[i];
+    }
+};
+
 struct Asset {
     enum class Type : unsigned char { Precomp, Image, Char };
     bool                  isStatic() const { return mStatic; }
@@ -685,7 +885,7 @@ public:
 
 class Chars {
 public:
-    std::string        mCh;            /* ch */
+    Unicode            mCh;            /* ch */
     std::string        mStyle;         /* style */
     std::string        mFontFamily;    /* fFamily */
     double             mSize;          /* size */
@@ -886,7 +1086,7 @@ public:
     /* The folloing values are member of a object "s". */
     int           mSize{0};                            /* "s" */
     std::string   mFont;                               /* "f" */
-    std::string   mText;                               /* "t" */
+    Unicode       mText;                               /* "t" */
     Justification mJustification{Justification::Left}; /* "j" */
     float         mTracking{0.0};                      /* "tr" */
     float         mLineHeight{0.0};                    /* "lh" */
@@ -931,7 +1131,7 @@ public:
 
 class TextLayerData {
 private:
-    TextDocument textDocument(int frameNo)
+    TextDocument &textDocument(int frameNo)
     {
         for (auto &textDocument : mTextDocument) {
             if (textDocument.mTime >= frameNo)
@@ -944,7 +1144,7 @@ public:
     std::vector<TextDocument> mTextDocument;
     std::vector<TextAnimator> mTextAnimator;
 
-    TextDocument getTextDocument(int frameNo)
+    TextDocument &getTextDocument(int frameNo)
     {
         return textDocument(frameNo);
     }
@@ -966,7 +1166,7 @@ public:
 
     void getTextData(TextData &obj, int frameNo)
     {
-        auto textDocument = getTextDocument(frameNo);
+        auto &textDocument = getTextDocument(frameNo);
         int  textLength = textDocument.mText.size();
 
         // Non Animatable Properties & Common Text Properties
