@@ -390,7 +390,7 @@ protected:
     }
 
     void doStroke(VPath &path, model::Color &strokeColor, float opacity,
-                  float strokeWidth)
+                  float strokeWidth, float scale)
     {
         auto strokeDrawable = std::make_unique<Drawable>();
         mRenderNode.push_back(std::move(strokeDrawable));
@@ -406,7 +406,7 @@ protected:
 
         // FIXME: The magic number 1.5!
         renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter, 10.0,
-                                  strokeWidth * 1.5);
+                                  strokeWidth * scale * 1.5);
         renderNode->mFlag |= VDrawable::DirtyState::Stroke;
     }
 
