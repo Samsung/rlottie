@@ -893,14 +893,14 @@ void renderer::TextLayer::updateContent()
 
         if (!data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
-                     charAnimProp.opacity, charAnimProp.strokeWidth);
+                     charAnimProp.opacity, charAnimProp.strokeWidth, m.scale());
         }
 
         doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
 
         if (data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
-                     charAnimProp.opacity, charAnimProp.strokeWidth);
+                     charAnimProp.opacity, charAnimProp.strokeWidth, m.scale());
         }
     }
 }
