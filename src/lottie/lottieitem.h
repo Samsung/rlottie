@@ -349,7 +349,7 @@ protected:
     void                  preprocessStage(const VRect &clip) final;
     void                  updateContent() final;
     Group *               mRoot{nullptr};
-    model::TextDocument   curTextDocument;
+    model::TextDocument   *curTextDocument;
     std::vector<std::unique_ptr<Drawable>> mRenderNode;
     std::vector<VDrawable *>               mDrawableList;
     std::vector<CharPath>                  mCharPathList;
@@ -359,21 +359,22 @@ protected:
         mCharPathList.clear();
 
         curTextDocument =
-            mLayerData->extra()->textLayer()->getTextDocument(frameNo);
+            &mLayerData->extra()->textLayer()->getTextDocument(frameNo);
         if (mLayerData->extra()->mCompRef &&
             !mLayerData->extra()->mCompRef->mChars.empty()) {
-            for (auto textChar : curTextDocument.mText) {
-                for (auto charData : mLayerData->extra()->mCompRef->mChars) {
-                    if ((textChar == *charData.mCh.c_str()) &&
-                        (curTextDocument.mSize == charData.mSize) &&
+            for (auto character : curTextDocument->mText) {
+                for (auto &charData : mLayerData->extra()->mCompRef->mChars) {
+                    if ((character == charData.mCh.at(0)) &&
+                        (curTextDocument->mSize == charData.mSize) &&
                         (mLayerData->extra()->mCompRef->compareFontFamily(
-                             curTextDocument.mFont, charData.mFontFamily) ==
+                             curTextDocument->mFont, charData.mFontFamily) ==
                          0)) {
                         mCharPathList.emplace_back();
                         auto &charPath = mCharPathList.back();
 
                         charPath.path = charData.mShapePathData;
                         charPath.x_advance = charData.mWidth;
+                        break;
                     }
                 }
             }
