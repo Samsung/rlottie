@@ -871,6 +871,7 @@ void renderer::TextLayer::updateContent()
 
     for (auto &textPath : textPathList) {
         VMatrix m;
+        float strokeWidthScale;
         auto &  charAnimProp = data.charAnimPropList.at(index++);
 
         // The animation properties could be less than actual number of
@@ -886,21 +887,27 @@ void renderer::TextLayer::updateContent()
             textPath.x_advance * data.fontSize / 100. + charAnimProp.tracking;
         m.translate(-charAnimProp.anchor -
                     VPointF(textPath.x_advance / 2. * data.fontSize / 100., 0));
-        m.scale(data.fontSize / 100. * charAnimProp.scale.x() / 100,
-                data.fontSize / 100. * charAnimProp.scale.y() / 100);
+        m.scale(charAnimProp.scale.x() / 100.,
+                charAnimProp.scale.y() / 100.);
         m = m * combinedMatrix();
+
+        strokeWidthScale = m.scale();
+
+        m.scale(data.fontSize / 100.,
+                data.fontSize / 100.);
+
         textPath.path.transform(m);
 
         if (!data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
-                     charAnimProp.opacity, charAnimProp.strokeWidth, m.scale());
+                     charAnimProp.opacity, charAnimProp.strokeWidth, strokeWidthScale);
         }
 
         doFill(textPath.path, charAnimProp.fillColor, charAnimProp.opacity);
 
         if (data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
             doStroke(textPath.path, charAnimProp.strokeColor,
-                     charAnimProp.opacity, charAnimProp.strokeWidth, m.scale());
+                     charAnimProp.opacity, charAnimProp.strokeWidth, strokeWidthScale);
         }
     }
 }
