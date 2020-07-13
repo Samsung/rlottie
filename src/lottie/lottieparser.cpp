@@ -1028,15 +1028,7 @@ void LottieParserImpl::parseCharData(model::Chars &obj)
             RAPIDJSON_ASSERT(PeekType() == kArrayType);
             EnterArray();
             while (NextArrayValue()) {
-                // obj.mShapesData.emplace_back();
-                // model::PathData &shapeDataObj = obj.mShapesData.back();
-                //
-                // parseCharDataShape(shapeDataObj);
-
-                obj.mShapePathData.emplace_back();
-                VPath &pathObj = obj.mShapePathData.back();
-
-                parseCharDataShape(pathObj);
+                parseCharDataShape(obj.mShapePathData);
             }
         } else {
             printf("parseCharData - UNKNOWN KEY!\n");
