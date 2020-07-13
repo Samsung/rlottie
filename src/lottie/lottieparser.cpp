@@ -2168,7 +2168,7 @@ void LottieParserImpl::parseProperty(model::Property<T> &obj)
 
 #ifdef LOTTIE_DUMP_TREE_SUPPORT
 
-class model::ObjectInspector {
+class ObjectInspector {
 public:
     void visit(model::Composition *obj, std::string level)
     {
@@ -2296,7 +2296,7 @@ public:
         }
     }
 
-    std::string matteType(MatteType type)
+    std::string matteType(model::MatteType type)
     {
         switch (type) {
         case model::MatteType::None:
@@ -2319,7 +2319,7 @@ public:
             break;
         }
     }
-    std::string layerType(LayerType type)
+    std::string layerType(model::Layer::Type type)
     {
         switch (type) {
         case model::Layer::Type::Precomp:
@@ -2363,7 +2363,7 @@ std::shared_ptr<model::Composition> model::parse(char *             str,
             composition->updateStats();
 
 #ifdef LOTTIE_DUMP_TREE_SUPPORT
-            model::ObjectInspector inspector;
+            ObjectInspector inspector;
             inspector.visit(composition.get(), "");
 #endif
 
