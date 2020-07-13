@@ -426,9 +426,8 @@ protected:
                            strokeColor.b * 255, opacity / 100 * 255);
         renderNode->setBrush(strokeBrush);
 
-        // FIXME: The magic number 1.5!
         renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter, 10.0,
-                                  strokeWidth * scale * 1.5);
+                                  strokeWidth * scale);
         renderNode->mFlag |= VDrawable::DirtyState::Stroke;
     }
 
