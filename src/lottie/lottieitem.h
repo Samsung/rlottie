@@ -355,7 +355,7 @@ private:
 class CharPath {
 public:
     VPath path;
-    float x_advance;
+    float x_advance{0};
 };
 
 class TextLayer final : public Layer
@@ -382,23 +382,14 @@ protected:
 
         curTextDocument =
             &mLayerData->extra()->textLayer()->getTextDocument(frameNo);
-        if (mLayerData->extra()->mCompRef &&
-            !mLayerData->extra()->mCompRef->mChars.empty()) {
-            for (auto character : curTextDocument->mText) {
-                for (auto &charData : mLayerData->extra()->mCompRef->mChars) {
-                    if ((character == charData.mCh.at(0)) &&
-                        (curTextDocument->mSize == charData.mSize) &&
-                        (mLayerData->extra()->mCompRef->compareFontFamily(
-                             curTextDocument->mFont, charData.mFontFamily) ==
-                         0)) {
-                        mCharPathList.emplace_back();
-                        auto &charPath = mCharPathList.back();
-
-                        charPath.path = charData.mShapePathData;
-                        charPath.x_advance = charData.mWidth;
-                        break;
-                    }
-                }
+        auto fontDB = mLayerData->fontDB();
+        for (auto character : curTextDocument->mText) {
+            auto chars = fontDB->load(character, curTextDocument->mSize, curTextDocument->mFont);
+            if (chars) {
+                CharPath obj;
+                obj.path = chars->mOutline;
+                obj.x_advance = chars->mWidth;
+                mCharPathList.push_back(std::move(obj));
             }
         }
     }
