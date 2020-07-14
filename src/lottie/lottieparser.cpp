@@ -921,9 +921,7 @@ void LottieParserImpl::parseFont()
     RAPIDJSON_ASSERT(PeekType() == kObjectType);
     EnterObject();
 
-    compRef->mFonts.emplace_back();
-    model::Fonts &fonts = compRef->mFonts.back();
-
+    model::Fonts fonts;
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "fName")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
@@ -941,6 +939,7 @@ void LottieParserImpl::parseFont()
             Skip(key);
         }
     }
+    compRef->mFontDB.mFonts.push_back(std::move(fonts));
 }
 
 void LottieParserImpl::parseFonts()
@@ -1017,7 +1016,7 @@ void LottieParserImpl::parseCharData(model::Chars &obj)
             RAPIDJSON_ASSERT(PeekType() == kArrayType);
             EnterArray();
             while (NextArrayValue()) {
-                parseCharDataShape(obj.mShapePathData);
+                parseCharDataShape(obj.mOutline);
             }
         } else {
             printf("parseCharData - UNKNOWN KEY!\n");
@@ -1034,9 +1033,7 @@ void LottieParserImpl::parseChar()
     RAPIDJSON_ASSERT(PeekType() == kObjectType);
     EnterObject();
 
-    compRef->mChars.emplace_back();
-    model::Chars &chars = compRef->mChars.back();
-
+    model::Chars chars;
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ch")) {
             RAPIDJSON_ASSERT(PeekType() == kStringType);
@@ -1059,6 +1056,7 @@ void LottieParserImpl::parseChar()
             Skip(key);
         }
     }
+    compRef->mFontDB.mChars.push_back(std::move(chars));
 }
 
 /*

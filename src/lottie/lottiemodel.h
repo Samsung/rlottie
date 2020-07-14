@@ -823,11 +823,11 @@ public:
         return 0;
     }
 
-    unsigned int size() {
+    unsigned int size() const {
         return mUnicodeLength;
     }
 
-    uint32_t at(unsigned int i) {
+    uint32_t at(unsigned int i) const{
         assert(i < mUnicodeLength);
         return mUnicodeText[i];
     }
@@ -865,8 +865,45 @@ public:
     std::string        mFontFamily;    /* fFamily */
     double             mSize;          /* size */
     double             mWidth;         /* w */
-    VPath              mShapePathData; /* data */
+    VPath              mOutline; /* data */
 };
+
+class FontDB
+{
+public:
+    const Chars* load(uint32_t charCode, int size, const std::string& fname) const
+    {
+        if (mChars.empty()) return nullptr;
+
+
+        auto family = ffamily(fname);
+        if (!family) return nullptr;
+
+        return chars(charCode, size, *family);
+    }
+private:
+    const Chars* chars(uint32_t charCode, int size, const std::string& ffamily) const
+    {
+        for (const auto & obj : mChars) {
+            if (size == (int)obj.mSize &&
+                charCode == obj.mCh.at(0) &&
+                obj.mFontFamily == ffamily ) return &obj;
+        }
+        return nullptr;
+    }
+    const std::string* ffamily(const std::string& fname) const
+    {
+        for (const auto & obj : mFonts) {
+            if (fname == obj.mFontName) return &obj.mFontFamily;
+        }
+
+        return nullptr;
+    }
+public:
+    std::vector<Fonts>  mFonts;
+    std::vector<Chars>  mChars;
+};
+
 
 class Layer;
 
@@ -898,16 +935,6 @@ public:
     void   processRepeaterObjects();
     void   updateStats();
 
-    int compareFontFamily(std::string fName, std::string fFamily)
-    {
-        for (auto &fontData : mFonts) {
-            if (fontData.mFontName.compare(fName) == 0) {
-                return fontData.mFontFamily.compare(fFamily);
-            }
-        }
-        return 1;  // 1=fail, 0=success
-    }
-
 public:
     struct Stats {
         uint16_t precompLayerCount{0};
@@ -928,8 +955,7 @@ public:
     std::unordered_map<std::string, Asset *> mAssets;
 
     std::vector<Marker> mMarkers;
-    std::vector<Fonts>  mFonts;
-    std::vector<Chars>  mChars;
+    FontDB              mFontDB;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
 };
@@ -1295,6 +1321,10 @@ public:
     {
         if (!mExtra) mExtra = std::make_unique<Layer::Extra>();
         return mExtra.get();
+    }
+
+    const FontDB* fontDB() const {
+        return mExtra ? &mExtra->mCompRef->mFontDB : nullptr;
     }
 
 public:
