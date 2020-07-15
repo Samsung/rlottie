@@ -1,16 +1,16 @@
-/* 
+/*
  * Copyright (c) 2018 Samsung Electronics Co., Ltd. All rights reserved.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -168,56 +168,78 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
 {
     va_list prop;
     va_start(prop, keypath);
+    const int arg_count = [type](){
+                             switch (type) {
+                              case LOTTIE_ANIMATION_PROPERTY_FILLCOLOR:
+                              case LOTTIE_ANIMATION_PROPERTY_STROKECOLOR:
+                                return 3;
+                              case LOTTIE_ANIMATION_PROPERTY_FILLOPACITY:
+                              case LOTTIE_ANIMATION_PROPERTY_STROKEOPACITY:
+                              case LOTTIE_ANIMATION_PROPERTY_STROKEWIDTH:
+                              case LOTTIE_ANIMATION_PROPERTY_TR_ROTATION:
+                                return 1;
+                              case LOTTIE_ANIMATION_PROPERTY_TR_POSITION:
+                              case LOTTIE_ANIMATION_PROPERTY_TR_SCALE:
+                                return 2;
+                              default:
+                                return 0;
+                             }
+                          }();
+    double v[3] = {0};
+    for (int i = 0; i < arg_count ; i++) {
+      v[i] = va_arg(prop, double);
+    }
+    va_end(prop);
 
     switch(type) {
     case LOTTIE_ANIMATION_PROPERTY_FILLCOLOR: {
-        double r = va_arg(prop, double);
-        double g = va_arg(prop, double);
-        double b = va_arg(prop, double);
+        double r = v[0];
+        double g = v[1];
+        double b = v[2];
         if (r > 1 || r < 0 || g > 1 || g < 0 || b > 1 || b < 0) break;
         animation->mAnimation->setValue<rlottie::Property::FillColor>(keypath, rlottie::Color(r, g, b));
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_FILLOPACITY: {
-        double opacity = va_arg(prop, double);
+        double opacity = v[0];
         if (opacity > 100 || opacity < 0) break;
         animation->mAnimation->setValue<rlottie::Property::FillOpacity>(keypath, (float)opacity);
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_STROKECOLOR: {
-        double r = va_arg(prop, double);
-        double g = va_arg(prop, double);
-        double b = va_arg(prop, double);
+        double r = v[0];
+        double g = v[1];
+        double b = v[2];
         if (r > 1 || r < 0 || g > 1 || g < 0 || b > 1 || b < 0) break;
         animation->mAnimation->setValue<rlottie::Property::StrokeColor>(keypath, rlottie::Color(r, g, b));
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_STROKEOPACITY: {
-        double opacity = va_arg(prop, double);
+        double opacity = v[0];
         if (opacity > 100 || opacity < 0) break;
         animation->mAnimation->setValue<rlottie::Property::StrokeOpacity>(keypath, (float)opacity);
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_STROKEWIDTH: {
-        double width = va_arg(prop, double);
+        double width = v[0];
         if (width < 0) break;
         animation->mAnimation->setValue<rlottie::Property::StrokeWidth>(keypath, (float)width);
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_TR_POSITION: {
-        double x = va_arg(prop, double);
-        double y = va_arg(prop, double);
+        double x = v[0];
+        double y = v[1];
         animation->mAnimation->setValue<rlottie::Property::TrPosition>(keypath, rlottie::Point((float)x, (float)y));
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_TR_SCALE: {
-        double w = va_arg(prop, double);
-        double h = va_arg(prop, double);
+        double w = v[0];
+        double h = v[1];
         animation->mAnimation->setValue<rlottie::Property::TrScale>(keypath, rlottie::Size((float)w, (float)h));
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_TR_ROTATION: {
-        double r = va_arg(prop, double);
+        double r = v[0];
         animation->mAnimation->setValue<rlottie::Property::TrRotation>(keypath, (float)r);
         break;
     }
@@ -226,7 +248,6 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
         //@TODO handle propery update.
         break;
     }
-    va_end(prop);
 }
 
 LOT_EXPORT const LOTMarkerList*
