@@ -7,7 +7,7 @@
 
 Name:           rlottie
 Version:        0.0.1
-Release:        %mkrel -c %{?git:git%{git}} %{rel}
+Release:        %mkrel %{?git:-c git%{git}} %{rel}
 Summary:        Platform independent standalone library that plays Lottie Animation
 Group:          System/Libraries
 License:        LGPLv2+ and BSD and MIT
