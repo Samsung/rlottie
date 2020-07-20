@@ -22,12 +22,12 @@
 
 #include "lottiemodel.h"
 
+using namespace rlottie::internal;
+
 #ifdef LOTTIE_CACHE_SUPPORT
 
 #include <mutex>
 #include <unordered_map>
-
-using namespace rlottie::internal;
 
 class ModelCache {
 public:
