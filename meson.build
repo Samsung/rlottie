@@ -16,8 +16,6 @@ config_h = configuration_data()
 
 if get_option('thread') == true
     config_h.set10('LOTTIE_THREAD_SUPPORT', true)
-else
-    config_h.set('thread_local', true)
 endif
 
 if get_option('module') == true

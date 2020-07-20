@@ -1251,7 +1251,7 @@ renderer::Stroke::Stroke(model::Stroke *data)
     }
 }
 
-static thread_local std::vector<float> Dash_Vector;
+static vthread_local std::vector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
                                      float alpha)
