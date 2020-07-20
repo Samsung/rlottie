@@ -4,18 +4,23 @@
 [![Build Status](https://travis-ci.org/Samsung/rlottie.svg?branch=master)](https://travis-ci.org/Samsung/rlottie)
 [![Build status](https://ci.appveyor.com/api/projects/status/n3xonxk1ooo6s7nr?svg=true&passingText=windows%20-%20passing)](https://ci.appveyor.com/project/smohantty/rlottie-mliua)
 
+<p align="center">
+  <img width="320" height="320" src="https://github.com/Samsung/rlottie/blob/master/.Gifs/logo.png">
+</p>
 
 rlottie is a platform independent standalone c++ library for rendering vector based animations and art in realtime.
 
 Lottie loads and renders animations and vectors exported in the bodymovin JSON format. Bodymovin JSON can be created and exported from After Effects with [bodymovin](https://github.com/bodymovin/bodymovin), Sketch with [Lottie Sketch Export](https://github.com/buba447/Lottie-Sketch-Export), and from [Haiku](https://www.haiku.ai).
 
-For the first time, designers can create and ship beautiful animations without an engineer painstakingly recreating it by hand. Since the animation is backed by JSON they are extremely small in size but can be large in complexity! 
+For the first time, designers can create and ship beautiful animations without an engineer painstakingly recreating it by hand. Since the animation is backed by JSON they are extremely small in size but can be large in complexity!
 
 Here are small samples of the power of Lottie.
 
-![Example1](.Gifs/1.gif)
-![Example2](.Gifs/2.gif)
-![Example2](https://github.com/airbnb/lottie-ios/blob/master/_Gifs/Examples1.gif)
+<p align="center">
+  <img src="https://github.com/Samsung/rlottie/blob/master/.Gifs/1.gif">
+  <img src="https://github.com/Samsung/rlottie/blob/master/.Gifs/2.gif">
+  <img src="https://github.com/airbnb/lottie-ios/blob/master/_Gifs/Examples1.gif">
+</p>
 
 ## Contents
 - [Building Lottie](#building-lottie)
