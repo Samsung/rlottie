@@ -37,6 +37,16 @@ rlottie_dep = declare_dependency(
                                  include_directories: inc,
                                  link_with : rlottie_lib)
 
+if (cc.get_id() == 'emscripten')
+
+  subdir('wasm')
+
+  executable('rlottie-wasm',
+              [],
+              dependencies : [rlottie_dep, rlottie_wasm_dep],
+            )
+endif
+
 pkg_mod = import('pkgconfig')
 
 pkg_mod.generate( libraries   : rlottie_lib,
