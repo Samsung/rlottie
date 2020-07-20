@@ -730,7 +730,7 @@ VRle VRle::toRle(const VRect &rect)
  * this function is thread safe as it uses thread_local variable
  * which is unique per thread.
  */
-static thread_local VRle::VRleData Scratch_Object;
+static vthread_local VRle::VRleData Scratch_Object;
 
 void VRle::operator&=(const VRle &o)
 {
