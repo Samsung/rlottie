@@ -8,7 +8,7 @@ source_file = [
     'vbrush.cpp',
     'vbitmap.cpp',
     'vpainter.cpp',
-    'vcompositionfunctions.cpp',
+    'vdrawhelper_common.cpp',
     'vdrawhelper.cpp',
     'vdrawhelper_sse2.cpp',
     'vdrawhelper_neon.cpp',

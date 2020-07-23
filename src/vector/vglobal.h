@@ -274,7 +274,8 @@ enum class BlendMode {
     Src,
     SrcOver,
     DestIn,
-    DestOut
+    DestOut,
+    Last,
 };
 
 #ifndef V_CONSTRUCTOR_FUNCTION
