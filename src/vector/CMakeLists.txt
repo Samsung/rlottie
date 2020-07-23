@@ -10,7 +10,7 @@ target_sources(rlottie
         "${CMAKE_CURRENT_LIST_DIR}/vbrush.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vbitmap.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vpainter.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/vcompositionfunctions.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/vdrawhelper_common.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vdrawhelper.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vdrawhelper_sse2.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/vdrawhelper_neon.cpp"

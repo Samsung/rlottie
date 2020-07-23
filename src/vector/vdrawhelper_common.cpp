@@ -16,22 +16,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
+#include <cstring>
 #include "vdrawhelper.h"
 
 /*
-  result = s
-  dest = s * ca + d * cia
+result = s
+dest = s * ca + d * cia
 */
-static void comp_func_solid_Source(uint32_t *dest, int length, uint32_t color,
-                            uint32_t const_alpha)
+static void color_Source(uint32_t *dest, int length, uint32_t color,
+                         uint32_t alpha)
 {
     int ialpha, i;
 
-    if (const_alpha == 255) {
+    if (alpha == 255) {
         memfill32(dest, color, length);
     } else {
-        ialpha = 255 - const_alpha;
-        color = BYTE_MUL(color, const_alpha);
+        ialpha = 255 - alpha;
+        color = BYTE_MUL(color, alpha);
         for (i = 0; i < length; ++i)
             dest[i] = color + BYTE_MUL(dest[i], ialpha);
     }
@@ -45,13 +46,12 @@ static void comp_func_solid_Source(uint32_t *dest, int length, uint32_t color,
        = s * ca + d * (1 - sa*ca)
        = s' + d ( 1 - s'a)
 */
-static void comp_func_solid_SourceOver(uint32_t *dest, int length,
-                                       uint32_t color,
-                                uint32_t const_alpha)
+static void color_SourceOver(uint32_t *dest, int length, uint32_t color,
+                             uint32_t alpha)
 {
     int ialpha, i;
 
-    if (const_alpha != 255) color = BYTE_MUL(color, const_alpha);
+    if (alpha != 255) color = BYTE_MUL(color, alpha);
     ialpha = 255 - vAlpha(color);
     for (i = 0; i < length; ++i) dest[i] = color + BYTE_MUL(dest[i], ialpha);
 }
@@ -61,12 +61,12 @@ static void comp_func_solid_SourceOver(uint32_t *dest, int length,
   dest = d * sa * ca + d * cia
        = d * (sa * ca + cia)
 */
-static void comp_func_solid_DestinationIn(uint *dest, int length, uint color,
-                                          uint const_alpha)
+static void color_DestinationIn(uint *dest, int length, uint color,
+                                uint alpha)
 {
     uint a = vAlpha(color);
-    if (const_alpha != 255) {
-        a = BYTE_MUL(a, const_alpha) + 255 - const_alpha;
+    if (alpha != 255) {
+        a = BYTE_MUL(a, alpha) + 255 - alpha;
     }
     for (int i = 0; i < length; ++i) {
         dest[i] = BYTE_MUL(dest[i], a);
@@ -78,26 +78,26 @@ static void comp_func_solid_DestinationIn(uint *dest, int length, uint color,
   dest = d * sia * ca + d * cia
        = d * (sia * ca + cia)
 */
-static void comp_func_solid_DestinationOut(uint *dest, int length, uint color,
-                                           uint const_alpha)
+static void color_DestinationOut(uint *dest, int length, uint color,
+                                 uint alpha)
 {
     uint a = vAlpha(~color);
-    if (const_alpha != 255) a = BYTE_MUL(a, const_alpha) + 255 - const_alpha;
+    if (alpha != 255) a = BYTE_MUL(a, alpha) + 255 - alpha;
     for (int i = 0; i < length; ++i) {
         dest[i] = BYTE_MUL(dest[i], a);
     }
 }
 
-static void comp_func_Source(uint32_t *dest, const uint32_t *src, int length,
-                      uint32_t const_alpha)
+static void src_Source(uint32_t *dest, int length, const uint32_t *src,
+                       uint32_t alpha)
 {
-    if (const_alpha == 255) {
+    if (alpha == 255) {
         memcpy(dest, src, size_t(length) * sizeof(uint));
     } else {
-        uint ialpha = 255 - const_alpha;
+        uint ialpha = 255 - alpha;
         for (int i = 0; i < length; ++i) {
             dest[i] =
-                INTERPOLATE_PIXEL_255(src[i], const_alpha, dest[i], ialpha);
+                interpolate_pixel(src[i], alpha, dest[i], ialpha);
         }
     }
 }
@@ -105,13 +105,12 @@ static void comp_func_Source(uint32_t *dest, const uint32_t *src, int length,
 /* s' = s * ca
  * d' = s' + d (1 - s'a)
  */
-static void comp_func_SourceOver(uint32_t *dest, const uint32_t *src,
-                                 int length,
-                          uint32_t const_alpha)
+static void src_SourceOver(uint32_t *dest, int length, const uint32_t *src,
+                           uint32_t alpha)
 {
     uint s, sia;
 
-    if (const_alpha == 255) {
+    if (alpha == 255) {
         for (int i = 0; i < length; ++i) {
             s = src[i];
             if (s >= 0xff000000)
@@ -126,51 +125,61 @@ static void comp_func_SourceOver(uint32_t *dest, const uint32_t *src,
          * dest = source' + dest ( 1- source'a)
          */
         for (int i = 0; i < length; ++i) {
-            s = BYTE_MUL(src[i], const_alpha);
+            s = BYTE_MUL(src[i], alpha);
             sia = vAlpha(~s);
             dest[i] = s + BYTE_MUL(dest[i], sia);
         }
     }
 }
 
-static void comp_func_DestinationIn(uint *dest, const uint *src, int length,
-                             uint const_alpha)
+static void src_DestinationIn(uint *dest, int length, const uint *src,
+                              uint alpha)
 {
-    if (const_alpha == 255) {
+    if (alpha == 255) {
         for (int i = 0; i < length; ++i) {
             dest[i] = BYTE_MUL(dest[i], vAlpha(src[i]));
         }
     } else {
-        uint cia = 255 - const_alpha;
+        uint cia = 255 - alpha;
         for (int i = 0; i < length; ++i) {
-            uint a = BYTE_MUL(vAlpha(src[i]), const_alpha) + cia;
+            uint a = BYTE_MUL(vAlpha(src[i]), alpha) + cia;
             dest[i] = BYTE_MUL(dest[i], a);
         }
     }
 }
 
-static void comp_func_DestinationOut(uint *dest, const uint *src, int length,
-                              uint const_alpha)
+static void src_DestinationOut(uint *dest, int length, const uint *src,
+                               uint alpha)
 {
-    if (const_alpha == 255) {
+    if (alpha == 255) {
         for (int i = 0; i < length; ++i) {
             dest[i] = BYTE_MUL(dest[i], vAlpha(~src[i]));
         }
     } else {
-        uint cia = 255 - const_alpha;
+        uint cia = 255 - alpha;
         for (int i = 0; i < length; ++i) {
-            uint sia = BYTE_MUL(vAlpha(~src[i]), const_alpha) + cia;
+            uint sia = BYTE_MUL(vAlpha(~src[i]), alpha) + cia;
             dest[i] = BYTE_MUL(dest[i], sia);
         }
     }
 }
 
-CompositionFunctionSolid COMP_functionForModeSolid_C[] = {
-    comp_func_solid_Source, comp_func_solid_SourceOver,
-    comp_func_solid_DestinationIn, comp_func_solid_DestinationOut};
+RenderFuncTable::RenderFuncTable()
+{
+    updateColor(BlendMode::Src, color_Source);
+    updateColor(BlendMode::SrcOver, color_SourceOver);
+    updateColor(BlendMode::DestIn, color_DestinationIn);
+    updateColor(BlendMode::DestOut, color_DestinationOut);
 
-CompositionFunction COMP_functionForMode_C[] = {
-    comp_func_Source, comp_func_SourceOver, comp_func_DestinationIn,
-    comp_func_DestinationOut};
+    updateSrc(BlendMode::Src, src_Source);
+    updateSrc(BlendMode::SrcOver, src_SourceOver);
+    updateSrc(BlendMode::DestIn, src_DestinationIn);
+    updateSrc(BlendMode::DestOut, src_DestinationOut);
 
-void vInitBlendFunctions() {}
+#if defined(__ARM_NEON__)
+    neon();
+#endif
+#if defined(__SSE2__)
+    sse();
+#endif
+}

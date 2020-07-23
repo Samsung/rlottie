@@ -78,7 +78,7 @@ void VPainter::drawBitmapUntransform(const VRect &  target,
                                          const VRect &  source,
                                          uint8_t        const_alpha)
 {
-    mSpanData.initTexture(&bitmap, const_alpha, VBitmapData::Plain, source);
+    mSpanData.initTexture(&bitmap, const_alpha, source);
     if (!mSpanData.mUnclippedBlendFunc) return;
     mSpanData.dx = float(-target.x());
     mSpanData.dy = float(-target.y());
