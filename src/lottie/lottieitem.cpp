@@ -844,7 +844,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
         if (!keyPath.skip(mModel.name())) {
             if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
                 transformProp(value.property())) {
-                mModel.filter().addValue(value);
+                mModel.filter()->addValue(value);
             }
         }
     }
@@ -867,7 +867,7 @@ bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 
     if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
         fillProp(value.property())) {
-        mModel.filter().addValue(value);
+        mModel.filter()->addValue(value);
         return true;
     }
     return false;
@@ -882,7 +882,7 @@ bool renderer::Stroke::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
 
     if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
         strokeProp(value.property())) {
-        mModel.filter().addValue(value);
+        mModel.filter()->addValue(value);
         return true;
     }
     return false;
