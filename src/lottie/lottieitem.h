@@ -23,7 +23,7 @@
 #include <sstream>
 
 #include "lottiekeypath.h"
-#include "lottieproxymodel.h"
+#include "lottiefiltermodel.h"
 #include "rlottie.h"
 #include "rlottiecommon.h"
 #include "varenaalloc.h"
@@ -389,7 +389,7 @@ protected:
     VMatrix               mMatrix;
 
 private:
-    LOTProxyModel<model::Group> mModel;
+    model::Filter<model::Group> mModel;
 };
 
 class Shape : public Object {
@@ -530,7 +530,7 @@ protected:
                         LOTVariant &value) final;
 
 private:
-    LOTProxyModel<model::Fill> mModel;
+    model::Filter<model::Fill> mModel;
 };
 
 class GradientFill : public Paint {
@@ -555,7 +555,7 @@ protected:
                         LOTVariant &value) final;
 
 private:
-    LOTProxyModel<model::Stroke> mModel;
+    model::Filter<model::Stroke> mModel;
 };
 
 class GradientStroke : public Paint {

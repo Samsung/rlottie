@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef LOTTIEPROXYMODEL_H
-#define LOTTIEPROXYMODEL_H
+#ifndef LOTTIEFILTERMODEL_H
+#define LOTTIEFILTERMODEL_H
 
 #include <algorithm>
 #include <bitset>
@@ -224,7 +224,13 @@ private:
     } impl;
 };
 
-class LOTFilter {
+namespace rlottie {
+
+namespace internal {
+
+namespace model {
+
+class FilterData {
 public:
     void addValue(LOTVariant& value)
     {
@@ -301,100 +307,125 @@ private:
 };
 
 template <typename T>
-class LOTProxyModel {
+struct FilterBase
+{
+    FilterBase(T *model): model_(model){}
+
+    const char*  name() const { return model_->name(); }
+
+    FilterData* filter() {
+        if (!filterData_) filterData_ = std::make_unique<FilterData>();
+        return filterData_.get();
+    }
+
+    const FilterData * filter() const { return filterData_.get(); }
+    const T* model() const { return model_;}
+
+    bool hasFilter(rlottie::Property prop) const {
+        return filterData_ ? filterData_->hasFilter(prop)
+                         : false;
+    }
+
+    T*                           model_{nullptr};
+    std::unique_ptr<FilterData>  filterData_{nullptr};
+};
+
+
+template <typename T>
+class Filter : public FilterBase<T> {
 public:
-    LOTProxyModel(T* model) : _modelData(model) {}
-    LOTFilter&   filter() { return mFilter; }
-    const char*  name() const { return _modelData->name(); }
+    Filter(T* model): FilterBase<T>(model){}
     model::Color color(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::StrokeColor)) {
-            return mFilter.color(rlottie::Property::StrokeColor, frame);
+        if (this->hasFilter(rlottie::Property::StrokeColor)) {
+            return this->filter()->color(rlottie::Property::StrokeColor, frame);
         }
-        return _modelData->color(frame);
+        return this->model()->color(frame);
     }
     float opacity(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::StrokeOpacity)) {
-            return mFilter.opacity(rlottie::Property::StrokeOpacity, frame);
+        if (this->hasFilter(rlottie::Property::StrokeOpacity)) {
+            return this->filter()->opacity(rlottie::Property::StrokeOpacity, frame);
         }
-        return _modelData->opacity(frame);
+        return this->model()->opacity(frame);
     }
+
     float strokeWidth(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::StrokeWidth)) {
-            return mFilter.value(rlottie::Property::StrokeWidth, frame);
+        if (this->hasFilter(rlottie::Property::StrokeWidth)) {
+            return this->filter()->value(rlottie::Property::StrokeWidth, frame);
         }
-        return _modelData->strokeWidth(frame);
+        return this->model()->strokeWidth(frame);
     }
-    float     miterLimit() const { return _modelData->miterLimit(); }
-    CapStyle  capStyle() const { return _modelData->capStyle(); }
-    JoinStyle joinStyle() const { return _modelData->joinStyle(); }
-    bool      hasDashInfo() const { return _modelData->hasDashInfo(); }
+
+    float     miterLimit() const { return this->model()->miterLimit(); }
+    CapStyle  capStyle() const { return this->model()->capStyle(); }
+    JoinStyle joinStyle() const { return this->model()->joinStyle(); }
+    bool      hasDashInfo() const { return this->model()->hasDashInfo(); }
     void      getDashInfo(int frameNo, std::vector<float>& result) const
     {
-        return _modelData->getDashInfo(frameNo, result);
+        return this->model()->getDashInfo(frameNo, result);
     }
-
-private:
-    T*        _modelData;
-    LOTFilter mFilter;
 };
 
+
 template <>
-class LOTProxyModel<model::Fill> {
+class Filter<model::Fill>: public FilterBase<model::Fill>
+{
 public:
-    LOTProxyModel(model::Fill* model) : _modelData(model) {}
-    LOTFilter&   filter() { return mFilter; }
-    const char*  name() const { return _modelData->name(); }
+    Filter(model::Fill* model) : FilterBase<model::Fill>(model) {}
+
     model::Color color(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::FillColor)) {
-            return mFilter.color(rlottie::Property::FillColor, frame);
+        if (this->hasFilter(rlottie::Property::FillColor)) {
+            return this->filter()->color(rlottie::Property::FillColor, frame);
         }
-        return _modelData->color(frame);
+        return this->model()->color(frame);
     }
+
     float opacity(int frame) const
     {
-        if (mFilter.hasFilter(rlottie::Property::FillOpacity)) {
-            return mFilter.opacity(rlottie::Property::FillOpacity, frame);
+        if (this->hasFilter(rlottie::Property::FillOpacity)) {
+            return this->filter()->opacity(rlottie::Property::FillOpacity, frame);
         }
-        return _modelData->opacity(frame);
+        return this->model()->opacity(frame);
     }
-    FillRule fillRule() const { return _modelData->fillRule(); }
 
-private:
-    model::Fill* _modelData;
-    LOTFilter    mFilter;
+    FillRule fillRule() const { return this->model()->fillRule(); }
 };
 
 template <>
-class LOTProxyModel<model::Group> {
+class Filter<model::Group> : public FilterBase<model::Group>
+{
 public:
-    LOTProxyModel(model::Group* model = nullptr) : _modelData(model) {}
-    bool              hasModel() const { return _modelData ? true : false; }
-    LOTFilter&        filter() { return mFilter; }
-    const char*       name() const { return _modelData->name(); }
-    model::Transform* transform() const { return _modelData->mTransform; }
+    Filter(model::Group* model = nullptr) : FilterBase<model::Group>(model) {}
+
+    bool   hasModel() const { return this->model() ? true : false; }
+
+    model::Transform* transform() const { return this->model() ? this->model()->mTransform : nullptr; }
     VMatrix           matrix(int frame) const
     {
         VMatrix mS, mR, mT;
-        if (mFilter.hasFilter(rlottie::Property::TrScale)) {
-            VSize s = mFilter.scale(rlottie::Property::TrScale, frame);
+        if (this->hasFilter(rlottie::Property::TrScale)) {
+            VSize s = this->filter()->scale(rlottie::Property::TrScale, frame);
             mS.scale(s.width() / 100.0, s.height() / 100.0);
         }
-        if (mFilter.hasFilter(rlottie::Property::TrRotation)) {
-            mR.rotate(mFilter.value(rlottie::Property::TrRotation, frame));
+        if (this->hasFilter(rlottie::Property::TrRotation)) {
+            mR.rotate(this->filter()->value(rlottie::Property::TrRotation, frame));
         }
-        if (mFilter.hasFilter(rlottie::Property::TrPosition)) {
-            mT.translate(mFilter.point(rlottie::Property::TrPosition, frame));
+        if (this->hasFilter(rlottie::Property::TrPosition)) {
+            mT.translate(this->filter()->point(rlottie::Property::TrPosition, frame));
         }
 
-        return _modelData->mTransform->matrix(frame) * mS * mR * mT;
+        return this->model()->mTransform->matrix(frame) * mS * mR * mT;
     }
-
-private:
-    model::Group* _modelData;
-    LOTFilter     mFilter;
 };
-#endif  // LOTTIEITEM_H
+
+
+}  // namespace model
+
+}  // namespace internal
+
+}  // namespace rlottie
+
+#endif  // LOTTIEFILTERMODEL_H
