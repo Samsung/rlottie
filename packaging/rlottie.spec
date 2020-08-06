@@ -10,7 +10,7 @@ Version:        0.0.1
 Release:        %mkrel %{?git:-c git%{git}} %{rel}
 Summary:        Platform independent standalone library that plays Lottie Animation
 Group:          System/Libraries
-License:        LGPLv2+ and BSD and MIT
+License:        MIT and BSD
 URL:            http://www.tizen.org/
 Source0:        https://github.com/Samsung/rlottie/archive/master/%{name}-%{version}%{?git:-git%{git}}.tar.gz
 
