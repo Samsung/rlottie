@@ -2052,6 +2052,9 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
         }
     }
 
+    // hooks to cache some computaion
+    keyframe.mValue.cache();
+
     if (!obj.mKeyFrames.empty()) {
         // update the endFrame value of current keyframe
         obj.mKeyFrames.back().mEndFrame = keyframe.mStartFrame;

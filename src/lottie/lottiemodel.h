@@ -152,6 +152,7 @@ struct Value {
     T     mEndValue;
     T     at(float t) const { return lerp(mStartValue, mEndValue, t); }
     float angle(float) const { return 0; }
+    void cache(){}
 };
 
 template <>
@@ -160,8 +161,16 @@ struct Value<VPointF> {
     VPointF mEndValue;
     VPointF mInTangent;
     VPointF mOutTangent;
+    float   mBezierLength;
     bool    mPathKeyFrame = false;
 
+    void cache() {
+        mInTangent = mEndValue + mInTangent;
+        mOutTangent = mStartValue + mOutTangent;
+        mBezierLength = VBezier::fromPoints(mStartValue, mOutTangent,
+                                            mInTangent, mEndValue).length();
+
+    }
     VPointF at(float t) const
     {
         if (mPathKeyFrame) {
@@ -170,9 +179,9 @@ struct Value<VPointF> {
              * using bezier at progress length (t * bezlen)
              */
             VBezier b =
-                VBezier::fromPoints(mStartValue, mStartValue + mOutTangent,
-                                    mEndValue + mInTangent, mEndValue);
-            return b.pointAt(b.tAtLength(t * b.length()));
+                VBezier::fromPoints(mStartValue, mOutTangent,
+                                    mInTangent, mEndValue);
+            return b.pointAt(b.tAtLength(t * mBezierLength));
         }
         return lerp(mStartValue, mEndValue, t);
     }
@@ -181,9 +190,9 @@ struct Value<VPointF> {
     {
         if (mPathKeyFrame) {
             VBezier b =
-                VBezier::fromPoints(mStartValue, mStartValue + mOutTangent,
-                                    mEndValue + mInTangent, mEndValue);
-            return b.angleAt(b.tAtLength(t * b.length()));
+                VBezier::fromPoints(mStartValue, mOutTangent,
+                                    mInTangent, mEndValue);
+            return b.angleAt(b.tAtLength(t * mBezierLength));
         }
         return 0;
     }
