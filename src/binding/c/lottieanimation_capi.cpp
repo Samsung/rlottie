@@ -38,7 +38,7 @@ struct Lottie_Animation_S
     LOTMarkerList                  *mMarkerList;
 };
 
-LOT_EXPORT Lottie_Animation_S *lottie_animation_from_file(const char *path)
+RLOTTIE_API Lottie_Animation_S *lottie_animation_from_file(const char *path)
 {
     if (auto animation = Animation::loadFromFile(path) ) {
         Lottie_Animation_S *handle = new Lottie_Animation_S();
@@ -49,7 +49,7 @@ LOT_EXPORT Lottie_Animation_S *lottie_animation_from_file(const char *path)
     }
 }
 
-LOT_EXPORT Lottie_Animation_S *lottie_animation_from_data(const char *data, const char *key, const char *resourcePath)
+RLOTTIE_API Lottie_Animation_S *lottie_animation_from_data(const char *data, const char *key, const char *resourcePath)
 {
     if (auto animation = Animation::loadFromData(data, key, resourcePath) ) {
         Lottie_Animation_S *handle = new Lottie_Animation_S();
@@ -60,7 +60,7 @@ LOT_EXPORT Lottie_Animation_S *lottie_animation_from_data(const char *data, cons
     }
 }
 
-LOT_EXPORT void lottie_animation_destroy(Lottie_Animation_S *animation)
+RLOTTIE_API void lottie_animation_destroy(Lottie_Animation_S *animation)
 {
     if (animation) {
         if (animation->mMarkerList) {
@@ -79,21 +79,21 @@ LOT_EXPORT void lottie_animation_destroy(Lottie_Animation_S *animation)
     }
 }
 
-LOT_EXPORT void lottie_animation_get_size(const Lottie_Animation_S *animation, size_t *width, size_t *height)
+RLOTTIE_API void lottie_animation_get_size(const Lottie_Animation_S *animation, size_t *width, size_t *height)
 {
    if (!animation) return;
 
    animation->mAnimation->size(*width, *height);
 }
 
-LOT_EXPORT double lottie_animation_get_duration(const Lottie_Animation_S *animation)
+RLOTTIE_API double lottie_animation_get_duration(const Lottie_Animation_S *animation)
 {
    if (!animation) return 0;
 
    return animation->mAnimation->duration();
 }
 
-LOT_EXPORT size_t lottie_animation_get_totalframe(const Lottie_Animation_S *animation)
+RLOTTIE_API size_t lottie_animation_get_totalframe(const Lottie_Animation_S *animation)
 {
    if (!animation) return 0;
 
@@ -101,21 +101,21 @@ LOT_EXPORT size_t lottie_animation_get_totalframe(const Lottie_Animation_S *anim
 }
 
 
-LOT_EXPORT double lottie_animation_get_framerate(const Lottie_Animation_S *animation)
+RLOTTIE_API double lottie_animation_get_framerate(const Lottie_Animation_S *animation)
 {
    if (!animation) return 0;
 
    return animation->mAnimation->frameRate();
 }
 
-LOT_EXPORT const LOTLayerNode * lottie_animation_render_tree(Lottie_Animation_S *animation, size_t frame_num, size_t width, size_t height)
+RLOTTIE_API const LOTLayerNode * lottie_animation_render_tree(Lottie_Animation_S *animation, size_t frame_num, size_t width, size_t height)
 {
     if (!animation) return nullptr;
 
     return animation->mAnimation->renderTree(frame_num, width, height);
 }
 
-LOT_EXPORT size_t
+RLOTTIE_API size_t
 lottie_animation_get_frame_at_pos(const Lottie_Animation_S *animation, float pos)
 {
     if (!animation) return 0;
@@ -123,7 +123,7 @@ lottie_animation_get_frame_at_pos(const Lottie_Animation_S *animation, float pos
     return animation->mAnimation->frameAtPos(pos);
 }
 
-LOT_EXPORT void
+RLOTTIE_API void
 lottie_animation_render(Lottie_Animation_S *animation,
                         size_t frame_number,
                         uint32_t *buffer,
@@ -137,7 +137,7 @@ lottie_animation_render(Lottie_Animation_S *animation,
     animation->mAnimation->renderSync(frame_number, surface);
 }
 
-LOT_EXPORT void
+RLOTTIE_API void
 lottie_animation_render_async(Lottie_Animation_S *animation,
                               size_t frame_number,
                               uint32_t *buffer,
@@ -152,7 +152,7 @@ lottie_animation_render_async(Lottie_Animation_S *animation,
     animation->mBufferRef = buffer;
 }
 
-LOT_EXPORT uint32_t *
+RLOTTIE_API uint32_t *
 lottie_animation_render_flush(Lottie_Animation_S *animation)
 {
     if (!animation) return nullptr;
@@ -164,7 +164,7 @@ lottie_animation_render_flush(Lottie_Animation_S *animation)
     return animation->mBufferRef;
 }
 
-LOT_EXPORT void
+RLOTTIE_API void
 lottie_animation_property_override(Lottie_Animation_S *animation,
                                    const Lottie_Animation_Property type,
                                    const char *keypath,
@@ -254,7 +254,7 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
     }
 }
 
-LOT_EXPORT const LOTMarkerList*
+RLOTTIE_API const LOTMarkerList*
 lottie_animation_get_markerlist(Lottie_Animation_S *animation)
 {
    if (!animation) return nullptr;

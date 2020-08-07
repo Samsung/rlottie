@@ -29,7 +29,7 @@
 using namespace rlottie;
 using namespace rlottie::internal;
 
-LOT_EXPORT void rlottie::configureModelCacheSize(size_t cacheSize)
+RLOTTIE_API void rlottie::configureModelCacheSize(size_t cacheSize)
 {
     internal::model::configureModelCacheSize(cacheSize);
 }
