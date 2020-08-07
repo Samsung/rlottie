@@ -46,7 +46,7 @@ target_include_directories(rlottie
         "${CMAKE_CURRENT_BINARY_DIR}"
     )
 
-#declare target compilation options
+#declare common target compilation options
 target_compile_options(rlottie
                     PUBLIC
                     PRIVATE
@@ -56,13 +56,25 @@ target_compile_options(rlottie
                         -fno-asynchronous-unwind-tables
                         -fno-rtti
                         -Wall
-                        -Werror
-                        -Wextra
-                        -Wnon-virtual-dtor
-                        -Woverloaded-virtual
-                        -Wno-unused-parameter
                         -fvisibility=hidden
                     )
+
+#MSVC does not recognize these parameters
+if (NOT WIN32)
+    target_compile_options(rlottie
+                        PUBLIC
+                        PRIVATE
+                            -Werror
+                            -Wextra
+                            -Wnon-virtual-dtor
+                            -Woverloaded-virtual
+                            -Wno-unused-parameter
+                        )
+endif()
+
+if (WIN32 AND NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(rlottie PUBLIC -DLOT_BUILD=0)
+endif()
 
 #declare dependancy
 set( CMAKE_THREAD_PREFER_PTHREAD TRUE )
