@@ -25,15 +25,15 @@
 
 #if defined _WIN32 || defined __CYGWIN__
   #ifdef LOT_BUILD
-    #define LOT_EXPORT __declspec(dllexport)
+    #define RLOTTIE_API __declspec(dllexport)
   #else
-    #define LOT_EXPORT __declspec(dllimport)
+    #define RLOTTIE_API __declspec(dllimport)
   #endif
 #else
   #ifdef LOT_BUILD
-      #define LOT_EXPORT __attribute__ ((visibility ("default")))
+      #define RLOTTIE_API __attribute__ ((visibility ("default")))
   #else
-      #define LOT_EXPORT
+      #define RLOTTIE_API
   #endif
 #endif
 
