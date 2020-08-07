@@ -185,7 +185,7 @@ struct Value<VPointF> {
             VBezier b =
                 VBezier::fromPoints(mStartValue, mOutTangent,
                                     mInTangent, mEndValue);
-            return b.pointAt(b.tAtLength(t * mBezierLength));
+            return b.pointAt(b.tAtLength(t * mBezierLength, mBezierLength));
         }
         return lerp(mStartValue, mEndValue, t);
     }
@@ -196,7 +196,7 @@ struct Value<VPointF> {
             VBezier b =
                 VBezier::fromPoints(mStartValue, mOutTangent,
                                     mInTangent, mEndValue);
-            return b.angleAt(b.tAtLength(t * mBezierLength));
+            return b.angleAt(b.tAtLength(t * mBezierLength, mBezierLength));
         }
         return 0;
     }

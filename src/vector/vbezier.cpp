@@ -79,12 +79,11 @@ VBezier VBezier::onInterval(float t0, float t1) const
     return result;
 }
 
-float VBezier::tAtLength(float l) const
+float VBezier::tAtLength(float l, float totalLength) const
 {
-    float       len = length();
     float       t = 1.0;
     const float error = 0.01f;
-    if (l > len || vCompare(l, len)) return t;
+    if (l > totalLength || vCompare(l, totalLength)) return t;
 
     t *= 0.5;
 

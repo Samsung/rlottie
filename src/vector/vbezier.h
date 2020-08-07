@@ -39,7 +39,8 @@ public:
                               const VPointF &cp2, const VPointF &end);
     inline void    parameterSplitLeft(float t, VBezier *left);
     inline void    split(VBezier *firstHalf, VBezier *secondHalf) const;
-    float          tAtLength(float len) const;
+    float          tAtLength(float len) const { return tAtLength(len , length());}
+    float          tAtLength(float len, float totalLength) const;
     void           splitAtLength(float len, VBezier *left, VBezier *right);
     VPointF        pt1() const { return {x1, y1}; }
     VPointF        pt2() const { return {x2, y2}; }
