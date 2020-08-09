@@ -2056,15 +2056,15 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
         }
     }
 
-    // hooks to cache some computaion
-    keyframe.mValue.cache();
 
-    if (!obj.mKeyFrames.empty()) {
+    auto &list = obj.mKeyFrames;
+
+    if (!list.empty()) {
         // update the endFrame value of current keyframe
-        obj.mKeyFrames.back().mEndFrame = keyframe.mStartFrame;
+        list.back().mEndFrame = keyframe.mStartFrame;
         // if no end value provided, copy start value to previous frame
         if (parsed.value && parsed.noEndValue) {
-            obj.mKeyFrames.back().mValue.mEndValue =
+            list.back().mValue.mEndValue =
                 keyframe.mValue.mStartValue;
         }
     }
@@ -2072,13 +2072,14 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
     if (parsed.hold) {
         keyframe.mValue.mEndValue = keyframe.mValue.mStartValue;
         keyframe.mEndFrame = keyframe.mStartFrame;
-        obj.mKeyFrames.push_back(std::move(keyframe));
+        list.push_back(std::move(keyframe));
     } else if (parsed.interpolator) {
         keyframe.mInterpolator = interpolator(
             inTangent, outTangent, std::move(parsed.interpolatorKey));
-        obj.mKeyFrames.push_back(std::move(keyframe));
+        list.push_back(std::move(keyframe));
     } else {
-        // its the last frame discard.
+        // Last frame. cache some computaion
+        for (auto &e : list) e.mValue.cache();
     }
 }
 
