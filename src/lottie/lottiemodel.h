@@ -308,7 +308,7 @@ public:
     Property &operator=(const Property &) = delete;
     Property &operator=(Property &&) = delete;
 
-    ~Property() { destroy(); }
+    ~Property() noexcept { destroy(); }
 
     bool isStatic() const { return mStatic; }
 
@@ -376,7 +376,7 @@ private:
         details(details &&) = delete;
         details &operator=(details &&) = delete;
         details &operator=(const details &) = delete;
-        ~details(){};
+        ~details() noexcept {};
     } impl;
     bool mStatic{true};
 };
@@ -439,7 +439,7 @@ public:
         mData._shortString = true;
         mData._hidden = false;
     }
-    ~Object()
+    ~Object() noexcept
     {
         if (!shortString() && mPtr) free(mPtr);
     }
@@ -609,7 +609,7 @@ public:
     Transform(Transform &&) = delete;
     Transform &operator=(Transform &) = delete;
     Transform &operator=(Transform &&) = delete;
-    ~Transform() { destroy(); }
+    ~Transform() noexcept { destroy(); }
 
 private:
     void destroy()
@@ -634,7 +634,7 @@ private:
         details(details &&) = delete;
         details &operator=(details &&) = delete;
         details &operator=(const details &) = delete;
-        ~details(){};
+        ~details() noexcept {};
     } impl;
 };
 
