@@ -47,7 +47,7 @@ public:
 
     explicit VDrawable(VDrawable::Type type = Type::Fill);
     void setType(VDrawable::Type type);
-    ~VDrawable();
+    ~VDrawable() noexcept;
 
     typedef vFlag<DirtyState> DirtyFlag;
     void setPath(const VPath &path);

@@ -118,7 +118,7 @@ public:
 public:
     std::unique_ptr<LOTNode> mCNode{nullptr};
 
-    ~Drawable()
+    ~Drawable() noexcept
     {
         if (mCNode && mCNode->mGradient.stopPtr)
             free(mCNode->mGradient.stopPtr);
