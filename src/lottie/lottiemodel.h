@@ -169,11 +169,12 @@ struct Value<VPointF> {
     bool    mPathKeyFrame = false;
 
     void cache() {
-        mInTangent = mEndValue + mInTangent;
-        mOutTangent = mStartValue + mOutTangent;
-        mBezierLength = VBezier::fromPoints(mStartValue, mOutTangent,
-                                            mInTangent, mEndValue).length();
-
+        if (mPathKeyFrame) {
+            mInTangent = mEndValue + mInTangent;
+            mOutTangent = mStartValue + mOutTangent;
+            mBezierLength = VBezier::fromPoints(mStartValue, mOutTangent,
+                                                mInTangent, mEndValue).length();
+        }
     }
     VPointF at(float t) const
     {
