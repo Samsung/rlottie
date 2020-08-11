@@ -58,6 +58,7 @@ public:
     virtual size_t frameAtPos(double pos) = 0;
     virtual double duration() = 0;
     void render(int frame) {
+        _renderCount++;
         _redraw = renderRequest(frame);
         if (_redraw && _useImage)
             evas_object_image_pixels_dirty_set(renderObject(), EINA_TRUE);
@@ -76,10 +77,12 @@ public:
     void hide() {evas_object_hide(_renderObject);}
     void addCallback();
     Evas_Object* renderObject() const {return _renderObject;}
+    size_t renderCount() const {return _renderCount;}
 protected:
     virtual bool renderRequest(int) = 0;
     virtual uint32_t* buffer() = 0;
 private:
+    size_t       _renderCount{0};
     bool         _redraw{false};
     Evas_Object *_renderObject;
     bool         _useImage{true};
@@ -359,6 +362,10 @@ public:
     {
         //clamp it to [0,1]
         mMaxprogress = progress;
+    }
+
+    size_t renderCount() const {
+        return mRenderDelegate ? mRenderDelegate->renderCount() : 0;
     }
 private:
     float mapProgress(float progress) {
