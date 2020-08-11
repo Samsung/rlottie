@@ -74,6 +74,10 @@ on_post_render(Ecore_Evas *ee)
         app->mRenderPostCb(app->mRenderPostData, nullptr);
 }
 
+void EvasApp::exit()
+{
+   _on_delete(mEcoreEvas);
+}
 EvasApp::EvasApp(int w, int h)
 {
     if (!ecore_evas_init())

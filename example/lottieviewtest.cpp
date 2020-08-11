@@ -25,8 +25,10 @@
 #include<iostream>
 #include <dirent.h>
 #include <stdio.h>
+#include <chrono>
 using namespace std;
 
+static Eina_Bool onTestDone(void *data);
 /*
  * To check the frame rate with rendermode off run
  * ECORE_EVAS_FPS_DEBUG=1 ./lottieviewTest --disable-render
@@ -39,9 +41,16 @@ using namespace std;
 class LottieViewTest
 {
 public:
-  LottieViewTest(EvasApp *app, Strategy st) {
+  LottieViewTest(EvasApp *app, Strategy st, double timeout) {
+      mStartTime = std::chrono::high_resolution_clock::now();
       mStrategy = st;
       mApp = app;
+
+      if (timeout > 0) {
+        ecore_timer_add(timeout, onTestDone, mApp);
+      }
+      // work around for 60fps
+      ecore_animator_frametime_set(1.0f/120.0f);
   }
 
   void show(int numberOfImage) {
@@ -76,10 +85,28 @@ public:
     }
   }
 
+    ~LottieViewTest() {
+      const auto frames = mViews.empty() ? 0 : mViews[0]->renderCount();
+      const double secs = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - mStartTime).count();
+      std::cout<<"TestTime : "<< secs<<" Sec, TotalFrames : "<<frames<<" , FramesPerSecond : "<< frames / secs <<" fps\n";
+    }
+
+  static int help() {
+            printf("Usage ./lottieviewTest [-s] [strategy] [-test] [timeout]\n");
+            printf("\n \tStrategy : \n");
+            printf("\t\t 0  - Test Lottie SYNC Renderer with CPP API\n");
+            printf("\t\t 1  - Test Lottie ASYNC Renderer with CPP API\n");
+            printf("\t\t 2  - Test Lottie SYNC Renderer with C API\n");
+            printf("\t\t 3  - Test Lottie ASYNC Renderer with C API\n");
+            printf("\t\t 4  - Test Lottie Tree Api using Efl VG Render\n");
+            printf("\t Default is ./lottieviewTest -s 1 \n");
+            return 0;
+  }
 public:
   EvasApp     *mApp;
   Strategy     mStrategy;
   std::vector<std::unique_ptr<LottieView>>   mViews;
+  std::chrono::high_resolution_clock::time_point  mStartTime;
 };
 
 static void
@@ -89,34 +116,39 @@ onExitCb(void *data, void */*extra*/)
     delete view;
 }
 
+
+static Eina_Bool
+onTestDone(void *data)
+{
+    EvasApp *app = (EvasApp *)data;
+    app->exit();
+    return ECORE_CALLBACK_CANCEL;
+}
+
 int
 main(int argc, char **argv)
 {
-    if (argc > 1) {
-        if (!strcmp(argv[1],"--help") || !strcmp(argv[1],"-h")) {
-            printf("Usage ./lottieviewTest 1 \n");
-            printf("\t 0  - Test Lottie SYNC Renderer with CPP API\n");
-            printf("\t 1  - Test Lottie ASYNC Renderer with CPP API\n");
-            printf("\t 2  - Test Lottie SYNC Renderer with C API\n");
-            printf("\t 3  - Test Lottie ASYNC Renderer with C API\n");
-            printf("\t 4  - Test Lottie Tree Api using Efl VG Render\n");
-            printf("\t Default is ./lottieviewTest 1 \n");
-            return 0;
-        }
-    } else {
-        printf("Run ./lottieviewTest -h  for more option\n");
+    Strategy st = Strategy::renderCppAsync;
+    auto index = 0;
+    double timeOut = 0;
+    while (index < argc) {
+      const char* option = argv[index];
+      index++;
+      if (!strcmp(option,"--help") || !strcmp(option,"-h")) {
+          return LottieViewTest::help();
+      } else if (!strcmp(option,"-s")) {
+         st = (index < argc) ? static_cast<Strategy>(atoi(argv[index])) : Strategy::renderCppAsync;
+         index++;
+      } else if (!strcmp(option,"-t")) {
+         timeOut = (index < argc) ? atoi(argv[index]) : 10;
+         index++;
+      }
     }
-
-   Strategy st = Strategy::renderCppAsync;
-   if (argc > 1) {
-       int option = atoi(argv[1]);
-       st = static_cast<Strategy>(option);
-   }
 
    EvasApp *app = new EvasApp(800, 800);
    app->setup();
 
-   LottieViewTest *view = new LottieViewTest(app, st);
+   LottieViewTest *view = new LottieViewTest(app, st, timeOut);
    view->show(250);
 
    app->addExitCb(onExitCb, view);

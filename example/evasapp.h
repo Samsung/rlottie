@@ -58,6 +58,7 @@ public:
     void addKeyCb(appCb keycb, void *data) {mKeyCb = keycb; mKeyData = data;}
     void addRenderPreCb(appCb renderPrecb, void *data) {mRenderPreCb = renderPrecb; mRenderPreData = data;}
     void addRenderPostCb(appCb renderPostcb, void *data) {mRenderPostCb = renderPostcb; mRenderPostData = data;}
+    void exit();
     static std::vector<std::string> jsonFiles(const std::string &dir, bool recurse=false);
 public:
     int           mw{0};
