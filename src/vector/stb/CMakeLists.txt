@@ -13,7 +13,7 @@ if(LOTTIE_MODULE)
     endif()
 
     set_target_properties(rlottie-image-loader PROPERTIES
-                          DEFINE_SYMBOL LOT_BUILD
+                          DEFINE_SYMBOL RLOTTIE_BUILD
                           PREFIX ""
                           SUFFIX ""
                           OUTPUT_NAME ${LOTTIE_MODULE_FILENAME}

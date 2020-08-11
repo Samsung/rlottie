@@ -14,7 +14,7 @@ endif()
 
 #declare target
 add_library( rlottie )
-set_target_properties( rlottie PROPERTIES DEFINE_SYMBOL LOT_BUILD )
+set_target_properties( rlottie PROPERTIES DEFINE_SYMBOL RLOTTIE_BUILD )
 
 #declare version of the target
 set(player_version_major 0)
@@ -73,7 +73,7 @@ if (NOT WIN32)
 endif()
 
 if (WIN32 AND NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(rlottie PUBLIC -DLOT_BUILD=0)
+    target_compile_definitions(rlottie PUBLIC -DRLOTTIE_BUILD=0)
 endif()
 
 #declare dependancy
