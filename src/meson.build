@@ -1,4 +1,4 @@
-compiler_flags = ['-DLOT_BUILD']
+compiler_flags = ['-DRLOTTIE_BUILD']
 
 cc = meson.get_compiler('cpp')
 if (cc.get_id() != 'msvc')

@@ -14,13 +14,13 @@
 #include "stb_image.h"
 
 #if defined _WIN32 || defined __CYGWIN__
-  #ifdef LOT_BUILD
+  #ifdef RLOTTIE_BUILD
     #define RLOTTIE_API __declspec(dllexport)
   #else
     #define RLOTTIE_API __declspec(dllimport)
   #endif
 #else
-  #ifdef LOT_BUILD
+  #ifdef RLOTTIE_BUILD
       #define RLOTTIE_API __attribute__ ((visibility ("default")))
   #else
       #define RLOTTIE_API
