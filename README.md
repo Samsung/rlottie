@@ -53,19 +53,20 @@ ninja -C build
 
 Install [cmake](https://cmake.org/download/) if not already installed
 
-Create a build directory for out of source build
+Create a build directory for out of source `build`
 ```
 mkdir build
 ```
-Run cmake command inside build directory to configure rlottie.
+Run cmake command inside `build` directory to configure rlottie.
 ```
 cd build
 cmake ..
 
 # install in a different path. eg ~/test/usr/lib
-
 cmake -DCMAKE_INSTALL_PREFIX=~/test ..
 
+# static build
+cmake -DBUILD_SHARED_LIBS=OFF ..
 ```
 Run make to build rlottie
 
@@ -101,7 +102,7 @@ If you want to see rlottie librray in action without building it please visit [r
 
 While building rlottie library it generates a simple lottie to GIF converter which can be used to convert lottie json file to GIF file.
 
-Run Demo 
+Run Demo
 ```
 lottie2gif [lottie file name]
 ```
@@ -115,34 +116,32 @@ Please visit [rlottie online viewer](http://rlottie.com)
 #
 ## Quick Start
 
-Lottie loads and renders animations and vectors exported in the bodymovin JSON format. Bodymovin JSON can be created and exported from After Effects with [bodymovin](https://github.com/bodymovin/bodymovin), Sketch with [Lottie Sketch Export](https://github.com/buba447/Lottie-Sketch-Export), and from [Haiku](https://www.haiku.ai). 
- 
+Lottie loads and renders animations and vectors exported in the bodymovin JSON format. Bodymovin JSON can be created and exported from After Effects with [bodymovin](https://github.com/bodymovin/bodymovin), Sketch with [Lottie Sketch Export](https://github.com/buba447/Lottie-Sketch-Export), and from [Haiku](https://www.haiku.ai).
+
 You can quickly load a Lottie animation with:
 ```cpp
-std::unique_ptr<rlottie::Animation> animation = 
-					rlottie::loadFromFile(std::string("absolute_path/test.json"));
+auto animation = rlottie::Animation::loadFromFile("absolute_path/test.json");
 ```
 You can load a lottie animation from raw data with:
 ```cpp
-std::unique_ptr<rlottie::Animation> animation = rlottie::loadFromData(std::string(rawData),
-                                                                      std::string(cacheKey));
+auto animation = rlottie::Animation::loadFromData(std::string(rawData), std::string(cacheKey));
 ```
 
 Properties like `frameRate` , `totalFrame` , `duration` can be queried with:
 ```cpp
-# get the frame rate of the resource. 
+# get the frame rate of the resource.
 double frameRate = animation->frameRate();
 
 #get total frame that exists in the resource
 size_t totalFrame = animation->totalFrame();
 
-#get total animation duration in sec for the resource 
+#get total animation duration in sec for the resource
 double duration = animation->duration();
 ```
 Render a particular frame in a surface buffer `immediately` with:
 ```cpp
 rlottie::Surface surface(buffer, width , height , stride);
-animation->renderSync(frameNo, surface); 
+animation->renderSync(frameNo, surface);
 ```
 Render a particular frame in a surface buffer `asyncronousely` with:
 ```cpp
@@ -240,14 +239,14 @@ animation->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
 | Fill  | 👍 |
 | Stroke | 👍 |
 | Radial Gradient | 👍 |
-| Linear Gradient | 👍 | 
-| Gradient Stroke | 👍 | 
+| Linear Gradient | 👍 |
+| Gradient Stroke | 👍 |
 | **Transforms** | **Supported** |
 | Position | 👍 |
 | Position (separated X/Y) | 👍 |
 | Scale | 👍 |
 | Skew | ⛔️ |
-| Rotation | 👍 | 
+| Rotation | 👍 |
 | Anchor Point | 👍 |
 | Opacity | 👍 |
 | Parenting | 👍 |
@@ -287,13 +286,13 @@ animation->setValue<rlottie::Property::FillColor>("Layer1.Box 1.Fill1",
 | Tritone | ⛔️ |
 | Levels Individual Controls | ⛔️ |
 | **Text** | **Supported** |
-| Glyphs |  ⛔️ | 
+| Glyphs |  ⛔️ |
 | Fonts | ⛔️ |
 | Transform | ⛔️ |
-| Fill | ⛔️ | 
-| Stroke | ⛔️ | 
-| Tracking | ⛔️ | 
-| Anchor point grouping | ⛔️ | 
+| Fill | ⛔️ |
+| Stroke | ⛔️ |
+| Tracking | ⛔️ |
+| Anchor point grouping | ⛔️ |
 | Text Path | ⛔️ |
 | Per-character 3D | ⛔️ |
 | Range selector (Units) | ⛔️ |
