@@ -174,8 +174,14 @@ struct Value<VPointF> {
             mOutTangent = mStartValue + mOutTangent;
             mBezierLength = VBezier::fromPoints(mStartValue, mOutTangent,
                                                 mInTangent, mEndValue).length();
+            if (vIsZero(mBezierLength)) {
+                // this segment has zero length.
+                // so disable expensive path computaion.
+                mPathKeyFrame = false;
+            }
         }
     }
+
     VPointF at(float t) const
     {
         if (mPathKeyFrame) {
