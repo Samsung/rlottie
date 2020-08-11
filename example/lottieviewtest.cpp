@@ -88,18 +88,20 @@ public:
     ~LottieViewTest() {
       const auto frames = mViews.empty() ? 0 : mViews[0]->renderCount();
       const double secs = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - mStartTime).count();
-      std::cout<<"TestTime : "<< secs<<" Sec, TotalFrames : "<<frames<<" , FramesPerSecond : "<< frames / secs <<" fps\n";
+      std::cout<<"\tTestTime : "<< secs<<" sec \n\tTotalFrames : "<<frames<<"\n\tFramesPerSecond : "<< frames / secs <<" fps\n";
     }
 
   static int help() {
-            printf("Usage ./lottieviewTest [-s] [strategy] [-test] [timeout]\n");
-            printf("\n \tStrategy : \n");
+            printf("Usage ./lottieviewTest [-s] [strategy] [-t] [timeout] [-c] [count]\n");
+            printf("\n \t-t : timeout duration in seconds\n");
+            printf("\n \t-c : number of resource in the grid\n");
+            printf("\n \t-s : Rendering Strategy\n");
             printf("\t\t 0  - Test Lottie SYNC Renderer with CPP API\n");
             printf("\t\t 1  - Test Lottie ASYNC Renderer with CPP API\n");
             printf("\t\t 2  - Test Lottie SYNC Renderer with C API\n");
             printf("\t\t 3  - Test Lottie ASYNC Renderer with C API\n");
             printf("\t\t 4  - Test Lottie Tree Api using Efl VG Render\n");
-            printf("\t Default is ./lottieviewTest -s 1 \n");
+            printf(" Default : ./lottieviewTest -s 1 \n");
             return 0;
   }
 public:
@@ -131,6 +133,7 @@ main(int argc, char **argv)
     Strategy st = Strategy::renderCppAsync;
     auto index = 0;
     double timeOut = 0;
+    size_t itemCount = 250;
     while (index < argc) {
       const char* option = argv[index];
       index++;
@@ -142,6 +145,9 @@ main(int argc, char **argv)
       } else if (!strcmp(option,"-t")) {
          timeOut = (index < argc) ? atoi(argv[index]) : 10;
          index++;
+      } else if (!strcmp(option,"-c")) {
+         itemCount = (index < argc) ? atoi(argv[index]) : 10;
+         index++;
       }
     }
 
@@ -149,7 +155,7 @@ main(int argc, char **argv)
    app->setup();
 
    LottieViewTest *view = new LottieViewTest(app, st, timeOut);
-   view->show(250);
+   view->show(itemCount);
 
    app->addExitCb(onExitCb, view);
 
