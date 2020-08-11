@@ -2078,8 +2078,7 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
             inTangent, outTangent, std::move(parsed.interpolatorKey));
         list.push_back(std::move(keyframe));
     } else {
-        // Last frame. cache some computaion
-        for (auto &e : list) e.mValue.cache();
+        // Last frame ignore
     }
 }
 
@@ -2116,6 +2115,7 @@ void LottieParserImpl::parseShapeProperty(model::Property<model::PathData> &obj)
             Skip(nullptr);
         }
     }
+    obj.cache();
 }
 
 template <typename T>
@@ -2155,6 +2155,7 @@ void LottieParserImpl::parsePropertyHelper(model::Property<T> &obj)
                 break;
             }
         }
+        obj.cache();
     }
 }
 

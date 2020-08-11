@@ -165,8 +165,8 @@ struct Value<VPointF> {
     VPointF mEndValue;
     VPointF mInTangent;
     VPointF mOutTangent;
-    float   mBezierLength;
-    bool    mPathKeyFrame = false;
+    float   mBezierLength{0};
+    bool    mPathKeyFrame{false};
 
     void cache() {
         if (mPathKeyFrame) {
@@ -267,6 +267,8 @@ public:
                  (last < prevFrame && last < curFrame));
     }
 
+    void cache() {  for (auto &e : mKeyFrames) e.mValue.cache(); }
+
 public:
     std::vector<KeyFrame<T>> mKeyFrames;
 };
@@ -358,6 +360,7 @@ public:
         return isStatic() ? false : animation().changed(prevFrame, curFrame);
     }
 
+    void cache() { if (!isStatic()) animation().cache();}
 private:
     template <typename Tp>
     void construct(Tp &member, Tp &&val)
