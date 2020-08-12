@@ -43,23 +43,16 @@ VBezier VBezier::fromPoints(const VPointF &p1, const VPointF &p2,
 
 float VBezier::length() const
 {
-    VBezier left, right; /* bez poly splits */
-    float   len = 0.0;   /* arc length */
-    float   chord;       /* chord length */
-    float   length;
+    const auto len = VLine::length(x1, y1, x2, y2) +
+                     VLine::length(x2, y2, x3, y3) +
+                     VLine::length(x3, y3, x4, y4);
 
-    len = len + VLine::length(x1, y1, x2, y2);
-    len = len + VLine::length(x2, y2, x3, y3);
-    len = len + VLine::length(x3, y3, x4, y4);
-
-    chord = VLine::length(x1, y1, x4, y4);
+    const auto chord = VLine::length(x1, y1, x4, y4);
 
     if ((len - chord) > 0.01) {
-        split(&left, &right);    /* split in two */
-        length = left.length() + /* try left side */
-                 right.length(); /* try right side */
-
-        return length;
+        VBezier left, right;
+        split(&left, &right);
+        return left.length() + right.length();
     }
 
     return len;

@@ -66,7 +66,7 @@ inline float VLine::angle() const
 // approximate sqrt(x*x + y*y) using alpha max plus beta min algorithm.
 // With alpha = 1, beta = 3/8, giving results with the largest error less
 // than 7% compared to the exact value.
-inline float VLine::length(float x1, float y1, float x2, float y2)
+inline V_ALWAYS_INLINE float VLine::length(float x1, float y1, float x2, float y2)
 {
     float x = x2 - x1;
     float y = y2 - y1;
