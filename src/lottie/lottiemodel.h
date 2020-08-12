@@ -8,8 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -150,165 +150,166 @@ struct PathData {
     }
 };
 
-template <typename T>
+template <typename T, typename Tag = void>
 struct Value {
-    T     mStartValue;
-    T     mEndValue;
-    T     at(float t) const { return lerp(mStartValue, mEndValue, t); }
+    T     start_;
+    T     end_;
+    T     at(float t) const { return lerp(start_, end_, t); }
     float angle(float) const { return 0; }
-    void cache(){}
+    void  cache() {}
 };
 
-template <>
-struct Value<VPointF> {
-    VPointF mStartValue;
-    VPointF mEndValue;
-    VPointF mInTangent;
-    VPointF mOutTangent;
-    float   mBezierLength{0};
-    bool    mPathKeyFrame{false};
+struct Position;
 
-    void cache() {
-        if (mPathKeyFrame) {
-            mInTangent = mEndValue + mInTangent;
-            mOutTangent = mStartValue + mOutTangent;
-            mBezierLength = VBezier::fromPoints(mStartValue, mOutTangent,
-                                                mInTangent, mEndValue).length();
-            if (vIsZero(mBezierLength)) {
+template <typename T>
+struct Value<T, Position> {
+    T     start_;
+    T     end_;
+    T     inTangent_;
+    T     outTangent_;
+    float length_{0};
+    bool  hasTangent_{false};
+
+    void cache()
+    {
+        if (hasTangent_) {
+            inTangent_ = end_ + inTangent_;
+            outTangent_ = start_ + outTangent_;
+            length_ = VBezier::fromPoints(start_, outTangent_, inTangent_, end_)
+                          .length();
+            if (vIsZero(length_)) {
                 // this segment has zero length.
                 // so disable expensive path computaion.
-                mPathKeyFrame = false;
+                hasTangent_ = false;
             }
         }
     }
 
-    VPointF at(float t) const
+    T at(float t) const
     {
-        if (mPathKeyFrame) {
+        if (hasTangent_) {
             /*
              * position along the path calcualated
              * using bezier at progress length (t * bezlen)
              */
             VBezier b =
-                VBezier::fromPoints(mStartValue, mOutTangent,
-                                    mInTangent, mEndValue);
-            return b.pointAt(b.tAtLength(t * mBezierLength, mBezierLength));
+                VBezier::fromPoints(start_, outTangent_, inTangent_, end_);
+            return b.pointAt(b.tAtLength(t * length_, length_));
         }
-        return lerp(mStartValue, mEndValue, t);
+        return lerp(start_, end_, t);
     }
 
     float angle(float t) const
     {
-        if (mPathKeyFrame) {
+        if (hasTangent_) {
             VBezier b =
-                VBezier::fromPoints(mStartValue, mOutTangent,
-                                    mInTangent, mEndValue);
-            return b.angleAt(b.tAtLength(t * mBezierLength, mBezierLength));
+                VBezier::fromPoints(start_, outTangent_, inTangent_, end_);
+            return b.angleAt(b.tAtLength(t * length_, length_));
         }
         return 0;
     }
 };
 
-template <typename T>
-class KeyFrame {
+template <typename T, typename Tag>
+class KeyFrames {
 public:
-    float progress(int frameNo) const
-    {
-        return mInterpolator ? mInterpolator->value((frameNo - mStartFrame) /
-                                                    (mEndFrame - mStartFrame))
-                             : 0;
-    }
-    T     value(int frameNo) const { return mValue.at(progress(frameNo)); }
-    float angle(int frameNo) const { return mValue.angle(progress(frameNo)); }
+    struct Frame {
+        float progress(int frameNo) const
+        {
+            return interpolator_ ? interpolator_->value((frameNo - start_) /
+                                                        (end_ - start_))
+                                 : 0;
+        }
+        T     value(int frameNo) const { return value_.at(progress(frameNo)); }
+        float angle(int frameNo) const
+        {
+            return value_.angle(progress(frameNo));
+        }
 
-public:
-    float          mStartFrame{0};
-    float          mEndFrame{0};
-    VInterpolator *mInterpolator{nullptr};
-    Value<T>       mValue;
-};
+        float          start_{0};
+        float          end_{0};
+        VInterpolator *interpolator_{nullptr};
+        Value<T, Tag>  value_;
+    };
 
-template <typename T>
-class DynamicProperty {
-public:
     T value(int frameNo) const
     {
-        if (mKeyFrames.front().mStartFrame >= frameNo)
-            return mKeyFrames.front().mValue.mStartValue;
-        if (mKeyFrames.back().mEndFrame <= frameNo)
-            return mKeyFrames.back().mValue.mEndValue;
+        if (frames_.front().start_ >= frameNo)
+            return frames_.front().value_.start_;
+        if (frames_.back().end_ <= frameNo) return frames_.back().value_.end_;
 
-        for (const auto &keyFrame : mKeyFrames) {
-            if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame)
+        for (const auto &keyFrame : frames_) {
+            if (frameNo >= keyFrame.start_ && frameNo < keyFrame.end_)
                 return keyFrame.value(frameNo);
         }
-        return T();
+        return {};
     }
 
     float angle(int frameNo) const
     {
-        if ((mKeyFrames.front().mStartFrame >= frameNo) ||
-            (mKeyFrames.back().mEndFrame <= frameNo))
+        if ((frames_.front().start_ >= frameNo) ||
+            (frames_.back().end_ <= frameNo))
             return 0;
 
-        for (const auto &keyFrame : mKeyFrames) {
-            if (frameNo >= keyFrame.mStartFrame && frameNo < keyFrame.mEndFrame)
-                return keyFrame.angle(frameNo);
+        for (const auto &frame : frames_) {
+            if (frameNo >= frame.start_ && frameNo < frame.end_)
+                return frame.angle(frameNo);
         }
         return 0;
     }
 
     bool changed(int prevFrame, int curFrame) const
     {
-        auto first = mKeyFrames.front().mStartFrame;
-        auto last = mKeyFrames.back().mEndFrame;
+        auto first = frames_.front().start_;
+        auto last = frames_.back().end_;
 
         return !((first > prevFrame && first > curFrame) ||
                  (last < prevFrame && last < curFrame));
     }
-
-    void cache() {  for (auto &e : mKeyFrames) e.mValue.cache(); }
+    void cache()
+    {
+        for (auto &e : frames_) e.value_.cache();
+    }
 
 public:
-    std::vector<KeyFrame<T>> mKeyFrames;
+    std::vector<Frame> frames_;
 };
 
-template <typename T>
+template <typename T, typename Tag = void>
 class Property {
 public:
-    Property() { construct(impl.mValue, {}); }
-    explicit Property(T value) { construct(impl.mValue, std::move(value)); }
+    using Animation = KeyFrames<T, Tag>;
 
-    const DynamicProperty<T> &animation() const
-    {
-        return *(impl.mAnimInfo.get());
-    }
-    const T &value() const { return impl.mValue; }
+    Property() { construct(impl_.value_, {}); }
+    explicit Property(T value) { construct(impl_.value_, std::move(value)); }
 
-    DynamicProperty<T> &animation()
+    const Animation &animation() const { return *(impl_.animation_.get()); }
+    const T &        value() const { return impl_.value_; }
+
+    Animation &animation()
     {
-        if (mStatic) {
+        if (isValue_) {
             destroy();
-            construct(impl.mAnimInfo, std::make_unique<DynamicProperty<T>>());
-            mStatic = false;
+            construct(impl_.animation_, std::make_unique<Animation>());
+            isValue_ = false;
         }
-        return *(impl.mAnimInfo.get());
+        return *(impl_.animation_.get());
     }
 
     T &value()
     {
-        assert(mStatic);
-        return impl.mValue;
+        assert(isValue_);
+        return impl_.value_;
     }
 
     Property(Property &&other) noexcept
     {
-        if (!other.mStatic) {
-            construct(impl.mAnimInfo, std::move(other.impl.mAnimInfo));
-            mStatic = false;
+        if (!other.isValue_) {
+            construct(impl_.animation_, std::move(other.impl_.animation_));
+            isValue_ = false;
         } else {
-            construct(impl.mValue, std::move(other.impl.mValue));
-            mStatic = true;
+            construct(impl_.value_, std::move(other.impl_.value_));
+            isValue_ = true;
         }
     }
     // delete special member functions
@@ -316,9 +317,9 @@ public:
     Property &operator=(const Property &) = delete;
     Property &operator=(Property &&) = delete;
 
-    ~Property() noexcept { destroy(); }
+    ~Property() { destroy(); }
 
-    bool isStatic() const { return mStatic; }
+    bool isStatic() const { return isValue_; }
 
     T value(int frameNo) const
     {
@@ -326,25 +327,23 @@ public:
     }
 
     // special function only for type T=PathData
-    template <typename SpecialT = PathData>
+    template <typename forT = PathData>
     auto value(int frameNo, VPath &path) const ->
-        typename std::enable_if_t<std::is_same<T, SpecialT>::value, void>
+        typename std::enable_if_t<std::is_same<T, forT>::value, void>
     {
         if (isStatic()) {
             value().toPath(path);
         } else {
-            const auto &vec = animation().mKeyFrames;
-            if (vec.front().mStartFrame >= frameNo)
-                return vec.front().mValue.mStartValue.toPath(path);
-            if (vec.back().mEndFrame <= frameNo)
-                return vec.back().mValue.mEndValue.toPath(path);
+            const auto &vec = animation().frames_;
+            if (vec.front().start_ >= frameNo)
+                return vec.front().value_.start_.toPath(path);
+            if (vec.back().end_ <= frameNo)
+                return vec.back().value_.end_.toPath(path);
 
             for (const auto &keyFrame : vec) {
-                if (frameNo >= keyFrame.mStartFrame &&
-                    frameNo < keyFrame.mEndFrame) {
-                    PathData::lerp(keyFrame.mValue.mStartValue,
-                                   keyFrame.mValue.mEndValue,
-                                   keyFrame.progress(frameNo), path);
+                if (frameNo >= keyFrame.start_ && frameNo < keyFrame.end_) {
+                    T::lerp(keyFrame.value_.start_, keyFrame.value_.end_,
+                            keyFrame.progress(frameNo), path);
                 }
             }
         }
@@ -359,8 +358,11 @@ public:
     {
         return isStatic() ? false : animation().changed(prevFrame, curFrame);
     }
+    void cache()
+    {
+        if (!isStatic()) animation().cache();
+    }
 
-    void cache() { if (!isStatic()) animation().cache();}
 private:
     template <typename Tp>
     void construct(Tp &member, Tp &&val)
@@ -370,24 +372,24 @@ private:
 
     void destroy()
     {
-        if (mStatic) {
-            impl.mValue.~T();
+        if (isValue_) {
+            impl_.value_.~T();
         } else {
             using std::unique_ptr;
-            impl.mAnimInfo.~unique_ptr<DynamicProperty<T>>();
+            impl_.animation_.~unique_ptr<Animation>();
         }
     }
     union details {
-        std::unique_ptr<DynamicProperty<T>> mAnimInfo;
-        T                                   mValue;
+        std::unique_ptr<Animation> animation_;
+        T                          value_;
         details(){};
         details(const details &) = delete;
         details(details &&) = delete;
         details &operator=(details &&) = delete;
         details &operator=(const details &) = delete;
         ~details() noexcept {};
-    } impl;
-    bool mStatic{true};
+    } impl_;
+    bool isValue_{true};
 };
 
 class Path;
@@ -585,12 +587,12 @@ public:
         {
             if (!mExtra) mExtra = std::make_unique<Extra>();
         }
-        Property<float>        mRotation{0};       /* "r" */
-        Property<VPointF>      mScale{{100, 100}}; /* "s" */
-        Property<VPointF>      mPosition;          /* "p" */
-        Property<VPointF>      mAnchor;            /* "a" */
-        Property<float>        mOpacity{100};      /* "o" */
-        std::unique_ptr<Extra> mExtra;
+        Property<float>             mRotation{0};       /* "r" */
+        Property<VPointF>           mScale{{100, 100}}; /* "s" */
+        Property<VPointF, Position> mPosition;          /* "p" */
+        Property<VPointF>           mAnchor;            /* "a" */
+        Property<float>             mOpacity{100};      /* "o" */
+        std::unique_ptr<Extra>      mExtra;
     };
 
     Transform() : Object(Object::Type::Transform) {}
