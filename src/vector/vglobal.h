@@ -80,6 +80,12 @@ using uchar  = uint8_t;
 #define vthread_local
 #endif
 
+#if defined(_MSC_VER)
+    #define V_ALWAYS_INLINE __forceinline
+#else
+    #define V_ALWAYS_INLINE __attribute__((always_inline))
+#endif
+
 template <typename T>
 V_CONSTEXPR inline const T &vMin(const T &a, const T &b)
 {
