@@ -8,8 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -253,14 +253,21 @@ public:
     void getValue(std::vector<VPointF> &v);
     void getValue(model::Repeater::Transform &);
 
+    template <typename T, typename Tag>
+    bool parseKeyFrameValue(const char *key, model::Value<T, Tag> &value)
+    {
+        return false;
+    }
+
     template <typename T>
-    bool parseKeyFrameValue(const char *key, model::Value<T> &value);
-    template <typename T>
-    void parseKeyFrame(model::DynamicProperty<T> &obj);
+    bool parseKeyFrameValue(const char *                      key,
+                            model::Value<T, model::Position> &value);
+    template <typename T, typename Tag>
+    void parseKeyFrame(model::KeyFrames<T, Tag> &obj);
     template <typename T>
     void parseProperty(model::Property<T> &obj);
-    template <typename T>
-    void parsePropertyHelper(model::Property<T> &obj);
+    template <typename T, typename Tag>
+    void parsePropertyHelper(model::Property<T, Tag> &obj);
 
     void parseShapeProperty(model::Property<model::PathData> &obj);
     void parseDashProperty(model::Dash &dash);
@@ -1463,11 +1470,11 @@ model::Repeater *LottieParserImpl::parseReapeaterObject()
             parseProperty(obj->mCopies);
             float maxCopy = 0.0;
             if (!obj->mCopies.isStatic()) {
-                for (auto &keyFrame : obj->mCopies.animation().mKeyFrames) {
-                    if (maxCopy < keyFrame.mValue.mStartValue)
-                        maxCopy = keyFrame.mValue.mStartValue;
-                    if (maxCopy < keyFrame.mValue.mEndValue)
-                        maxCopy = keyFrame.mValue.mEndValue;
+                for (auto &keyFrame : obj->mCopies.animation().frames_) {
+                    if (maxCopy < keyFrame.value_.start_)
+                        maxCopy = keyFrame.value_.start_;
+                    if (maxCopy < keyFrame.value_.end_)
+                        maxCopy = keyFrame.value_.end_;
                 }
             } else {
                 maxCopy = obj->mCopies.value();
@@ -1947,21 +1954,15 @@ VPointF LottieParserImpl::parseInperpolatorPoint()
 }
 
 template <typename T>
-bool LottieParserImpl::parseKeyFrameValue(const char *, model::Value<T> &)
-{
-    return false;
-}
-
-template <>
-bool LottieParserImpl::parseKeyFrameValue(const char *           key,
-                                          model::Value<VPointF> &value)
+bool LottieParserImpl::parseKeyFrameValue(
+    const char *key, model::Value<T, model::Position> &value)
 {
     if (0 == strcmp(key, "ti")) {
-        value.mPathKeyFrame = true;
-        getValue(value.mInTangent);
+        value.hasTangent_ = true;
+        getValue(value.inTangent_);
     } else if (0 == strcmp(key, "to")) {
-        value.mPathKeyFrame = true;
-        getValue(value.mOutTangent);
+        value.hasTangent_ = true;
+        getValue(value.outTangent_);
     } else {
         return false;
     }
@@ -1993,8 +1994,8 @@ VInterpolator *LottieParserImpl::interpolator(VPointF     inTangent,
 /*
  * https://github.com/airbnb/lottie-web/blob/master/docs/json/properties/multiDimensionalKeyframed.json
  */
-template <typename T>
-void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
+template <typename T, typename Tag>
+void LottieParserImpl::parseKeyFrame(model::KeyFrames<T, Tag> &obj)
 {
     struct ParsedField {
         std::string interpolatorKey;
@@ -2005,10 +2006,10 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
     };
 
     EnterObject();
-    ParsedField        parsed;
-    model::KeyFrame<T> keyframe;
-    VPointF            inTangent;
-    VPointF            outTangent;
+    ParsedField                              parsed;
+    typename model::KeyFrames<T, Tag>::Frame keyframe;
+    VPointF                                  inTangent;
+    VPointF                                  outTangent;
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "i")) {
@@ -2017,14 +2018,14 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
         } else if (0 == strcmp(key, "o")) {
             outTangent = parseInperpolatorPoint();
         } else if (0 == strcmp(key, "t")) {
-            keyframe.mStartFrame = GetDouble();
+            keyframe.start_ = GetDouble();
         } else if (0 == strcmp(key, "s")) {
             parsed.value = true;
-            getValue(keyframe.mValue.mStartValue);
+            getValue(keyframe.value_.start_);
             continue;
         } else if (0 == strcmp(key, "e")) {
             parsed.noEndValue = false;
-            getValue(keyframe.mValue.mEndValue);
+            getValue(keyframe.value_.end_);
             continue;
         } else if (0 == strcmp(key, "n")) {
             if (PeekType() == kStringType) {
@@ -2043,7 +2044,7 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
                 }
             }
             continue;
-        } else if (parseKeyFrameValue(key, keyframe.mValue)) {
+        } else if (parseKeyFrameValue(key, keyframe.value_)) {
             continue;
         } else if (0 == strcmp(key, "h")) {
             parsed.hold = GetInt();
@@ -2056,29 +2057,26 @@ void LottieParserImpl::parseKeyFrame(model::DynamicProperty<T> &obj)
         }
     }
 
-
-    auto &list = obj.mKeyFrames;
-
+    auto &list = obj.frames_;
     if (!list.empty()) {
         // update the endFrame value of current keyframe
-        list.back().mEndFrame = keyframe.mStartFrame;
+        list.back().end_ = keyframe.start_;
         // if no end value provided, copy start value to previous frame
         if (parsed.value && parsed.noEndValue) {
-            list.back().mValue.mEndValue =
-                keyframe.mValue.mStartValue;
+            list.back().value_.end_ = keyframe.value_.start_;
         }
     }
 
     if (parsed.hold) {
-        keyframe.mValue.mEndValue = keyframe.mValue.mStartValue;
-        keyframe.mEndFrame = keyframe.mStartFrame;
+        keyframe.value_.end_ = keyframe.value_.start_;
+        keyframe.end_ = keyframe.start_;
         list.push_back(std::move(keyframe));
     } else if (parsed.interpolator) {
-        keyframe.mInterpolator = interpolator(
+        keyframe.interpolator_ = interpolator(
             inTangent, outTangent, std::move(parsed.interpolatorKey));
         list.push_back(std::move(keyframe));
     } else {
-        // Last frame ignore
+        // its the last frame discard.
     }
 }
 
@@ -2118,8 +2116,8 @@ void LottieParserImpl::parseShapeProperty(model::Property<model::PathData> &obj)
     obj.cache();
 }
 
-template <typename T>
-void LottieParserImpl::parsePropertyHelper(model::Property<T> &obj)
+template <typename T, typename Tag>
+void LottieParserImpl::parsePropertyHelper(model::Property<T, Tag> &obj)
 {
     if (PeekType() == kNumberType) {
         if (!obj.isStatic()) {
