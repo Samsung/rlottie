@@ -1506,9 +1506,6 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
 {
     auto objT = allocator().make<model::Transform>();
 
-    std::shared_ptr<model::Transform> sharedTransform =
-        std::make_shared<model::Transform>();
-
     auto obj = allocator().make<model::Transform::Data>();
     if (ddd) {
         obj->createExtraData();
@@ -1517,7 +1514,7 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
-            sharedTransform->setName(GetString());
+            objT->setName(GetString());
         } else if (0 == strcmp(key, "a")) {
             parseProperty(obj->mAnchor);
         } else if (0 == strcmp(key, "p")) {
@@ -1545,7 +1542,7 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
         } else if (0 == strcmp(key, "o")) {
             parseProperty(obj->mOpacity);
         } else if (0 == strcmp(key, "hd")) {
-            sharedTransform->setHidden(GetBool());
+            objT->setHidden(GetBool());
         } else if (0 == strcmp(key, "rx")) {
             parseProperty(obj->mExtra->m3DRx);
         } else if (0 == strcmp(key, "ry")) {
