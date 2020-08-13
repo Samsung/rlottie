@@ -111,7 +111,7 @@ private:
     std::vector<VBitmap> mCache;
 };
 
-class Drawable : public VDrawable {
+class Drawable final : public VDrawable {
 public:
     void sync();
 
@@ -268,7 +268,7 @@ protected:
     std::unique_ptr<CApiData>  mCApiData;
 };
 
-class CompLayer : public Layer {
+class CompLayer final : public Layer {
 public:
     explicit CompLayer(model::Layer *layerData, VArenaAlloc *allocator);
 
@@ -294,7 +294,7 @@ private:
     std::unique_ptr<Clipper> mClipper;
 };
 
-class SolidLayer : public Layer {
+class SolidLayer final : public Layer {
 public:
     explicit SolidLayer(model::Layer *layerData);
     void         buildLayerNode() final;
@@ -311,7 +311,7 @@ private:
 
 class Group;
 
-class ShapeLayer : public Layer {
+class ShapeLayer final : public Layer {
 public:
     explicit ShapeLayer(model::Layer *layerData, VArenaAlloc *allocator);
     DrawableList renderList() final;
@@ -326,7 +326,7 @@ protected:
     Group *                  mRoot{nullptr};
 };
 
-class NullLayer : public Layer {
+class NullLayer final : public Layer {
 public:
     explicit NullLayer(model::Layer *layerData);
 
@@ -335,7 +335,7 @@ protected:
     void updateContent() final;
 };
 
-class ImageLayer : public Layer {
+class ImageLayer final : public Layer {
 public:
     explicit ImageLayer(model::Layer *layerData);
     void         buildLayerNode() final;
@@ -435,7 +435,7 @@ private:
     bool   mStaticPath;
 };
 
-class Rect : public Shape {
+class Rect final : public Shape {
 public:
     explicit Rect(model::Rect *data);
 
@@ -451,7 +451,7 @@ protected:
     }
 };
 
-class Ellipse : public Shape {
+class Ellipse final : public Shape {
 public:
     explicit Ellipse(model::Ellipse *data);
 
@@ -465,7 +465,7 @@ private:
     }
 };
 
-class Path : public Shape {
+class Path final : public Shape {
 public:
     explicit Path(model::Path *data);
 
@@ -478,7 +478,7 @@ private:
     }
 };
 
-class Polystar : public Shape {
+class Polystar final : public Shape {
 public:
     explicit Polystar(model::Polystar *data);
 
@@ -524,7 +524,7 @@ protected:
     bool                 mContentToRender{true};
 };
 
-class Fill : public Paint {
+class Fill final : public Paint {
 public:
     explicit Fill(model::Fill *data);
 
@@ -537,7 +537,7 @@ private:
     model::Filter<model::Fill> mModel;
 };
 
-class GradientFill : public Paint {
+class GradientFill final : public Paint {
 public:
     explicit GradientFill(model::GradientFill *data);
 
@@ -562,7 +562,7 @@ private:
     model::Filter<model::Stroke> mModel;
 };
 
-class GradientStroke : public Paint {
+class GradientStroke final : public Paint {
 public:
     explicit GradientStroke(model::GradientStroke *data);
 
@@ -574,7 +574,7 @@ private:
     std::unique_ptr<VGradient> mGradient;
 };
 
-class Trim : public Object {
+class Trim final : public Object {
 public:
     explicit Trim(model::Trim *data) : mData(data) {}
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
@@ -602,7 +602,7 @@ private:
     bool                 mDirty{true};
 };
 
-class Repeater : public Group {
+class Repeater final : public Group {
 public:
     explicit Repeater(model::Repeater *data, VArenaAlloc *allocator);
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
