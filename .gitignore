@@ -10,3 +10,4 @@ tmp
 .cproject
 .project
 .vs
+**/*.DS_Store
