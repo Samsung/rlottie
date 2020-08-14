@@ -156,7 +156,7 @@ public:
     model::Mask::Mode maskMode() const { return mData->mMode; }
     VRle              rle();
     void              preprocess(const VRect &clip);
-
+    bool              inverted() const { return mData->mInv; }
 public:
     model::Mask *mData{nullptr};
     VPath        mLocalPath;
