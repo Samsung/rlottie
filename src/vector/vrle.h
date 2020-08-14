@@ -8,8 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,16 +39,15 @@ public:
         ushort len{0};
         uchar  coverage{0};
     };
-    using VRleSpanCb =  void (*)(size_t count, const VRle::Span *spans,
-                                 void *userData);
+    using VRleSpanCb = void (*)(size_t count, const VRle::Span *spans,
+                                void *userData);
     bool  empty() const;
     VRect boundingRect() const;
-    void setBoundingRect(const VRect &bbox);
+    void  setBoundingRect(const VRect &bbox);
     void  addSpan(const VRle::Span *span, size_t count);
 
     void reset();
     void translate(const VPoint &p);
-    void invert();
 
     void operator*=(uchar alpha);
 
@@ -61,42 +60,43 @@ public:
     VRle operator+(const VRle &o) const;
     VRle operator^(const VRle &o) const;
 
-    static VRle toRle(const VRect &rect);
+    friend VRle operator-(const VRect &rect, const VRle &o);
+    friend VRle operator&(const VRect &rect, const VRle &o);
 
-    bool unique() const {return d.unique();}
-    size_t refCount() const { return d.refCount();}
-    void clone(const VRle &o);
+    bool   unique() const { return d.unique(); }
+    size_t refCount() const { return d.refCount(); }
+    void   clone(const VRle &o);
 
 public:
     struct VRleData {
-        enum class OpCode {
-            Add,
-            Xor
-        };
+        enum class OpCode { Add, Xor };
         bool  empty() const { return mSpans.empty(); }
         void  addSpan(const VRle::Span *span, size_t count);
         void  updateBbox() const;
         VRect bbox() const;
-        void setBbox(const VRect &bbox) const;
+        void  setBbox(const VRect &bbox) const;
         void  reset();
         void  translate(const VPoint &p);
         void  operator*=(uchar alpha);
-        void  invert();
         void  opIntersect(const VRect &, VRle::VRleSpanCb, void *) const;
-        void  opGeneric(const VRle::VRleData &, const VRle::VRleData &, OpCode code);
+        void  opGeneric(const VRle::VRleData &, const VRle::VRleData &,
+                        OpCode code);
         void  opSubstract(const VRle::VRleData &, const VRle::VRleData &);
         void  opIntersect(const VRle::VRleData &, const VRle::VRleData &);
         void  addRect(const VRect &rect);
         void  clone(const VRle::VRleData &);
+
         std::vector<VRle::Span> mSpans;
         VPoint                  mOffset;
         mutable VRect           mBbox;
         mutable bool            mBboxDirty = true;
     };
+
 private:
     friend void opIntersectHelper(const VRle::VRleData &obj1,
                                   const VRle::VRleData &obj2,
                                   VRle::VRleSpanCb cb, void *userData);
+
     vcow_ptr<VRleData> d;
 };
 
@@ -115,14 +115,9 @@ inline VRect VRle::boundingRect() const
     return d->bbox();
 }
 
-inline void VRle::setBoundingRect(const VRect & bbox)
+inline void VRle::setBoundingRect(const VRect &bbox)
 {
     d->setBbox(bbox);
-}
-
-inline void VRle::invert()
-{
-    d.write().invert();
 }
 
 inline void VRle::operator*=(uchar alpha)

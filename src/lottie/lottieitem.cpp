@@ -8,8 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -287,8 +287,12 @@ VRle renderer::LayerMask::maskRle(const VRect &clipRect)
 
     VRle rle;
     for (auto &e : mMasks) {
-        auto cur = e.rle();
-        if (e.inverted()) cur = VRle::toRle(clipRect) - cur;
+        const auto cur = [&]() {
+            if (e.inverted())
+                return clipRect - e.rle();
+            else
+                return e.rle();
+        }();
 
         switch (e.maskMode()) {
         case model::Mask::Mode::Add: {
@@ -296,13 +300,17 @@ VRle renderer::LayerMask::maskRle(const VRect &clipRect)
             break;
         }
         case model::Mask::Mode::Substarct: {
-            if (rle.empty() && !clipRect.empty()) rle = VRle::toRle(clipRect);
-            rle = rle - cur;
+            if (rle.empty() && !clipRect.empty())
+                rle = clipRect - cur;
+            else
+                rle = rle - cur;
             break;
         }
         case model::Mask::Mode::Intersect: {
-            if (rle.empty() && !clipRect.empty()) rle = VRle::toRle(clipRect);
-            rle = rle & cur;
+            if (rle.empty() && !clipRect.empty())
+                rle = clipRect & cur;
+            else
+                rle = rle & cur;
             break;
         }
         case model::Mask::Mode::Difference: {
