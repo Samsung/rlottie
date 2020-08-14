@@ -672,12 +672,12 @@ renderer::SolidLayer::SolidLayer(model::Layer *layerData)
 void renderer::SolidLayer::updateContent()
 {
     if (flag() & DirtyFlagBit::Matrix) {
-        VPath path;
-        path.addRect(VRectF(0, 0, mLayerData->layerSize().width(),
+        mPath.reset();
+        mPath.addRect(VRectF(0, 0, mLayerData->layerSize().width(),
                             mLayerData->layerSize().height()));
-        path.transform(combinedMatrix());
+        mPath.transform(combinedMatrix());
         mRenderNode.mFlag |= VDrawable::DirtyState::Path;
-        mRenderNode.mPath = path;
+        mRenderNode.mPath = mPath;
     }
     if (flag() & DirtyFlagBit::Alpha) {
         model::Color color = mLayerData->solidColor();
@@ -716,12 +716,12 @@ void renderer::ImageLayer::updateContent()
     if (!mLayerData->asset()) return;
 
     if (flag() & DirtyFlagBit::Matrix) {
-        VPath path;
-        path.addRect(VRectF(0, 0, mLayerData->asset()->mWidth,
+        mPath.reset();
+        mPath.addRect(VRectF(0, 0, mLayerData->asset()->mWidth,
                             mLayerData->asset()->mHeight));
-        path.transform(combinedMatrix());
+        mPath.transform(combinedMatrix());
         mRenderNode.mFlag |= VDrawable::DirtyState::Path;
-        mRenderNode.mPath = path;
+        mRenderNode.mPath = mPath;
         mTexture.mMatrix = combinedMatrix();
     }
 
