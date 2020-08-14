@@ -8,7 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
 
- * The above copyright notice and this permission notice shall be included in all
+ * The above copyright notice and this permission notice shall be included in
+ all
  * copies or substantial portions of the Software.
 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -120,7 +121,7 @@ void VRle::VRleData::addRect(const VRect &rect)
         span.coverage = 255;
         mSpans.push_back(span);
     }
-    updateBbox();
+    mBbox = rect;
 }
 
 void VRle::VRleData::updateBbox() const
@@ -143,13 +144,6 @@ void VRle::VRleData::updateBbox() const
             if (span[i].x + span[i].len > r) r = span[i].x + span[i].len;
         }
         mBbox = VRect(l, t, r - l, b - t + 1);
-    }
-}
-
-void VRle::VRleData::invert()
-{
-    for (auto &i : mSpans) {
-        i.coverage = 255 - i.coverage;
     }
 }
 
@@ -717,15 +711,6 @@ static void rleSubstractWithRle(VRleHelper *a, VRleHelper *b,
     result->size = result->alloc - available;
 }
 
-VRle VRle::toRle(const VRect &rect)
-{
-    if (rect.empty()) return VRle();
-
-    VRle result;
-    result.d.write().addRect(rect);
-    return result;
-}
-
 /*
  * this api makes use of thread_local temporary
  * buffer to avoid creating intermediate temporary rle buffer
@@ -746,6 +731,32 @@ void VRle::operator&=(const VRle &o)
     Scratch_Object.reset();
     Scratch_Object.opIntersect(d.read(), o.d.read());
     d.write() = Scratch_Object;
+}
+
+VRle operator-(const VRect &rect, const VRle &o)
+{
+    if (rect.empty()) return {};
+
+    Scratch_Object.reset();
+    Scratch_Object.addRect(rect);
+
+    VRle result;
+    result.d.write().opSubstract(Scratch_Object, o.d.read());
+
+    return result;
+}
+
+VRle operator&(const VRect &rect, const VRle &o)
+{
+    if (rect.empty() || o.empty()) return {};
+
+    Scratch_Object.reset();
+    Scratch_Object.addRect(rect);
+
+    VRle result;
+    result.d.write().opIntersect(Scratch_Object, o.d.read());
+
+    return result;
 }
 
 V_END_NAMESPACE
