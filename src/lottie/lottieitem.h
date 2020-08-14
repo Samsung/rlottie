@@ -306,6 +306,7 @@ protected:
 
 private:
     Drawable   mRenderNode;
+    VPath      mPath;
     VDrawable *mDrawableList{nullptr};  // to work with the Span api
 };
 
@@ -348,6 +349,7 @@ protected:
 private:
     Drawable   mRenderNode;
     VTexture   mTexture;
+    VPath      mPath;
     VDrawable *mDrawableList{nullptr};  // to work with the Span api
 };
 
