@@ -197,7 +197,6 @@ VRle renderer::Mask::rle()
         mRasterRequest = false;
         if (!vCompare(mCombinedAlpha, 1.0f))
             mRasterizer.rle() *= uchar(mCombinedAlpha * 255);
-        if (mData->mInv) mRasterizer.rle().invert();
     }
     return mRasterizer.rle();
 }
@@ -287,24 +286,27 @@ VRle renderer::LayerMask::maskRle(const VRect &clipRect)
     if (!mDirty) return mRle;
 
     VRle rle;
-    for (auto &i : mMasks) {
-        switch (i.maskMode()) {
+    for (auto &e : mMasks) {
+        auto cur = e.rle();
+        if (e.inverted()) cur = VRle::toRle(clipRect) - cur;
+
+        switch (e.maskMode()) {
         case model::Mask::Mode::Add: {
-            rle = rle + i.rle();
+            rle = rle + cur;
             break;
         }
         case model::Mask::Mode::Substarct: {
             if (rle.empty() && !clipRect.empty()) rle = VRle::toRle(clipRect);
-            rle = rle - i.rle();
+            rle = rle - cur;
             break;
         }
         case model::Mask::Mode::Intersect: {
             if (rle.empty() && !clipRect.empty()) rle = VRle::toRle(clipRect);
-            rle = rle & i.rle();
+            rle = rle & cur;
             break;
         }
         case model::Mask::Mode::Difference: {
-            rle = rle ^ i.rle();
+            rle = rle ^ cur;
             break;
         }
         default:
