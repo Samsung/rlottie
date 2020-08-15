@@ -316,9 +316,6 @@
     <ClCompile Include="..\src\vector\vbrush.cpp">
       <Filter>src\vector</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\vector\vcompositionfunctions.cpp">
-      <Filter>src\vector</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\vector\vdasher.cpp">
       <Filter>src\vector</Filter>
     </ClCompile>

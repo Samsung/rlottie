@@ -558,8 +558,8 @@ static void blend_gradient(size_t size, const VRle::Span *array,
     process_in_chunk(
         array, size,
         [&](uint *scratch, size_t x, size_t y, size_t len, uchar cov) {
-            op.srcFetch(scratch, &op, data, y, x, len);
-            op.func(data->buffer(x, y), len, scratch, cov);
+            op.srcFetch(scratch, &op, data, (int)y, (int)x, (int)len);
+            op.func(data->buffer((int)x, (int)y), (int)len, scratch, cov);
         });
 }
 
@@ -601,7 +601,7 @@ static void blend_image_xform(size_t size, const VRle::Span *array,
                 const int   py = clamp(int(fy), src.top, src.bottom);
                 scratch[i] = src.pixel(px, py);
             }
-            op.func(data->buffer(x, y), len, scratch, coverage);
+            op.func(data->buffer((int)x, (int)y), (int)len, scratch, coverage);
         });
 }
 
@@ -637,7 +637,7 @@ static void blend_image(size_t size, const VRle::Span *array, void *userData)
             sx = 0;
         }
         // intersecting right edge of image
-        if (sx + length > int(src.width())) length = src.width() - sx;
+        if (sx + length > int(src.width())) length = (int)src.width() - sx;
 
         op.func(data->buffer(x, span.y), length, src.pixelRef(sx, sy),
                 alpha_mul(span.coverage, src.alpha()));
