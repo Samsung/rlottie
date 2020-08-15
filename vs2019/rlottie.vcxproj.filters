@@ -161,13 +161,13 @@
     <ClInclude Include="..\src\lottie\rapidjson\msinttypes\stdint.h">
       <Filter>src\lottie\rapidjson\msinttypes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\lottie\lottiefiltermodel.h">
+      <Filter>src\lottie</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\lottie\lottieitem.h">
       <Filter>src\lottie</Filter>
     </ClInclude>
     <ClInclude Include="..\src\lottie\lottiekeypath.h">
-      <Filter>src\lottie</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\lottie\lottieloader.h">
       <Filter>src\lottie</Filter>
     </ClInclude>
     <ClInclude Include="..\src\lottie\lottiemodel.h">
@@ -196,6 +196,9 @@
     </ClInclude>
     <ClInclude Include="..\src\vector\stb\stb_image.h">
       <Filter>src\vector\stb</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vector\varenaalloc.h">
+      <Filter>src\vector</Filter>
     </ClInclude>
     <ClInclude Include="..\src\vector\vbezier.h">
       <Filter>src\vector</Filter>
@@ -277,6 +280,9 @@
     <ClCompile Include="..\src\lottie\lottieanimation.cpp">
       <Filter>src\lottie</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\lottie\lottieitem_capi.cpp">
+      <Filter>src\lottie</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\lottie\lottieitem.cpp">
       <Filter>src\lottie</Filter>
     </ClCompile>
@@ -307,6 +313,9 @@
     <ClCompile Include="..\src\vector\stb\stb_image.cpp">
       <Filter>src\vector\stb</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\vector\varenaalloc.cpp">
+      <Filter>src\vector</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\vector\vbezier.cpp">
       <Filter>src\vector</Filter>
     </ClCompile>
@@ -326,6 +335,9 @@
       <Filter>src\vector</Filter>
     </ClCompile>
     <ClCompile Include="..\src\vector\vdrawhelper.cpp">
+      <Filter>src\vector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vector\vdrawhelper_common.cpp">
       <Filter>src\vector</Filter>
     </ClCompile>
     <ClCompile Include="..\src\vector\vdrawhelper_neon.cpp">

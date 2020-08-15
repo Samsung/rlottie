@@ -129,6 +129,7 @@
     <ClInclude Include="..\inc\rlottie.h" />
     <ClInclude Include="..\inc\rlottiecommon.h" />
     <ClInclude Include="..\inc\rlottie_capi.h" />
+    <ClInclude Include="..\src\lottie\lottiefiltermodel.h" />
     <ClInclude Include="..\src\lottie\lottieitem.h" />
     <ClInclude Include="..\src\lottie\lottiekeypath.h" />
     <ClInclude Include="..\src\lottie\lottieloader.h" />
@@ -177,6 +178,7 @@
     <ClInclude Include="..\src\vector\freetype\v_ft_types.h" />
     <ClInclude Include="..\src\vector\pixman\pixman-arm-neon-asm.h" />
     <ClInclude Include="..\src\vector\stb\stb_image.h" />
+    <ClInclude Include="..\src\vector\varenaalloc.h" />
     <ClInclude Include="..\src\vector\vbezier.h" />
     <ClInclude Include="..\src\vector\vbitmap.h" />
     <ClInclude Include="..\src\vector\vbrush.h" />
@@ -206,6 +208,7 @@
     <ClCompile Include="..\src\binding\c\lottieanimation_capi.cpp" />
     <ClCompile Include="..\src\lottie\lottieanimation.cpp" />
     <ClCompile Include="..\src\lottie\lottieitem.cpp" />
+    <ClCompile Include="..\src\lottie\lottieitem_capi.cpp" />
     <ClCompile Include="..\src\lottie\lottiekeypath.cpp" />
     <ClCompile Include="..\src\lottie\lottieloader.cpp" />
     <ClCompile Include="..\src\lottie\lottiemodel.cpp" />
@@ -215,6 +218,7 @@
     <ClCompile Include="..\src\vector\freetype\v_ft_raster.cpp" />
     <ClCompile Include="..\src\vector\freetype\v_ft_stroker.cpp" />
     <ClCompile Include="..\src\vector\stb\stb_image.cpp" />
+    <ClCompile Include="..\src\vector\varenaalloc.cpp" />
     <ClCompile Include="..\src\vector\vbezier.cpp" />
     <ClCompile Include="..\src\vector\vbitmap.cpp" />
     <ClCompile Include="..\src\vector\vbrush.cpp" />
@@ -222,6 +226,7 @@
     <ClCompile Include="..\src\vector\vdebug.cpp" />
     <ClCompile Include="..\src\vector\vdrawable.cpp" />
     <ClCompile Include="..\src\vector\vdrawhelper.cpp" />
+    <ClCompile Include="..\src\vector\vdrawhelper_common.cpp" />
     <ClCompile Include="..\src\vector\vdrawhelper_neon.cpp" />
     <ClCompile Include="..\src\vector\vdrawhelper_sse2.cpp" />
     <ClCompile Include="..\src\vector\velapsedtimer.cpp" />
