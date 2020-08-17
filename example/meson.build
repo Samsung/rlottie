@@ -13,6 +13,14 @@ executable('lottie2gif',
            override_options : override_default,
            link_with : rlottie_lib)
 
+if host_machine.system() != 'windows'
+    executable('perf',
+               'lottieperf.cpp',
+               include_directories : inc,
+               override_options : override_default,
+               link_with : rlottie_lib)
+endif
+
 demo_dep = dependency('elementary', required : false, disabler : true)
 
 executable('demo',
@@ -62,3 +70,5 @@ executable('lottieviewer',
            override_options : override_default,
            link_with : rlottie_lib,
            dependencies : demo_dep)
+
+
