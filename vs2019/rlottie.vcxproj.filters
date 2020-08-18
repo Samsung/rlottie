@@ -173,12 +173,6 @@
     <ClInclude Include="..\src\lottie\lottiemodel.h">
       <Filter>src\lottie</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\lottie\lottieparser.h">
-      <Filter>src\lottie</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\lottie\lottieproxymodel.h">
-      <Filter>src\lottie</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\vector\freetype\v_ft_math.h">
       <Filter>src\vector\freetype</Filter>
     </ClInclude>
@@ -270,9 +264,6 @@
       <Filter>src\vector</Filter>
     </ClInclude>
     <ClInclude Include="config.h">
-      <Filter>inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\lottie\lottieloader.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

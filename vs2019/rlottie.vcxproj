@@ -137,10 +137,7 @@
     <ClInclude Include="..\src\lottie\lottiefiltermodel.h" />
     <ClInclude Include="..\src\lottie\lottieitem.h" />
     <ClInclude Include="..\src\lottie\lottiekeypath.h" />
-    <ClInclude Include="..\src\lottie\lottieloader.h" />
     <ClInclude Include="..\src\lottie\lottiemodel.h" />
-    <ClInclude Include="..\src\lottie\lottieparser.h" />
-    <ClInclude Include="..\src\lottie\lottieproxymodel.h" />
     <ClInclude Include="..\src\lottie\rapidjson\allocators.h" />
     <ClInclude Include="..\src\lottie\rapidjson\cursorstreamwrapper.h" />
     <ClInclude Include="..\src\lottie\rapidjson\document.h" />
