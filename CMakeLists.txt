@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.3 )
 
 #declare project
-project( rlottie VERSION 0.1 LANGUAGES C CXX ASM)
+project( rlottie VERSION 0.2 LANGUAGES C CXX ASM)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE MinSizeRel)
@@ -18,9 +18,8 @@ set_target_properties( rlottie PROPERTIES DEFINE_SYMBOL RLOTTIE_BUILD )
 
 #declare version of the target
 set(player_version_major 0)
-set(player_version_minor 0)
-set(player_version_patch 1)
-set(player_version ${player_version_major}.${player_version_minor}.${player_version_patch} )
+set(player_version_minor 2)
+set(player_version ${player_version_major}.${player_version_minor})
 set_target_properties(rlottie PROPERTIES
                         VERSION    ${player_version}
                         SOVERSION  ${player_version_major}
@@ -64,8 +63,6 @@ if (NOT WIN32)
     target_compile_options(rlottie
                         PUBLIC
                         PRIVATE
-                            -Werror
-                            -Wextra
                             -Wnon-virtual-dtor
                             -Woverloaded-virtual
                             -Wno-unused-parameter
