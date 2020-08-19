@@ -29,7 +29,7 @@ VDrawable::VDrawable(VDrawable::Type type)
     setType(type);
 }
 
-VDrawable::~VDrawable()
+VDrawable::~VDrawable() noexcept
 {
     if (mStrokeInfo) {
         if (mType == Type::StrokeWithDash) {

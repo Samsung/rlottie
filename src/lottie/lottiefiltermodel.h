@@ -224,7 +224,7 @@ private:
         PointFunc pointFunc;
         SizeFunc  sizeFunc;
         details() {}
-        ~details() {}
+        ~details() noexcept {}
     } impl;
 };
 

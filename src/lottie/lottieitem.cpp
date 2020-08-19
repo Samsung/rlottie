@@ -214,7 +214,7 @@ void renderer::Mask::preprocess(const VRect &clip)
 }
 
 void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
-                             const VRle &matteRle, SurfaceCache &cache)
+                             const VRle &matteRle, SurfaceCache &)
 {
     auto renderlist = renderList();
 
