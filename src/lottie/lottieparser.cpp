@@ -254,7 +254,7 @@ public:
     void getValue(model::Repeater::Transform &);
 
     template <typename T, typename Tag>
-    bool parseKeyFrameValue(const char *key, model::Value<T, Tag> &value)
+    bool parseKeyFrameValue(const char *, model::Value<T, Tag> &)
     {
         return false;
     }
