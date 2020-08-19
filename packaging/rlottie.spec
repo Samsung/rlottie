@@ -3,10 +3,10 @@
 %define         devel %mklibname rlottie -d
 
 %define         git 20200408
-%define         rel 1
+%define         rel 2
 
 Name:           rlottie
-Version:        0.0.1
+Version:        0.2
 Release:        %mkrel %{?git:-c git%{git}} %{rel}
 Summary:        Platform independent standalone library that plays Lottie Animation
 Group:          System/Libraries
@@ -42,36 +42,36 @@ bodymovin, Sketch with Lottie Sketch Export, and from Haiku.
 
 For the first time, designers can create and ship beautiful animations without
 an engineer painstakingly recreating it by hand. Since the animation is backed
-by JSON they are extremely small in size but can be large in complexity!                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                
-This is the development libraries for rlottie.                                                                                                                                                                                                                                  
-                                                                                                                                                                                                                                                                                
-%package -n %{libname}                                                                                                                                                                                                                                                          
-Summary:       Platform independent standalone library that plays Lottie Animation                                                                                                                                                                                              
-Group:         System/Libraries                                                                                                                                                                                                                                                 
-                                                                                                                                                                                                                                                                                
-%description -n %{libname}                                                                                                                                                                                                                                                      
-rlottie is a platform independent standalone c++ library for rendering vector                                                                                                                                                                                                   
-based animations and art in realtime.                                                                                                                                                                                                                                           
-                                                                                                                                                                                                                                                                                
-Lottie loads and renders animations and vectors exported in the bodymovin JSON                                                                                                                                                                                                  
-format. Bodymovin JSON can be created and exported from After Effects with                                                                                                                                                                                                      
-bodymovin, Sketch with Lottie Sketch Export, and from Haiku.                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                
-For the first time, designers can create and ship beautiful animations without                                                                                                                                                                                                  
-an engineer painstakingly recreating it by hand. Since the animation is backed                                                                                                                                                                                                  
-by JSON they are extremely small in size but can be large in complexity!                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                
-%prep                                                                                                                                                                                                                                                                           
-%autosetup -n %{name}-master                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                
-%build                                                                                                                                                                                                                                                                          
-%meson                                                                                                                                                                                                                                                                          
-                                                                                                                                                                                                                                                                                
-%install                                                                                                                                                                                                                                                                        
+by JSON they are extremely small in size but can be large in complexity!
+
+This is the development libraries for rlottie.
+
+%package -n %{libname}
+Summary:       Platform independent standalone library that plays Lottie Animation
+Group:         System/Libraries
+
+%description -n %{libname}
+rlottie is a platform independent standalone c++ library for rendering vector
+based animations and art in realtime.
+
+Lottie loads and renders animations and vectors exported in the bodymovin JSON
+format. Bodymovin JSON can be created and exported from After Effects with
+bodymovin, Sketch with Lottie Sketch Export, and from Haiku.
+
+For the first time, designers can create and ship beautiful animations without
+an engineer painstakingly recreating it by hand. Since the animation is backed
+by JSON they are extremely small in size but can be large in complexity!
+
+%prep
+%autosetup -n %{name}-master
+
+%build
+%meson
+
+%install
 %meson_install
 
-%files -n %{devel}                                                                                                                                                                                                                                                              
+%files -n %{devel}
 %{_includedir}/rlottie.h
 %{_includedir}/rlottie_capi.h
 %{_includedir}/rlottiecommon.h
