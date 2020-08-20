@@ -537,7 +537,7 @@ static inline void process_in_chunk(const VRle::Span *array, size_t size,
     for (size_t i = 0; i < size; i++) {
         const auto &span = array[i];
         size_t      len = span.len;
-        size_t      x = span.x;
+        auto        x = span.x;
         while (len) {
             auto l = std::min(len, buf.size());
             process(buf.data(), x, span.y, l, span.coverage);
