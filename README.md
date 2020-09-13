@@ -36,7 +36,7 @@ Here are small samples of the power of Lottie.
 - [Issues or Feature Requests?](#issues-or-feature-requests)
 
 ## Building Lottie
-rlottie supports [meson](https://mesonbuild.com/) and [cmake](https://cmake.org/) build system. rlottie is written in `C++14`. and has a public header dependancy of `C++11`
+rlottie supports [meson](https://mesonbuild.com/) and [cmake](https://cmake.org/) build system. rlottie is written in `C++14`. and has a public header dependency of `C++11`
 
 ### Meson Build
 install [meson](http://mesonbuild.com/Getting-meson.html) and [ninja](https://ninja-build.org/) if not already installed.
@@ -99,7 +99,7 @@ ninja test
 
 #
 ## Demo
-If you want to see rlottie librray in action without building it please visit [rlottie online viewer](http://rlottie.com)
+If you want to see rlottie library in action without building it please visit [rlottie online viewer](http://rlottie.com)
 
 While building rlottie library it generates a simple lottie to GIF converter which can be used to convert lottie json file to GIF file.
 
