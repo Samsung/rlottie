@@ -108,11 +108,11 @@ enum class Property {
     FillOpacity,   /*!< Opacity property of Fill object , value type is float [ 0 .. 100] */
     StrokeColor,   /*!< Color property of Stroke object , value type is rlottie::Color */
     StrokeOpacity, /*!< Opacity property of Stroke object , value type is float [ 0 .. 100] */
-    StrokeWidth,   /*!< stroke with property of Stroke object , value type is float */
+    StrokeWidth,   /*!< stroke width property of Stroke object , value type is float */
     TrAnchor,      /*!< Transform Anchor property of Layer and Group object , value type is rlottie::Point */
     TrPosition,    /*!< Transform Position property of Layer and Group object , value type is rlottie::Point */
     TrScale,       /*!< Transform Scale property of Layer and Group object , value type is rlottie::Size. range[0 ..100] */
-    TrRotation,    /*!< Transform Scale property of Layer and Group object , value type is float. range[0 .. 360] in degrees*/
+    TrRotation,    /*!< Transform Rotation property of Layer and Group object , value type is float. range[0 .. 360] in degrees*/
     TrOpacity      /*!< Transform Opacity property of Layer and Group object , value type is float [ 0 .. 100] */
 };
 
