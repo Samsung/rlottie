@@ -71,6 +71,8 @@ endif()
 
 if (WIN32 AND NOT BUILD_SHARED_LIBS)
     target_compile_definitions(rlottie PUBLIC -DRLOTTIE_BUILD=0)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif()
 
 #declare dependancy
