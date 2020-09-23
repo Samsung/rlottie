@@ -11,3 +11,4 @@ tmp
 .project
 .vs
 **/*.DS_Store
+builddir_wasm
