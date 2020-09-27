@@ -1,10 +1,10 @@
 #pragma once
 
 #include "resource.h"
-#include <Commdlg.h>                        // OPENFILENAME
-#include "atlconv.h"                             // String cast. ex) LPWSTR <-> LPSTR
+#include <Commdlg.h>                    // OPENFILENAME
+#include "atlconv.h"                    // String cast. (ex. LPWSTR <-> LPSTR)
 #include <gdiplus.h>
-#include <CommCtrl.h>						 // slider handle
+#include <CommCtrl.h>                    // slider handle
 #include <stdint.h>
 
 // interval
@@ -28,6 +28,7 @@ uint32_t* renderRLottieAnimation(uint32_t frameNum);
 size_t getTotalFrame();
 bool isAnimNULL();
 void setAnimationColor(int r, int g, int b);
+void freeAnimation();
 
 typedef struct RlottieBitmap
 {

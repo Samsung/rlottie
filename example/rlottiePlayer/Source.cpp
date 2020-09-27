@@ -48,3 +48,8 @@ bool isAnimNULL()
 {
 	return anim == NULL;
 }
+
+void freeAnimation()
+{
+    free(buffer);
+}
