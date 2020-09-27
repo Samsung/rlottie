@@ -18,13 +18,96 @@ public:
         return std::unique_ptr<RlottieWasm>(new RlottieWasm(resource));
     }
     int frames() const { return mFrameCount; }
+    double frameRate() const { return mFrameRate; }
+    double duration() const { return mDuration; }
 
     bool load(std::string jsonData)
     {
         mPlayer = rlottie::Animation::loadFromData(std::move(jsonData), "", "",
                                                    false);
         mFrameCount = mPlayer ? mPlayer->totalFrame() : 0;
+        mFrameRate = mPlayer ? mPlayer->frameRate() : 0.0;
+        mDuration = mPlayer ? mPlayer->duration() : 0.0;
+        mLayers = mPlayer ? mPlayer->layers() : rlottie::LayerInfoList();
         return mPlayer ? true : false;
+    }
+
+    // @TODO: Fix it to return vector<tuple<...>>
+    val layers() const
+    {
+        std::vector<std::string> vec;
+
+        for (const auto& l : mLayers)
+            vec.push_back(std::get<0>(l)+"/"+std::to_string(std::get<1>(l))+"/"+ std::to_string(std::get<2>(l)));
+        return val(vec);
+    }
+
+    void setFillColor(std::string keypath, float r, float g, float b)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::FillColor>(keypath, rlottie::Color(r, g, b));
+    }
+
+    void setStrokeColor(std::string keypath, float r, float g, float b)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeColor>(keypath, rlottie::Color(r, g, b));
+    }
+
+    void setFillOpacity(std::string keypath, float opacity) {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::FillOpacity>(keypath, opacity);
+    }
+
+    void setStrokeOpacity(std::string keypath, float opacity) {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeOpacity>(keypath, opacity);
+    }
+
+    void setStrokeWidth(std::string keypath, float width)
+    {
+        if (!mPlayer || width < 0) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeWidth>(keypath, width);
+    }
+
+    void setAnchor(std::string keypath, float x, float y)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrAnchor>(keypath, rlottie::Point(x, y));
+    }
+
+    void setPosition(std::string keypath, float x, float y)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrPosition>(keypath, rlottie::Point(x, y));
+    }
+
+    void setScale(std::string keypath, float width, float height)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrScale>(keypath, rlottie::Size(width, height));
+    }
+
+    void setRotation(std::string keypath, float degree)
+    {
+        if (!mPlayer || degree > 360 || degree < 0) return;
+
+        mPlayer->setValue<rlottie::Property::TrRotation>(keypath, degree);
+    }
+
+    void setOpacity(std::string keypath, float opacity)
+    {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::TrOpacity>(keypath, opacity);
     }
 
     // canvas pixel pix[0] pix[1] pix[2] pix[3] {B G R A}
@@ -58,6 +141,9 @@ private:
     {
         mPlayer = rlottie::Animation::loadFromData(data, "", "", false);
         mFrameCount = mPlayer ? mPlayer->totalFrame() : 0;
+        mFrameRate = mPlayer ? mPlayer->frameRate() : 0.0;
+        mDuration = mPlayer ? mPlayer->duration() : 0.0;
+        mLayers = mPlayer ? mPlayer->layers() : rlottie::LayerInfoList();
     }
 
     void convertToCanvasFormat()
@@ -94,6 +180,9 @@ private:
     int                                 mWidth{0};
     int                                 mHeight{0};
     int                                 mFrameCount{0};
+    double                              mFrameRate{0.0};
+    double                              mDuration{0.0};
+    rlottie::LayerInfoList              mLayers{};
     std::unique_ptr<uint8_t[]>          mBuffer;
     std::unique_ptr<rlottie::Animation> mPlayer;
 };
@@ -104,6 +193,21 @@ EMSCRIPTEN_BINDINGS(rlottie_bindings)
     class_<RlottieWasm>("RlottieWasm")
         .constructor(&RlottieWasm::create)
         .function("load", &RlottieWasm::load, allow_raw_pointers())
+        .function("layers", &RlottieWasm::layers)
         .function("frames", &RlottieWasm::frames)
+        .function("frameRate", &RlottieWasm::frameRate)
+        .function("duration", &RlottieWasm::duration)
+        .function("setFillColor", &RlottieWasm::setFillColor)
+        .function("setStrokeColor", &RlottieWasm::setStrokeColor)
+        .function("setFillOpacity", &RlottieWasm::setFillOpacity)
+        .function("setStrokeOpacity", &RlottieWasm::setStrokeOpacity)
+        .function("setStrokeWidth", &RlottieWasm::setStrokeWidth)
+        .function("setAnchor", &RlottieWasm::setAnchor)
+        .function("setPosition", &RlottieWasm::setPosition)
+        .function("setScale", &RlottieWasm::setScale)
+        .function("setRotation", &RlottieWasm::setRotation)
+        .function("setOpacity", &RlottieWasm::setOpacity)
         .function("render", &RlottieWasm::render);
+
+    register_vector<std::string>("vector<std::tstring>");
 }
