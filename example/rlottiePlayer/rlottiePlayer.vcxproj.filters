@@ -27,6 +27,9 @@
     <ClInclude Include="rlottiePlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="animation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rlottiePlayer.cpp">
