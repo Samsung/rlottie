@@ -22,7 +22,7 @@ RECT animRect, backRect;
 size_t animWidth, animHeight;
 Gdiplus::Color backColor(255, 255, 255, 255);
 Gdiplus::Color borderColor(255, 0, 0, 0);
-bool isBackgroundChanged = false;
+bool isViewChanged = false;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -318,8 +318,10 @@ void openJSONFileDialog(HWND hDlg)
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
+    isViewChanged = true;
     if (GetOpenFileName(&ofn))
     {
+        isViewChanged = true;
         SetWindowText(hTextFileToBeOpened, ofn.lpstrFile);
         // LPWSTR(w_char*) -> LPSTR(char*)
         USES_CONVERSION;
@@ -342,9 +344,9 @@ void draw(HDC hdc)
     SolidBrush brush(backColor);
     int back_y = half_interval + BTN_HEIGHT;
     int back_height = back_y + BMP_MAX_LEN + UI_INTERVAL;
-    if (isBackgroundChanged)
+    if (isViewChanged)
     {
-        isBackgroundChanged = false;
+        isViewChanged = false;
         gf.FillRectangle(&brush, 0, back_y, WND_WIDTH, back_height);
     }
 
@@ -413,8 +415,8 @@ void initUIControl(HWND hWnd)
     anim.height = anim.width;
 
     // animating range
-    SetRect(&animRect,
-        anim.x - UI_INTERVAL,
+    SetRect(&animRect, 
+        anim.x - UI_INTERVAL, 
         anim.y - UI_INTERVAL,
         anim.x + anim.width + UI_INTERVAL * 2,
         anim.y + anim.height + UI_INTERVAL * 2
@@ -425,7 +427,8 @@ void initUIControl(HWND hWnd)
         0,
         anim.y - UI_INTERVAL,
         WND_WIDTH,
-        anim.y + anim.height + UI_INTERVAL * 2);
+        anim.y + anim.height + UI_INTERVAL * 2
+    );
 
     // text Background Color
     int textBC_x = WND_WIDTH / 20;
@@ -498,7 +501,7 @@ void initUIControl(HWND hWnd)
 
 void resizeCanvas(HWND hWnd, int resizeValue)
 {
-    isBackgroundChanged = true;
+    isViewChanged = true;
     anim.x += resizeValue / 2;
     anim.y += resizeValue / 2;
     anim.width -= resizeValue;
@@ -508,7 +511,7 @@ void resizeCanvas(HWND hWnd, int resizeValue)
 
 void changeBackgroundColor(int r, int g, int b)
 {
-    isBackgroundChanged = true;
+    isViewChanged = true;
     backColor = Gdiplus::Color(r * 255, g * 255, b * 255);
     if (r + g + b == 0) borderColor = Gdiplus::Color(255, 255, 255);
     else borderColor = Gdiplus::Color(0, 0, 0);
