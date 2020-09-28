@@ -27,11 +27,11 @@ void setAnimation(char* path, size_t* w, size_t* h)
 
 uint32_t* renderRLottieAnimation(uint32_t frameNum)
 {
-	static Surface surface = Surface(buffer, width, height, bytesPerLine);
+	Surface surface = Surface(buffer, width, height, bytesPerLine);
 	anim->renderSync(frameNum, surface);
 	// background color
 	for (int i = 0; i < height; i++)
-		for (int j = 0; j < width; ++j)
+        for (int j = 0; j < width; ++j)
 		{
 			uint32_t* v = buffer + i * width + j;
 			if (*v == 0) *v = curColor;
