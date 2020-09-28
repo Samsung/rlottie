@@ -19,6 +19,7 @@ HWND hSliderPlay, hSliderCanvasResize;
 UINT curFrame = 0;
 RlottieBitmap anim;                                          // rendered Animation Bitmap
 RECT animRect, backRect;
+size_t animWidth, animHeight;
 Gdiplus::Color backColor(255, 255, 255, 255);
 Gdiplus::Color borderColor(255, 0, 0, 0);
 bool isBackgroundChanged = false;
@@ -159,7 +160,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         initUIControl(hWnd);
-        initAnimation(BMP_MAX_LEN, BMP_MAX_LEN);
         break;
     }
     case WM_TIMER:
@@ -325,7 +325,7 @@ void openJSONFileDialog(HWND hDlg)
         USES_CONVERSION;
         LPSTR path = W2A(ofn.lpstrFile);
 
-        setAnimation(path, BMP_MAX_LEN, BMP_MAX_LEN);
+        setAnimation(path, &animWidth, &animHeight);
         // init play slider
         SendMessage(hSliderPlay, TBM_SETRANGE, FALSE, MAKELPARAM(0, getTotalFrame()));
         SendMessage(hSliderPlay, TBM_SETPOS, TRUE, 0);
@@ -365,8 +365,8 @@ Bitmap* CreateBitmap(void* data, unsigned int width, unsigned int height)
     memset(&Info, 0, sizeof(Info));
 
     Info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    Info.bmiHeader.biWidth = 500;
-    Info.bmiHeader.biHeight = 500;
+    Info.bmiHeader.biWidth = width;
+    Info.bmiHeader.biHeight = height;
     Info.bmiHeader.biPlanes = 1;
     Info.bmiHeader.biBitCount = 32;
     Info.bmiHeader.biCompression = BI_RGB;
@@ -384,7 +384,7 @@ void renderAnimation(UINT frameNum)
 
     // render
     UINT* resRender = renderRLottieAnimation(curFrame);
-    anim.image = CreateBitmap(resRender, BMP_MAX_LEN, BMP_MAX_LEN);
+    anim.image = CreateBitmap(resRender, animWidth, animHeight);
     anim.image->RotateFlip(RotateNoneFlipY);
     // call WM_PAINT message
     InvalidateRect(mainWindow, &animRect, FALSE);

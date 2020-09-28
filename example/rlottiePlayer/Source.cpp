@@ -8,17 +8,21 @@ size_t width, height;
 size_t bytesPerLine;
 uint32_t curColor = UINT32_MAX;
 
-void initAnimation(size_t w, size_t h)
+void setAnimationSize(size_t w, size_t h)
 {
 	width = w;
 	height = h;
 	bytesPerLine = width * sizeof(uint32_t);
+
+    if (buffer != NULL) freeAnimation();
 	buffer = (uint32_t*)calloc(bytesPerLine * height, sizeof(uint32_t));
 }
 
-void setAnimation(char* path, size_t w, size_t h)
+void setAnimation(char* path, size_t* w, size_t* h)
 {
 	anim = Animation::loadFromFile(path);
+    anim->size(*w, *h);
+    setAnimationSize(*w, *h);
 }
 
 uint32_t* renderRLottieAnimation(uint32_t frameNum)
