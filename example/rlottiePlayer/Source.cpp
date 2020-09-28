@@ -1,4 +1,5 @@
 #include "rlottie.h"
+#include "animation.h"
 using namespace rlottie;
 
 std::unique_ptr<Animation> anim;
