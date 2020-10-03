@@ -24,6 +24,7 @@
 #include <cassert>
 #include <iterator>
 #include <stack>
+#include <queue>
 #include "vimageloader.h"
 #include "vline.h"
 
@@ -384,6 +385,71 @@ std::vector<LayerInfo> model::Composition::layerInfoList() const
     for (auto it : mRootLayer->mChildren) {
         auto layer = static_cast<model::Layer *>(it);
         result.emplace_back(layer->name(), layer->mInFrame, layer->mOutFrame);
+    }
+
+    return result;
+}
+
+std::vector<LayerType> model::Composition::allLayersInfoList() const
+{
+    if (!mRootLayer || mRootLayer->mChildren.empty()) return {};
+
+    std::vector<LayerType> result;
+    std::queue<std::pair<model::Layer *, std::string>> q;
+
+    q.push({mRootLayer, ""});
+
+    while (!q.empty()) {
+        auto curLayer = static_cast<model::Layer *>(q.front().first);
+        std::string curPath = q.front().second;
+        q.pop();
+
+        if (!curLayer) continue;
+
+        for (auto it : curLayer->mChildren) {
+            auto nextLayer = static_cast<model::Layer *>(it);
+            std::string nextPath;
+
+            if (curLayer == mRootLayer) {
+                nextPath = "::" + std::to_string(nextLayer->id()) +
+                           "::" + nextLayer->name();
+            }
+            else {
+                nextPath = curPath + "::" + nextLayer->name();
+            }
+
+            switch (nextLayer->type())
+            {
+                case model::Object::Type::Fill:
+                    result.push_back({"Fill", nextPath});
+                    break;
+
+                case model::Object::Type::Stroke:
+                    result.push_back({"Stroke", nextPath});
+                    break;
+
+                case model::Object::Type::GFill:
+                    result.push_back({"GFill", nextPath});
+                    break;
+
+                case model::Object::Type::GStroke:
+                    result.push_back({"GStroke", nextPath});
+                    break;
+
+                default:
+                    break;
+            }
+
+            if (nextLayer->mChildren.empty())
+                continue;
+
+            if (nextLayer->type() == model::Object::Type::Composition ||
+                nextLayer->type() == model::Object::Type::Group ||
+                nextLayer->type() == model::Object::Type::Layer)
+            {
+                q.push({nextLayer, nextPath});
+            }
+        }
     }
 
     return result;

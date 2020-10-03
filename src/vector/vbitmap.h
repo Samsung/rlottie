@@ -24,7 +24,7 @@
 #define VBITMAP_H
 
 #include "vrect.h"
-#include <vsharedptr.h>
+#include "vsharedptr.h"
 
 V_BEGIN_NAMESPACE
 
