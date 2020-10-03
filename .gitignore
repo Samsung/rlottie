@@ -12,3 +12,4 @@ tmp
 .vs
 **/*.DS_Store
 .vscode
+builddir_wasm
