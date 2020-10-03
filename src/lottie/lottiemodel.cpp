@@ -24,6 +24,7 @@
 #include <cassert>
 #include <iterator>
 #include <stack>
+#include <string>
 #include <queue>
 #include "vimageloader.h"
 #include "vline.h"
