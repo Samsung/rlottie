@@ -67,12 +67,20 @@ public:
         }
         return mLayerList;
     }
+    const LayerTypeList &allLayersInfoList() const
+    {
+        if (mSearchLayers.empty()) {
+            mSearchLayers = mModel->allLayersInfoList();
+        }
+        return mSearchLayers;
+    }
     const MarkerList &markers() const { return mModel->markers(); }
     void              setValue(const std::string &keypath, LOTVariant &&value);
     void              removeFilter(const std::string &keypath, Property prop);
 
 private:
     mutable LayerInfoList                  mLayerList;
+    mutable LayerTypeList                  mSearchLayers;
     model::Composition *                   mModel;
     SharedRenderTask                       mTask;
     std::atomic<bool>                      mRenderInProgress;
@@ -358,6 +366,11 @@ void Animation::renderSync(size_t frameNo, Surface surface,
 const LayerInfoList &Animation::layers() const
 {
     return d->layerInfoList();
+}
+
+const LayerTypeList &Animation::allLayersInfoList() const
+{
+    return d->allLayersInfoList();
 }
 
 const MarkerList &Animation::markers() const

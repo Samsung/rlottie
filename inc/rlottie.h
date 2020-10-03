@@ -263,8 +263,8 @@ using MarkerList = std::vector<std::tuple<std::string, int , int>>;
  *  start frame and duration of that segment.
  */
 
-using LayerInfoList = std::vector<std::tuple<std::string, int , int>>;
-
+using LayerInfoList = std::vector<std::tuple<std::string, int, int>>;
+using LayerTypeList = std::vector<std::pair<std::string, std::string>>;
 
 using ColorFilter = std::function<void(float &r , float &g, float &b)>;
 
@@ -447,7 +447,7 @@ public:
     const MarkerList& markers() const;
 
     /**
-     *  @brief Returns Layer information{name, inFrame, outFrame} of all the child layers  of the composition.
+     *  @brief Returns Layer information{name, inFrame, outFrame} of root's child layers  of the composition.
      *
      *
      *  @return List of Layer Information of the Composition.
@@ -456,6 +456,19 @@ public:
      *  @internal
      */
     const LayerInfoList& layers() const;
+
+    /**
+     *  @brief Returns Layer information{Type, Layer keypath} of fill, stroke object layers of the composition.
+     *         If fill object in the layer1(ind: 2)->group1->fill1 hirarchy,
+     *         it returns {"Fill", "2::layer1::group1::fill1"}
+     * 
+     * 
+     *  @return List of Layer information of the Composition.
+     * 
+     *  @see LayerTypeList
+     *  @internal
+     */
+    const LayerTypeList& allLayersInfoList() const;
 
     /**
      *  @brief Sets property value for the specified {@link KeyPath}. This {@link KeyPath} can resolve

@@ -48,6 +48,7 @@ namespace internal {
 using Marker = std::tuple<std::string, int, int>;
 
 using LayerInfo = Marker;
+using LayerType = std::pair<std::string, std::string>;
 
 template <typename T>
 inline T lerp(const T &start, const T &end, float t)
@@ -517,7 +518,8 @@ class Layer;
 class Composition : public Object {
 public:
     Composition() : Object(Object::Type::Composition) {}
-    std::vector<LayerInfo>     layerInfoList() const;
+    std::vector<LayerInfo>     layerInfoList() const;   
+    std::vector<LayerType>     allLayersInfoList() const;
     const std::vector<Marker> &markers() const { return mMarkers; }
     double                     duration() const
     {
