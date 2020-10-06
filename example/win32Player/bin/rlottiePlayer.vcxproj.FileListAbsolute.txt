@@ -1,4 +1,0 @@
-C:\Users\User\source\repos\rlottie\example\rlottiePlayer\x64\Debug\rlottiePlayer.exe
-C:\Users\User\source\repos\rlottie\example\rlottiePlayer\x64\Debug\rlottiePlayer.pdb
-C:\Users\User\source\repos\rlottie\example\win32Player\x64\Debug\rlottiePlayer.exe
-C:\Users\User\source\repos\rlottie\example\win32Player\x64\Debug\rlottiePlayer.pdb
