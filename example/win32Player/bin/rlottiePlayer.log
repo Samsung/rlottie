@@ -1,0 +1,12 @@
+﻿  rlottiePlayer.cpp
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(245,27): warning C4244: '초기화 중': 'LRESULT'에서 'UINT'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(251,25): warning C4244: '초기화 중': 'LRESULT'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(389,63): warning C4267: '인수': 'size_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(409,43): warning C4244: '인수': 'double'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(482,43): warning C4244: '인수': 'double'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\User\source\repos\rlottie\example\win32Player\rlottiePlayer.cpp(499,47): warning C4244: '인수': 'double'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+  Source.cpp
+C:\Users\User\source\repos\rlottie\inc\rlottie.h(507,37): warning C4251: 'rlottie::Animation::d': class 'std::unique_ptr<AnimationImpl,std::default_delete<AnimationImpl>>'에서는 class 'rlottie::Animation'의 클라이언트에서 DLL 인터페이스를 사용하도록 지정해야 합니다.
+C:\Users\User\source\repos\rlottie\inc\rlottie.h(507): message : 'std::unique_ptr<AnimationImpl,std::default_delete<AnimationImpl>>' 선언을 참조하십시오.
+  코드를 생성하고 있습니다...
+  rlottiePlayer.vcxproj -> C:\Users\User\source\repos\rlottie\example\win32Player\x64\Debug\rlottiePlayer.exe
