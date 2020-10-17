@@ -27,6 +27,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <vector>
 #include "vdebug.h"
 #include "vglobal.h"
