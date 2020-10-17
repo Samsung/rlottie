@@ -43,150 +43,43 @@ public:
     }
 
     void setFillColor(std::string key, float r, float g, float b){
-        mPlayer->setValue<rlottie::Property::FillColor>(key,
-                [r,g,b](const rlottie::FrameInfo& info){
-                    return rlottie::Color(r, g, b);
-                });
+        mPlayer->setValue<rlottie::Property::FillColor>(key, rlottie::Color(r, g, b));
     }
   
     void setFillOpacity(std::string key, float opacity) {
-        mPlayer->setValue<rlottie::Property::FillOpacity>(key,
-                [opacity](const rlottie::FrameInfo& info) {
-                    return opacity;
-                });
+        mPlayer->setValue<rlottie::Property::FillOpacity>(key, opacity);
     }
 
     void setStrokeColor(std::string key, float r, float g, float b){
-        mPlayer->setValue<rlottie::Property::StrokeColor>(key,
-                [r,g,b](const rlottie::FrameInfo& info){
-                    return rlottie::Color(r, g, b);
-                });
+        mPlayer->setValue<rlottie::Property::StrokeColor>(key, rlottie::Color(r, g, b));
     }
 
     void setStrokeOpacity(std::string key, float opacity) {
-        mPlayer->setValue<rlottie::Property::StrokeOpacity>(key,
-                [opacity](const rlottie::FrameInfo& info) {
-                    return opacity;
-        });
+        mPlayer->setValue<rlottie::Property::StrokeOpacity>(key, opacity);
     }
 
     void setStrokeWidth(std::string key, float width) {
-        mPlayer->setValue<rlottie::Property::StrokeWidth>(key,
-                [width](const rlottie::FrameInfo& info) {
-                    return width;
-                });
+        mPlayer->setValue<rlottie::Property::StrokeWidth>(key, width);
     }
 
     void setTrAnchor(std::string key, float x, float y){
-        mPlayer->setValue<rlottie::Property::TrAnchor>(key,
-                [x,y](const rlottie::FrameInfo& info) {
-                    return rlottie::Point(x, y);
-                });
+        mPlayer->setValue<rlottie::Property::TrAnchor>(key, rlottie::Point(x, y));
     }
 
     void setTrPosition(std::string key, float x, float y){
-        mPlayer->setValue<rlottie::Property::TrPosition>(key,
-                [x,y](const rlottie::FrameInfo& info) {
-                    return rlottie::Point(x, y);
-                });
+        mPlayer->setValue<rlottie::Property::TrPosition>(key, rlottie::Point(x, y));
     }
 
     void setTrScale(std::string key, float w, float h){
-        mPlayer->setValue<rlottie::Property::TrScale>(key,
-                [w,h](const rlottie::FrameInfo& info) {
-                    return rlottie::Size(w, h);
-                 });
+        mPlayer->setValue<rlottie::Property::TrScale>(key, rlottie::Size(w, h));
     }
 
     void setTrRotation(std::string key, float degree) {
-        mPlayer->setValue<rlottie::Property::TrRotation>(key,
-                [degree](const rlottie::FrameInfo& info) {
-                    return degree;
-                });
+        mPlayer->setValue<rlottie::Property::TrRotation>(key, degree);
     }  
 
     void setTrOpacity(std::string key, float opacity) {
-        mPlayer->setValue<rlottie::Property::TrOpacity>(key,
-                [opacity](const rlottie::FrameInfo& info) {
-                    return opacity;
-                });
-    }
-
-    void setFillColorSlow(std::string key, float sr, float sg, float sb, float unitR, float unitG, float unitB){
-        mPlayer->setValue<rlottie::Property::FillColor>(key,
-                [sr,sg,sb,unitR,unitG,unitB](const rlottie::FrameInfo& info){
-                    return rlottie::Color(sr+unitR*(double)info.curFrame(),
-                                          sg+unitG*(double)info.curFrame(),
-                                          sb+unitB*(double)info.curFrame());
-                });
-    }
-  
-    void setFillOpacitySlow(std::string key, float sOpacity, float unit) {
-        mPlayer->setValue<rlottie::Property::FillOpacity>(key,
-                [sOpacity, unit](const rlottie::FrameInfo& info) {
-                    return sOpacity+unit*(double)info.curFrame();
-                });
-    }
-
-    void setStrokeColorSlow(std::string key, float sr, float sg, float sb, float unitR, float unitG, float unitB){
-        mPlayer->setValue<rlottie::Property::StrokeColor>(key,
-                [sr,sg,sb,unitR,unitG,unitB](const rlottie::FrameInfo& info){
-                    return rlottie::Color(sr+unitR*(double)info.curFrame(),
-                                          sg+unitG*(double)info.curFrame(),
-                                          sb+unitB*(double)info.curFrame());
-                });
-    }
-
-    void setStrokeOpacitySlow(std::string key, float sOpacity, float unit) {
-        mPlayer->setValue<rlottie::Property::StrokeOpacity>(key,
-                [sOpacity,unit](const rlottie::FrameInfo& info) {
-                    return sOpacity+unit*(double)info.curFrame();
-                });
-    }
-
-    void setStrokeWidthSlow(std::string key, float sWidth, float unit) {
-        mPlayer->setValue<rlottie::Property::StrokeWidth>(key,
-                [sWidth,unit](const rlottie::FrameInfo& info) {
-                    return sWidth+unit*(double)info.curFrame();
-                });
-    }
-
-    void setTrAnchorSlow(std::string key, float sx, float sy, float unitX, float unitY){
-        mPlayer->setValue<rlottie::Property::TrAnchor>(key,
-                [sx,sy,unitX,unitY](const rlottie::FrameInfo& info) {
-                    return rlottie::Point(sx+unitX*(double)info.curFrame(),
-                                          sy+unitY*(double)info.curFrame());
-                });
-    }
-
-    void setTrPositionSlow(std::string key, float sx, float sy, float unitX, float unitY){
-        mPlayer->setValue<rlottie::Property::TrPosition>(key,
-                [sx,sy,unitX,unitY](const rlottie::FrameInfo& info) {
-                    return rlottie::Point(sx+unitX*(double)info.curFrame(),
-                                          sy+unitY*(double)info.curFrame());
-                });
-    }
-
-    void setTrScaleSlow(std::string key, float sw, float sh, float unitW, float unitH){
-        mPlayer->setValue<rlottie::Property::TrScale>(key,
-                [sw,sh,unitW,unitH](const rlottie::FrameInfo& info) {
-                    return rlottie::Size(sw+unitW*(double)info.curFrame(),
-                                         sh+unitH*(double)info.curFrame());
-                });
-    }
-
-    void setTrRotationSlow(std::string key, float sDegree, float unit) {
-        mPlayer->setValue<rlottie::Property::TrRotation>(key,
-                [sDegree,unit](const rlottie::FrameInfo& info) {
-                    return sDegree+unit*(double)info.curFrame();
-                });
-    }
-
-    void setTrOpacitySlow(std::string key, float sOpacity, float unit) {
-        mPlayer->setValue<rlottie::Property::TrOpacity>(key,
-                [sOpacity,unit](const rlottie::FrameInfo& info) {
-                    return sOpacity+unit*(double)info.curFrame();
-                });
+        mPlayer->setValue<rlottie::Property::TrOpacity>(key, opacity);
     }
 
     std::string getBasicResource(){
@@ -267,15 +160,5 @@ EMSCRIPTEN_BINDINGS(rlottie_bindings)
         .function("set_tr_scale", &RlottieWasm::setTrScale)
         .function("set_tr_rotation", &RlottieWasm::setTrRotation)
         .function("set_tr_opacity", &RlottieWasm::setTrOpacity)
-        .function("set_fill_color_slow", &RlottieWasm::setFillColorSlow)
-        .function("set_fill_opacity_slow", &RlottieWasm::setFillOpacitySlow)
-        .function("set_stroke_color_slow", &RlottieWasm::setStrokeColorSlow)
-        .function("set_stroke_opacity_slow", &RlottieWasm::setStrokeOpacitySlow)
-        .function("set_stroke_width_slow", &RlottieWasm::setStrokeWidthSlow)
-        .function("set_tr_anchor_slow", &RlottieWasm::setTrAnchorSlow)
-        .function("set_tr_position_slow", &RlottieWasm::setTrPositionSlow)
-        .function("set_tr_scale_slow", &RlottieWasm::setTrScaleSlow)
-        .function("set_tr_rotation_slow", &RlottieWasm::setTrRotationSlow)
-        .function("set_tr_opacity_slow", &RlottieWasm::setTrOpacitySlow)
         .function("get_basic_resource", &RlottieWasm::getBasicResource);
 }
