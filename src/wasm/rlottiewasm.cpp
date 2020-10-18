@@ -27,6 +27,81 @@ public:
         return mPlayer ? true : false;
     }
 
+    void setFillColor(std::string keypath, float r, float g, float b)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::FillColor>(keypath,
+                                                        rlottie::Color(r, g, b));
+    }
+
+    void setStrokeColor(std::string keypath, float r, float g, float b)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeColor>(keypath,
+                                                          rlottie::Color(r, g, b));
+    }
+
+    void setFillOpacity(std::string keypath, float opacity)
+    {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::FillOpacity>(keypath, opacity);
+    }
+
+    void setStrokeOpacity(std::string keypath, float opacity)
+    {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeOpacity>(keypath, opacity);
+    }
+
+    void setStrokeWidth(std::string keypath, float width)
+    {
+        if (!mPlayer || width < 0) return;
+
+        mPlayer->setValue<rlottie::Property::StrokeWidth>(keypath, width);
+    }
+
+    void setAnchor(std::string keypath, float x, float y)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrAnchor>(keypath,
+                                                       rlottie::Point(x, y));
+    }
+
+    void setPosition(std::string keypath, float x, float y)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrPosition>(keypath,
+                                                         rlottie::Point(x, y));
+    }
+
+    void setScale(std::string keypath, float width, float height)
+    {
+        if (!mPlayer) return;
+
+        mPlayer->setValue<rlottie::Property::TrScale>(keypath,
+                                                      rlottie::Size(width, height));
+    }
+
+    void setRotation(std::string keypath, float degree)
+    {
+        if (!mPlayer || degree > 360 || degree < 0) return;
+
+        mPlayer->setValue<rlottie::Property::TrRotation>(keypath, degree);
+    }
+
+    void setOpacity(std::string keypath, float opacity)
+    {
+        if (!mPlayer || opacity > 100 || opacity < 0) return;
+
+        mPlayer->setValue<rlottie::Property::TrOpacity>(keypath, opacity);
+    }
+
     // canvas pixel pix[0] pix[1] pix[2] pix[3] {B G R A}
     // lottie pixel pix[0] pix[1] pix[2] pix[3] {R G B A}
     val render(int frame, int width, int height)
@@ -105,5 +180,15 @@ EMSCRIPTEN_BINDINGS(rlottie_bindings)
         .constructor(&RlottieWasm::create)
         .function("load", &RlottieWasm::load, allow_raw_pointers())
         .function("frames", &RlottieWasm::frames)
-        .function("render", &RlottieWasm::render);
+        .function("render", &RlottieWasm::render)
+        .function("setFillColor", &RlottieWasm::setFillColor)
+        .function("setStrokeColor", &RlottieWasm::setStrokeColor)
+        .function("setFillOpacity", &RlottieWasm::setFillOpacity)
+        .function("setStrokeOpacity", &RlottieWasm::setStrokeOpacity)
+        .function("setStrokeWidth", &RlottieWasm::setStrokeWidth)
+        .function("setAnchor", &RlottieWasm::setAnchor)
+        .function("setPosition", &RlottieWasm::setPosition)
+        .function("setScale", &RlottieWasm::setScale)
+        .function("setRotation", &RlottieWasm::setRotation)
+        .function("setOpacity", &RlottieWasm::setOpacity);
 }
