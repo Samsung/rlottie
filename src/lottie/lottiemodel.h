@@ -440,7 +440,8 @@ public:
         Path,
         Polystar,
         Trim,
-        Repeater
+        Repeater,
+        RoundedCorner
     };
 
     explicit Object(Object::Type type) : mPtr(nullptr)
@@ -670,6 +671,7 @@ public:
         Text = 5
     };
     Layer() : Group(Object::Type::Layer) {}
+    bool    hasRoundedCorner() const noexcept { return mHasRoundedCorner; }
     bool    hasPathOperator() const noexcept { return mHasPathOperator; }
     bool    hasGradient() const noexcept { return mHasGradient; }
     bool    hasMask() const noexcept { return mHasMask; }
@@ -717,6 +719,7 @@ public:
     MatteType mMatteType{MatteType::None};
     Type      mLayerType{Layer::Type::Null};
     BlendMode mBlendMode{BlendMode::Normal};
+    bool      mHasRoundedCorner{false};
     bool      mHasPathOperator{false};
     bool      mHasMask{false};
     bool      mHasRepeater{false};
@@ -893,11 +896,30 @@ public:
     Property<PathData> mShape;
 };
 
+class RoundedCorner : public Object {
+public:
+    RoundedCorner() : Object(Object::Type::RoundedCorner) {}
+    float radius(int frameNo) const { return mRadius.value(frameNo);}
+public:
+    Property<float>   mRadius{0};
+};
+
 class Rect : public Shape {
 public:
     Rect() : Shape(Object::Type::Rect) {}
+    float roundness(int frameNo)
+    {
+        return mRoundedCorner ? mRoundedCorner->radius(frameNo) :
+                                mRound.value(frameNo);
+    }
 
+    bool roundnessChanged(int prevFrame, int curFrame)
+    {
+        return mRoundedCorner ? mRoundedCorner->mRadius.changed(prevFrame, curFrame) :
+                        mRound.changed(prevFrame, curFrame);
+    }
 public:
+    RoundedCorner*    mRoundedCorner{nullptr};
     Property<VPointF> mPos;
     Property<VPointF> mSize;
     Property<float>   mRound{0};
