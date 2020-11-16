@@ -228,6 +228,9 @@ public:
     model::Object *  parseObjectTypeAttr();
     model::Object *  parseGroupObject();
     model::Rect *    parseRectObject();
+    model::RoundedCorner *    parseRoundedCorner();
+    void updateRoundedCorner(model::Group *parent, model::RoundedCorner *rc);
+
     model::Ellipse * parseEllipseObject();
     model::Path *    parseShapeObject();
     model::Polystar *parsePolystarObject();
@@ -1168,7 +1171,10 @@ model::Object *LottieParserImpl::parseObjectTypeAttr()
         return parseGroupObject();
     } else if (0 == strcmp(type, "rc")) {
         return parseRectObject();
-    } else if (0 == strcmp(type, "el")) {
+    } else if (0 == strcmp(type, "rd")) {
+        curLayerRef->mHasRoundedCorner = true;
+        return parseRoundedCorner();
+    }  else if (0 == strcmp(type, "el")) {
         return parseEllipseObject();
     } else if (0 == strcmp(type, "tr")) {
         return parseTransformObject();
@@ -1210,9 +1216,31 @@ void LottieParserImpl::parseObject(model::Group *parent)
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ty")) {
             auto child = parseObjectTypeAttr();
-            if (child && !child->hidden()) parent->mChildren.push_back(child);
+            if (child && !child->hidden()) {
+                if (child->type() == model::Object::Type::RoundedCorner) {
+                    updateRoundedCorner(parent, static_cast<model::RoundedCorner *>(child));
+                }
+                parent->mChildren.push_back(child);
+            }
         } else {
             Skip(key);
+        }
+    }
+}
+
+void LottieParserImpl::updateRoundedCorner(model::Group *group, model::RoundedCorner *rc)
+{
+    for(auto &e : group->mChildren)
+    {
+        if (e->type() == model::Object::Type::Rect) {
+            static_cast<model::Rect *>(e)->mRoundedCorner = rc;
+            if (!rc->isStatic()) {
+                e->setStatic(false);
+                group->setStatic(false);
+                //@TODO need to propagate.
+            }
+        } else if ( e->type() == model::Object::Type::Group) {
+            updateRoundedCorner(static_cast<model::Group *>(e), rc);
         }
     }
 }
@@ -1279,6 +1307,28 @@ model::Rect *LottieParserImpl::parseRectObject()
     }
     obj->setStatic(obj->mPos.isStatic() && obj->mSize.isStatic() &&
                    obj->mRound.isStatic());
+    return obj;
+}
+
+/*
+ * https://github.com/airbnb/lottie-web/blob/master/docs/json/shapes/rect.json
+ */
+model::RoundedCorner *LottieParserImpl::parseRoundedCorner()
+{
+    auto obj = allocator().make<model::RoundedCorner>();
+
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "nm")) {
+            obj->setName(GetString());
+        } else if (0 == strcmp(key, "r")) {
+            parseProperty(obj->mRadius);
+        } else if (0 == strcmp(key, "hd")) {
+            obj->setHidden(GetBool());
+        } else {
+            Skip(key);
+        }
+    }
+    obj->setStatic(obj->mRadius.isStatic());
     return obj;
 }
 
@@ -2249,6 +2299,11 @@ public:
         }
         case model::Object::Type::Rect: {
             vDebug << level << "{ Rect: name: " << obj->name()
+                   << " , a:" << !obj->isStatic() << " }";
+            break;
+        }
+        case model::Object::Type::RoundedCorner: {
+            vDebug << level << "{ RoundedCorner: name: " << obj->name()
                    << " , a:" << !obj->isStatic() << " }";
             break;
         }

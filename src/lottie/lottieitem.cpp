@@ -1097,7 +1097,7 @@ void renderer::Rect::updatePath(VPath &path, int frameNo)
 {
     VPointF pos = mData->mPos.value(frameNo);
     VPointF size = mData->mSize.value(frameNo);
-    float   roundness = mData->mRound.value(frameNo);
+    float   roundness = mData->roundness(frameNo);
     VRectF  r(pos.x() - size.x() / 2, pos.y() - size.y() / 2, size.x(),
              size.y());
 

@@ -449,7 +449,7 @@ protected:
     {
         return (mData->mPos.changed(prevFrame, curFrame) ||
                 mData->mSize.changed(prevFrame, curFrame) ||
-                mData->mRound.changed(prevFrame, curFrame));
+                mData->roundnessChanged(prevFrame, curFrame));
     }
 };
 
