@@ -211,6 +211,7 @@
     <ClInclude Include="..\src\vector\vstackallocator.h" />
     <ClInclude Include="..\src\vector\vtaskqueue.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\binding\c\lottieanimation_capi.cpp" />
@@ -250,6 +251,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\vector\pixman\pixman-arm-neon-asm.S" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="rlottie.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

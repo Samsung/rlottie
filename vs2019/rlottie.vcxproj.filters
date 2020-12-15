@@ -266,6 +266,9 @@
     <ClInclude Include="config.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\binding\c\lottieanimation_capi.cpp">
@@ -375,5 +378,8 @@
     <None Include="..\src\vector\pixman\pixman-arm-neon-asm.S">
       <Filter>src\vector\pixman</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="rlottie.rc" />
   </ItemGroup>
 </Project>
