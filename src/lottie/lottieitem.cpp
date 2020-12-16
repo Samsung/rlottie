@@ -173,32 +173,38 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
 void renderer::Mask::update(int frameNo, const VMatrix &parentMatrix,
                             float /*parentAlpha*/, const DirtyFlag &flag)
 {
+    bool dirtyPath = false;
+
     if (flag.testFlag(DirtyFlagBit::None) && mData->isStatic()) return;
 
     if (mData->mShape.isStatic()) {
         if (mLocalPath.empty()) {
+            dirtyPath = true;
             mData->mShape.value(frameNo, mLocalPath);
         }
     } else {
+        dirtyPath = true;
         mData->mShape.value(frameNo, mLocalPath);
     }
     /* mask item dosen't inherit opacity */
     mCombinedAlpha = mData->opacity(frameNo);
 
-    mFinalPath.clone(mLocalPath);
-    mFinalPath.transform(parentMatrix);
-
-    mRasterRequest = true;
+    if ( flag.testFlag(DirtyFlagBit::Matrix) || dirtyPath ) {
+        mFinalPath.clone(mLocalPath);
+        mFinalPath.transform(parentMatrix);
+        mRasterRequest = true;
+    }
 }
 
 VRle renderer::Mask::rle()
 {
-    if (mRasterRequest) {
-        mRasterRequest = false;
-        if (!vCompare(mCombinedAlpha, 1.0f))
-            mRasterizer.rle() *= uchar(mCombinedAlpha * 255);
+    if (!vCompare(mCombinedAlpha, 1.0f)) {
+        VRle obj = mRasterizer.rle();
+        obj *= uchar(mCombinedAlpha * 255);
+        return obj;
+    } else {
+        return mRasterizer.rle();
     }
-    return mRasterizer.rle();
 }
 
 void renderer::Mask::preprocess(const VRect &clip)
@@ -208,7 +214,7 @@ void renderer::Mask::preprocess(const VRect &clip)
 }
 
 void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
-                             const VRle &matteRle, SurfaceCache &cache)
+                             const VRle &matteRle, SurfaceCache &)
 {
     auto renderlist = renderList();
 
@@ -1091,7 +1097,7 @@ void renderer::Rect::updatePath(VPath &path, int frameNo)
 {
     VPointF pos = mData->mPos.value(frameNo);
     VPointF size = mData->mSize.value(frameNo);
-    float   roundness = mData->mRound.value(frameNo);
+    float   roundness = mData->roundness(frameNo);
     VRectF  r(pos.x() - size.x() / 2, pos.y() - size.y() / 2, size.x(),
              size.y());
 

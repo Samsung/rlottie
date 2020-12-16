@@ -12,7 +12,7 @@ install:
   - git submodule update --init --recursive
   - set PATH=%cd%;%PYTHON%;%PYTHON%\Scripts;%PATH%
   - pip install meson==0.50.0 ninja
-  - call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %ARCH%
+  - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
 build_script:
   - meson -Dwerror=false --backend=ninja --prefix=%cd%  build
   - where link

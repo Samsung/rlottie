@@ -3,6 +3,7 @@
 
 [![Build Status](https://travis-ci.org/Samsung/rlottie.svg?branch=master)](https://travis-ci.org/Samsung/rlottie)
 [![Build status](https://ci.appveyor.com/api/projects/status/n3xonxk1ooo6s7nr?svg=true&passingText=windows%20-%20passing)](https://ci.appveyor.com/project/smohantty/rlottie-mliua)
+[![Gitter](https://badges.gitter.im/rLottie-dev/community.svg)](https://gitter.im/rLottie-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 <p align="center">
   <img width="240" height="240" src="https://github.com/Samsung/rlottie/blob/master/.Gifs/logo.png">
@@ -35,7 +36,7 @@ Here are small samples of the power of Lottie.
 - [Issues or Feature Requests?](#issues-or-feature-requests)
 
 ## Building Lottie
-rottie supports [meson](https://mesonbuild.com/) and [cmake](https://cmake.org/) build system. rottie is written in `C++14`. and has a public header dependancy of `C++11`
+rlottie supports [meson](https://mesonbuild.com/) and [cmake](https://cmake.org/) build system. rlottie is written in `C++14`. and has a public header dependency of `C++11`
 
 ### Meson Build
 install [meson](http://mesonbuild.com/Getting-meson.html) and [ninja](https://ninja-build.org/) if not already installed.
@@ -98,7 +99,7 @@ ninja test
 
 #
 ## Demo
-If you want to see rlottie librray in action without building it please visit [rlottie online viewer](http://rlottie.com)
+If you want to see rlottie library in action without building it please visit [rlottie online viewer](http://rlottie.com)
 
 While building rlottie library it generates a simple lottie to GIF converter which can be used to convert lottie json file to GIF file.
 
@@ -166,7 +167,7 @@ You can update properties dynamically at runtime. This can be used for a variety
 
 ### Understanding After Effects
 
-To understand how to change animation properties in Lottie, you should first understand how animation properties are stored in Lottie. Animation properties are stored in a data tree that mimics the information heirarchy of After Effects. In After Effects a Composition is a collection of Layers that each have their own timelines. Layer objects have string names, and their contents can be an image, shape layers, fills, strokes, or just about anything that is drawable. Each object in After Effects has a name. Lottie can find these objects and properties by their name using a KeyPath.
+To understand how to change animation properties in Lottie, you should first understand how animation properties are stored in Lottie. Animation properties are stored in a data tree that mimics the information hierarchy of After Effects. In After Effects a Composition is a collection of Layers that each have their own timelines. Layer objects have string names, and their contents can be an image, shape layers, fills, strokes, or just about anything that is drawable. Each object in After Effects has a name. Lottie can find these objects and properties by their name using a KeyPath.
 
 ### Usage
 
