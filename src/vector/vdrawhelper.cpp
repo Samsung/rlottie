@@ -541,7 +541,7 @@ static inline void process_in_chunk(const VRle::Span *array, size_t size,
         while (len) {
             auto l = std::min(len, buf.size());
             process(buf.data(), x, span.y, l, span.coverage);
-            x += l;
+            x += static_cast<short>(l);
             len -= l;
         }
     }
