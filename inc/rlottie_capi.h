@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <rlottiecommon.h>
+#include "rlottiecommon.h"
 
 #ifdef __cplusplus
 extern "C" {
