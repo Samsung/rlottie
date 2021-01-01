@@ -100,7 +100,7 @@ if (NOT LOTTIE_ASAN)
                             PUBLIC
                                  "-Wl, -undefined error"
                               )
-    else()
+    elseif(NOT MSVC)
         target_link_libraries(rlottie
                             PUBLIC
                                  "-Wl,--no-undefined"
