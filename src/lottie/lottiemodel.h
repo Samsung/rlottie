@@ -111,6 +111,11 @@ struct PathData {
                      VPath &result)
     {
         result.reset();
+        // test for empty animation data.
+        if (start.mPoints.empty() || end.mPoints.empty())
+        {
+            return;
+        }
         auto size = std::min(start.mPoints.size(), end.mPoints.size());
         /* reserve exact memory requirement at once
          * ptSize = size + 1(size + close)
