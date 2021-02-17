@@ -224,7 +224,7 @@ void VRle::Data::opGeneric(const VRle::Data &aObj, const VRle::Data &bObj,
     mSpans.reserve(a.size() + b.size());
 
     // if two rle are disjoint
-    if (!aObj.bbox().intersects(aObj.bbox())) {
+    if (!aObj.bbox().intersects(bObj.bbox())) {
         if (a.data()[0].y < b.data()[0].y) {
             copy(a.data(), a.size(), mSpans);
             copy(b.data(), b.size(), mSpans);
