@@ -274,6 +274,23 @@ RLOTTIE_API void lottie_animation_property_override(Lottie_Animation *animation,
  * */
 RLOTTIE_API const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animation *animation);
 
+/**
+ *  @brief Configures rlottie model cache policy.
+ *
+ *  Provides Library level control to configure model cache
+ *  policy. Setting it to 0 will disable
+ *  the cache as well as flush all the previously cached content.
+ *
+ *  @param[in] cacheSize  Maximum Model Cache size.
+ *
+ *  @note to disable Caching configure with 0 size.
+ *  @note to flush the current Cache content configure it with 0 and
+ *        then reconfigure with the new size.
+ *
+ *  @internal
+ */
+RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
+
 #ifdef __cplusplus
 }
 #endif
