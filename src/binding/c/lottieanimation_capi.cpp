@@ -275,4 +275,10 @@ lottie_animation_get_markerlist(Lottie_Animation_S *animation)
    return (const LOTMarkerList*)animation->mMarkerList;
 }
 
+RLOTTIE_API void
+lottie_configure_model_cache_size(size_t cacheSize)
+{
+   rlottie::configureModelCacheSize(cacheSize);
+}
+
 }
