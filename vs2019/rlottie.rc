@@ -50,9 +50,11 @@ END
 // Version
 //
 
+#include "version.h"
+
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,2
- PRODUCTVERSION 1,0,0,2
+ FILEVERSION FILEVER
+ PRODUCTVERSION PRODUCTVER
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -68,11 +70,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "rlottie"
-            VALUE "FileVersion", "1.0.0.2"
+            VALUE "FileVersion", FILE_VERSION_STRING
             VALUE "InternalName", "rlottie.dll"
+            VALUE "LegalCopyright", COPYRIGHT_NOTICE( 2021 )
             VALUE "OriginalFilename", "rlottie.dll"
             VALUE "ProductName", "rlottie"
-            VALUE "ProductVersion", "1.0.0.2"
+            VALUE "ProductVersion", PRODUCT_VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"
@@ -95,4 +98,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

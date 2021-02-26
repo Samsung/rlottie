@@ -13,3 +13,7 @@ tmp
 **/*.DS_Store
 builddir_wasm
 vs2019/x64
+vs2019/rlottie.aps
+
+# version files - these will be auto-updated while building
+vs2019/version.h 
