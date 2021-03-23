@@ -38,7 +38,9 @@ public:
     void rasterize(VPath path, CapStyle cap, JoinStyle join, float width,
                    float miterLimit, const VRect &clip = VRect());
     VRle rle();
+#if defined(_MSC_VER) || defined(__CYGWIN__)
     static void stop_taskscheduler();
+#endif
 private:
     struct VRasterizerImpl;
     void init();

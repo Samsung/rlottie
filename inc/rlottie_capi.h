@@ -291,7 +291,7 @@ RLOTTIE_API const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animatio
  */
 RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
 
-#ifdef LOTTIE_THREAD
+#if defined(_MSC_VER) || defined(__CYGWIN__)
 /**
  *  @brief Stop RleTaskScheduler if LOTTIE_THREAD defined,
  *  @usage

@@ -472,14 +472,19 @@ public:
 
     ~RleTaskScheduler()
     {
+        #if !defined(_MSC_VER) && !defined(__CYGWIN__)
+            stop();
+        #endif
     }
 
+#if defined(_MSC_VER) || defined(__CYGWIN__)
     void stop()
     {
         for (auto &e : _q) e.done();
 
         for (auto &e : _threads) e.join();
     }
+#endif
 
 
     void process(VTask task)
@@ -565,9 +570,11 @@ void VRasterizer::rasterize(VPath path, CapStyle cap, JoinStyle join,
     updateRequest();
 }
 
+#if defined(_MSC_VER) || defined(__CYGWIN__)
 void VRasterizer::stop_taskscheduler()
 {
     RleTaskScheduler::instance().stop();
 }
+#endif
 
 V_END_NAMESPACE

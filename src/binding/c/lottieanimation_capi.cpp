@@ -282,7 +282,7 @@ lottie_configure_model_cache_size(size_t cacheSize)
    rlottie::configureModelCacheSize(cacheSize);
 }
 
-#ifdef LOTTIE_THREAD
+#if defined(_MSC_VER) || defined(__CYGWIN__)
 RLOTTIE_API 
 void lottie_stop_taskscheduler()
 {
