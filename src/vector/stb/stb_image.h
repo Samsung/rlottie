@@ -307,6 +307,10 @@ RECENT REVISION HISTORY:
 #include <stdio.h>
 #endif // STBI_NO_STDIO
 
+#if defined _WIN32 || defined __CYGWIN__
+#include <windows.h>
+#endif  // defined _WIN32 || defined __CYGWIN__
+
 #define STBI_VERSION 1
 
 enum
@@ -1149,14 +1153,24 @@ static void stbi__float_postprocess(float *result, int *x, int *y, int *comp, in
 
 static FILE *stbi__fopen(char const *filename, char const *mode)
 {
-   FILE *f;
-#if defined(_MSC_VER) && _MSC_VER >= 1400
-   if (0 != fopen_s(&f, filename, mode))
-      f=0;
-#else
-   f = fopen(filename, mode);
-#endif
-   return f;
+    FILE *f;
+#if defined(_MSC_VER)
+    DWORD cch =
+        MultiByteToWideChar(CP_UTF8, 0, filename, -1, nullptr, 0);
+    wchar_t *filenameU = new wchar_t[cch];
+    MultiByteToWideChar(CP_UTF8, 0, filename, -1, filenameU, cch);
+    cch = MultiByteToWideChar(CP_UTF8, 0, mode, -1, nullptr, 0);
+    wchar_t *modeU = new wchar_t[cch];
+    MultiByteToWideChar(CP_UTF8, 0, mode, -1, modeU, cch);
+#if _MSC_VER >= 1400
+    _wfopen_s(&f, filenameU, modeU);
+#else // _MSC_VER >= 1400
+    f = _wfopen(filenameU, modeU);
+#endif // _MSC_VER >= 1400
+#else // _MSC_VER
+    f = fopen(filename, mode);
+#endif //_MSC_VER
+    return f;
 }
 
 
