@@ -477,6 +477,14 @@ public:
         for (auto &e : _threads) e.join();
     }
 
+    void stop()
+    {
+        for (auto &e : _q) e.done();
+
+        for (auto &e : _threads) e.join();
+    }
+
+
     void process(VTask task)
     {
         auto i = _index++;
@@ -558,6 +566,11 @@ void VRasterizer::rasterize(VPath path, CapStyle cap, JoinStyle join,
     }
     d->task().update(std::move(path), cap, join, width, miterLimit, clip);
     updateRequest();
+}
+
+void VRasterizer::stop_taskscheduler()
+{
+    RleTaskScheduler::instance().stop();
 }
 
 V_END_NAMESPACE
