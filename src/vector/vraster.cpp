@@ -477,15 +477,12 @@ public:
         #endif
     }
 
-#if defined(_MSC_VER) || defined(__CYGWIN__)
     void stop()
     {
         for (auto &e : _q) e.done();
 
         for (auto &e : _threads) e.join();
     }
-#endif
-
 
     void process(VTask task)
     {
