@@ -296,7 +296,7 @@ RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
  *  @brief Stop RleTaskScheduler if LOTTIE_THREAD defined,
  *  @usage
  *  In Windows 7 multithreading mode, unloading rlottie.dll will cause the process to be stuck and unable to exit. 
- *	You need to actively stop RleTaskScheduler before main return
+ *	You need to actively stop RleTaskScheduler before main return 
  *  @internal
  * */
 RLOTTIE_API void lottie_stop_taskscheduler();
