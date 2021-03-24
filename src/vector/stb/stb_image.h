@@ -307,6 +307,10 @@ RECENT REVISION HISTORY:
 #include <stdio.h>
 #endif // STBI_NO_STDIO
 
+#if defined _WIN32 || defined __CYGWIN__
+#include <windows.h>
+#endif  // defined _WIN32 || defined __CYGWIN__
+
 #define STBI_VERSION 1
 
 enum
