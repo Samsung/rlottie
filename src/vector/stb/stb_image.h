@@ -1164,8 +1164,12 @@ static FILE *stbi__fopen(char const *filename, char const *mode)
     MultiByteToWideChar(CP_UTF8, 0, mode, -1, modeU, cch);
 #if _MSC_VER >= 1400
     _wfopen_s(&f, filenameU, modeU);
+    delete[] filenameU;
+    delete[] modeU;
 #else // _MSC_VER >= 1400
     f = _wfopen(filenameU, modeU);
+    delete[] filenameU;
+    delete[] modeU;
 #endif // _MSC_VER >= 1400
 #else // _MSC_VER
     f = fopen(filename, mode);
