@@ -46,23 +46,26 @@ target_include_directories(rlottie
     )
 
 #declare common target compilation options
-target_compile_options(rlottie
-                    PUBLIC
-                    PRIVATE
-                        -std=c++14
-                        -fno-exceptions
-                        -fno-unwind-tables
-                        -fno-asynchronous-unwind-tables
-                        -fno-rtti
-                        -Wall
-                        -fvisibility=hidden
-                    )
-
-#MSVC does not recognize these parameters
-if (NOT WIN32)
+if(MSVC)
     target_compile_options(rlottie
                         PUBLIC
                         PRIVATE
+                            /std:c++14
+                            /EHs-c- # disable exceptions
+                            /GR- # disable RTTI
+                            /W3
+                        )
+else()
+    target_compile_options(rlottie
+                        PUBLIC
+                        PRIVATE
+                            -std=c++14
+                            -fno-exceptions
+                            -fno-unwind-tables
+                            -fno-asynchronous-unwind-tables
+                            -fno-rtti
+                            -Wall
+                            -fvisibility=hidden
                             -Wnon-virtual-dtor
                             -Woverloaded-virtual
                             -Wno-unused-parameter
@@ -197,4 +200,3 @@ export(EXPORT rlottie-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/rlottieTargets.cm
 
 #Register package in user's package registry
 export(PACKAGE rlottie)
-
