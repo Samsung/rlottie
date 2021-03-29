@@ -291,17 +291,15 @@ RLOTTIE_API const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animatio
  */
 RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
 
-#if defined(_MSC_VER) || defined(__CYGWIN__)
+
 /**
- *  @brief Stop RleTaskScheduler if LOTTIE_THREAD defined,
- *  @usage
- *  In Windows 7 multithreading mode, unloading rlottie.dll will cause 
- *  the process to be stuck and unable to exit. You need to actively stop  
- *	RleTaskScheduler before main return
+ *  @brief clear global resource,
+ *  @note  You need to actively shutdown lottie before main return
  *  @internal
- * */
-RLOTTIE_API void lottie_stop_taskscheduler();
-#endif
+ * 
+ **/
+RLOTTIE_API void lottie_shutdown();
+
 
 #ifdef __cplusplus
 }

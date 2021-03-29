@@ -34,6 +34,11 @@ RLOTTIE_API void rlottie::configureModelCacheSize(size_t cacheSize)
     internal::model::configureModelCacheSize(cacheSize);
 }
 
+RLOTTIE_API void rlottie::shutdown()
+{
+    VRasterizer::stop_taskscheduler();
+}
+
 struct RenderTask {
     RenderTask() { receiver = sender.get_future(); }
     std::promise<Surface> sender;
