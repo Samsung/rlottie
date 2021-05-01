@@ -41,6 +41,7 @@ set(LOTTIE_MODULE_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}rlottie-image-loader${CMAK
 configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in config.h)
 
 target_include_directories(rlottie
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
     PRIVATE
         "${CMAKE_CURRENT_BINARY_DIR}"
     )
