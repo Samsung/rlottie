@@ -1225,8 +1225,9 @@ model::Object *LottieParserImpl::parseGroupObject()
             while (NextArrayValue()) {
                 parseObject(group);
             }
-            if (group->mChildren.back()->type() ==
-                model::Object::Type::Transform) {
+            if (!group->mChildren.empty()
+                    && group->mChildren.back()->type()
+                            == model::Object::Type::Transform) {
                 group->mTransform =
                     static_cast<model::Transform *>(group->mChildren.back());
                 group->mChildren.pop_back();
