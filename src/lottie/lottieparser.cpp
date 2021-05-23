@@ -1060,7 +1060,7 @@ model::Layer *LottieParserImpl::parseLayer()
         staticFlag &= child->isStatic();
     }
 
-    if (layer->hasMask()) {
+    if (layer->hasMask() && layer->mExtra) {
         for (const auto &mask : layer->mExtra->mMasks) {
             staticFlag &= mask->isStatic();
         }
@@ -1560,10 +1560,13 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
         } else if (0 == strcmp(key, "hd")) {
             objT->setHidden(GetBool());
         } else if (0 == strcmp(key, "rx")) {
+            if (!obj->mExtra) return nullptr;
             parseProperty(obj->mExtra->m3DRx);
         } else if (0 == strcmp(key, "ry")) {
+            if (!obj->mExtra) return nullptr;
             parseProperty(obj->mExtra->m3DRy);
         } else if (0 == strcmp(key, "rz")) {
+            if (!obj->mExtra) return nullptr;
             parseProperty(obj->mExtra->m3DRz);
         } else {
             Skip(key);
