@@ -597,11 +597,21 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
         srcBitmap.updateLuma();
     }
 
+    auto clip = layerPainter.clipBoundingRect();
+
+    // if the layer has only one renderer then use it as the clip rect
+    // when blending 2 buffer and copy back to final buffer to avoid
+    // unnecessary pixel processing.
+    if (layer->renderList().size() == 1)
+    {
+        clip = layer->renderList()[0]->rle().boundingRect();
+    }
+
     // 2.3 draw src buffer as mask
-    layerPainter.drawBitmap(VPoint(), srcBitmap);
+    layerPainter.drawBitmap(clip, srcBitmap, clip);
     layerPainter.end();
     // 3. draw the result buffer into painter
-    painter->drawBitmap(VPoint(), layerBitmap);
+    painter->drawBitmap(clip, layerBitmap, clip);
 
     cache.release_surface(srcBitmap);
     cache.release_surface(layerBitmap);
