@@ -205,7 +205,7 @@ void model::Dash::getDashInfo(int frameNo, std::vector<float> &result) const
 {
     result.clear();
 
-    if (mData.empty()) return;
+    if (mData.size() <= 1) return;
 
     if (result.capacity() < mData.size()) result.reserve(mData.size() + 1);
 
