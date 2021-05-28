@@ -689,6 +689,10 @@ void LottieParserImpl::parseComposition()
         // don't have a valid bodymovin header
         return;
     }
+    if (comp->mStartFrame > comp->mEndFrame) {
+        // reveresed animation? missing data?
+        return;
+    }
     if (!IsValid()) {
         return;
     }
