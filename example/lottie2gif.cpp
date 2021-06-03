@@ -1,6 +1,7 @@
 #include "gif.h"
 #include <rlottie.h>
 
+#include<cmath>
 #include<iostream>
 #include<string>
 #include<vector>
@@ -82,6 +83,14 @@ public:
         auto player = rlottie::Animation::loadFromFile(fileName);
         if (!player) return help();
 
+        const double averageDelay = 100 / player->frameRate();
+        const double averageDelayFractional = averageDelay - (int)averageDelay;
+        const int longFrameFrequency = averageDelayFractional > 0 ? (int)round(1 / averageDelayFractional) : 1;
+
+        // the most of gif viewers does not properly play gif with duration = 1
+        const size_t longFrameDuration = (size_t)std::max(2.0, ceil(averageDelay));
+        const size_t shortFrameDuration = (size_t)std::max(2.0, floor(averageDelay));
+
         auto buffer = std::unique_ptr<uint32_t[]>(new uint32_t[w * h]);
         size_t frameCount = player->totalFrame();
 
@@ -89,7 +98,9 @@ public:
         for (size_t i = 0; i < frameCount ; i++) {
             rlottie::Surface surface(buffer.get(), w, h, w * 4);
             player->renderSync(i, surface);
-            builder.addFrame(surface);
+
+            const auto currentDelay = i % longFrameFrequency ? shortFrameDuration : longFrameDuration;
+            builder.addFrame(surface, currentDelay);
         }
         return result();
     }
