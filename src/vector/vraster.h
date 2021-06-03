@@ -38,6 +38,7 @@ public:
     void rasterize(VPath path, CapStyle cap, JoinStyle join, float width,
                    float miterLimit, const VRect &clip = VRect());
     VRle rle();
+    static void stop_taskscheduler();
 private:
     struct VRasterizerImpl;
     void init();

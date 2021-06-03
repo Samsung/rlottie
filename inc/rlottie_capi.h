@@ -291,6 +291,16 @@ RLOTTIE_API const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animatio
  */
 RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
 
+
+/**
+ *  @brief clear global resource,
+ *  @note  You need to actively shutdown lottie before main return
+ *  @internal
+ * 
+ **/
+RLOTTIE_API void lottie_shutdown();
+
+
 #ifdef __cplusplus
 }
 #endif

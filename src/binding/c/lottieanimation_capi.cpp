@@ -23,6 +23,7 @@
 #include "rlottie.h"
 #include "rlottie_capi.h"
 #include "vdebug.h"
+#include "vraster.h"
 
 using namespace rlottie;
 
@@ -279,6 +280,12 @@ RLOTTIE_API void
 lottie_configure_model_cache_size(size_t cacheSize)
 {
    rlottie::configureModelCacheSize(cacheSize);
+}
+
+RLOTTIE_API 
+void lottie_shutdown()
+{
+    rlottie::shutdown();
 }
 
 }

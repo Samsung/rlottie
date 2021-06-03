@@ -48,6 +48,13 @@ struct LOTLayerNode;
 namespace rlottie {
 
 /**
+ *  @brief clear lottie resource
+ *  @note You need to actively shutdown lottie before main return
+ *  @internal
+ * */
+RLOTTIE_API void shutdown();
+
+/**
  *  @brief Configures rlottie model cache policy.
  *
  *  Provides Library level control to configure model cache

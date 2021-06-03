@@ -472,6 +472,10 @@ public:
 
     ~RleTaskScheduler()
     {
+    }
+
+    void stop()
+    {
         for (auto &e : _q) e.done();
 
         for (auto &e : _threads) e.join();
@@ -508,6 +512,8 @@ public:
     RleTaskScheduler() { SW_FT_Stroker_New(&stroker); }
 
     ~RleTaskScheduler() { SW_FT_Stroker_Done(stroker); }
+
+    void stop() { }
 
     void process(VTask task) { (*task)(outlineRef, stroker); }
 };
@@ -558,6 +564,11 @@ void VRasterizer::rasterize(VPath path, CapStyle cap, JoinStyle join,
     }
     d->task().update(std::move(path), cap, join, width, miterLimit, clip);
     updateRequest();
+}
+
+void VRasterizer::stop_taskscheduler()
+{
+    RleTaskScheduler::instance().stop();
 }
 
 V_END_NAMESPACE
