@@ -81,12 +81,12 @@ float VBezier::tAtLength(float l, float totalLength) const
     t *= 0.5;
 
     float lastBigger = 1.0;
-    while (1) {
+    for (int num = 0; num < 100500; num++) {
         VBezier right = *this;
         VBezier left;
         right.parameterSplitLeft(t, &left);
         float lLen = left.length();
-        if (fabs(lLen - l) < error) break;
+        if (fabs(lLen - l) < error) return t;
 
         if (lLen < l) {
             t += (lastBigger - t) * 0.5f;
@@ -95,6 +95,7 @@ float VBezier::tAtLength(float l, float totalLength) const
             t -= t * 0.5f;
         }
     }
+    vWarning << "no convergence";
     return t;
 }
 
