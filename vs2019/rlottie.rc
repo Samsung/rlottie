@@ -50,7 +50,7 @@ END
 // Version
 //
 
-#include "version.h"
+#include <LumaVersion.h>
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION FILEVER
