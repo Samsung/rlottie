@@ -121,7 +121,7 @@ void renderer::Layer::buildLayerNode()
             auto        ptPtr = reinterpret_cast<const float *>(pts.data());
             auto        elmPtr = reinterpret_cast<const char *>(elm.data());
             cNode.mPath.ptPtr = ptPtr;
-            cNode.mPath.ptCount = pts.size();
+            cNode.mPath.ptCount = 2 * pts.size();
             cNode.mPath.elmPtr = elmPtr;
             cNode.mPath.elmCount = elm.size();
             cNode.mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
