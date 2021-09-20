@@ -49,9 +49,9 @@ let package = Package(
                 "vector/stb/CMakeLists.txt",
                 "vector/stb/meson.build",
             ],
-            publicHeadersPath: "inc",
+            publicHeadersPath: "inc_c",
             cxxSettings: [
-                .headerSearchPath("inc_cpp"),
+                .headerSearchPath("inc"),
                 .headerSearchPath("vector"),
                 .headerSearchPath("vector/freetype"),
             ]
