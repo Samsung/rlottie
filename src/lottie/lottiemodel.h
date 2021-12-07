@@ -478,7 +478,7 @@ public:
                 strncpy(mData._buffer, name, len + 1);
             } else {
                 setShortString(false);
-                mPtr = strdup(name);
+                mPtr = _strdup(name);
             }
         }
     }

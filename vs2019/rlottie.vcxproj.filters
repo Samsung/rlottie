@@ -272,6 +272,9 @@
     <ClInclude Include="config.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\lottie\lottieloader.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\binding\c\lottieanimation_capi.cpp">
