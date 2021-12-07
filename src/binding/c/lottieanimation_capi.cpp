@@ -268,7 +268,7 @@ lottie_animation_get_markerlist(Lottie_Animation_S *animation)
    animation->mMarkerList->ptr = new LOTMarker[markers.size()]();
 
    for(size_t i = 0; i < markers.size(); i++) {
-       animation->mMarkerList->ptr[i].name = _strdup(std::get<0>(markers[i]).c_str());
+       animation->mMarkerList->ptr[i].name = strdup(std::get<0>(markers[i]).c_str());
        animation->mMarkerList->ptr[i].startframe= std::get<1>(markers[i]);
        animation->mMarkerList->ptr[i].endframe= std::get<2>(markers[i]);
    }
