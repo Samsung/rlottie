@@ -119,6 +119,10 @@ public:
     explicit constexpr inline vFlagHelper(int ai) noexcept : i(ai) {}
     constexpr inline operator int() const noexcept { return i; }
 
+    using  uint = unsigned int;
+    explicit constexpr inline vFlagHelper(unsigned int ai) noexcept : i(int(ai)) {}
+    constexpr inline operator uint() const noexcept { return uint(i); }
+
     explicit constexpr inline vFlagHelper(uint32_t ai) noexcept : i(int(ai)) {}
     explicit constexpr inline vFlagHelper(short ai) noexcept : i(int(ai)) {}
     explicit constexpr inline vFlagHelper(uint16_t ai) noexcept
@@ -149,6 +153,11 @@ public:
     explicit constexpr vFlag(vFlagHelper f) noexcept : i(f) {}
 
     inline vFlag &operator&=(int mask) noexcept
+    {
+        i &= mask;
+        return *this;
+    }
+    inline vFlag &operator&=(unsigned int mask) noexcept
     {
         i &= mask;
         return *this;
