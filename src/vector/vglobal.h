@@ -139,7 +139,7 @@ public:
 
     using Int = typename std::conditional<
         std::is_unsigned<typename std::underlying_type<Enum>::type>::value,
-        unsigned int, signed int>::type;
+        uint32_t, signed int>::type;
 
     using  enum_type = Enum;
     // compiler-generated copy/move ctor/assignment operators are fine!
