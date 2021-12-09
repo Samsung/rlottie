@@ -821,6 +821,7 @@ public:
 
 private:
     void populate(VGradientStops &stops, int frameNo);
+    float getOpacityAtPosition(float *opacities, size_t opacityArraySize, float position);
 
 public:
     int                      mGradientType{1};    /* "t" Linear=1 , Radial = 2*/
