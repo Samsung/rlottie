@@ -57,9 +57,9 @@ inline T lerp(const T &start, const T &end, float t)
 
 namespace model {
 
-enum class MatteType : uchar { None = 0, Alpha = 1, AlphaInv, Luma, LumaInv };
+enum class MatteType : uint8_t { None = 0, Alpha = 1, AlphaInv, Luma, LumaInv };
 
-enum class BlendMode : uchar {
+enum class BlendMode : uint8_t {
     Normal = 0,
     Multiply = 1,
     Screen = 2,
@@ -72,8 +72,8 @@ public:
     Color(float red, float green, float blue) : r(red), g(green), b(blue) {}
     VColor toColor(float a = 1)
     {
-        return VColor(uchar(255 * r), uchar(255 * g), uchar(255 * b),
-                      uchar(255 * a));
+        return VColor(uint8_t(255 * r), uint8_t(255 * g), uint8_t(255 * b),
+                      uint8_t(255 * a));
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
@@ -667,7 +667,7 @@ public:
 
 class Layer : public Group {
 public:
-    enum class Type : uchar {
+    enum class Type : uint8_t {
         Precomp = 0,
         Solid = 1,
         Image = 2,
