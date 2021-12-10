@@ -26,6 +26,9 @@
 
 using namespace rlottie;
 
+extern void lottie_init_impl();
+extern void lottie_shutdown_impl();
+
 extern "C" {
 #include <string.h>
 #include <stdarg.h>
@@ -37,6 +40,34 @@ struct Lottie_Animation_S
     uint32_t                       *mBufferRef;
     LOTMarkerList                  *mMarkerList;
 };
+
+static uint32_t _lottie_lib_ref_count = 0;
+
+RLOTTIE_API void lottie_init()
+{
+    if (_lottie_lib_ref_count > 0) {
+        _lottie_lib_ref_count++;
+        return;
+    }
+    lottie_init_impl();
+
+    _lottie_lib_ref_count = 1;
+}
+
+RLOTTIE_API void lottie_shutdown()
+{
+    if (_lottie_lib_ref_count <= 0) {
+        // lottie_init() is not called before lottie_shutdown()
+        // or multiple shutdown is getting called.
+        return;
+    }
+
+    _lottie_lib_ref_count--;
+
+    if (_lottie_lib_ref_count == 0) {
+        lottie_shutdown_impl();
+    }
+}
 
 RLOTTIE_API Lottie_Animation_S *lottie_animation_from_file(const char *path)
 {
