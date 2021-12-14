@@ -59,7 +59,7 @@ typedef struct Lottie_Animation_S Lottie_Animation;
  *  @ingroup Lottie_Animation
  *  @internal
  */
-RLOTTIE_API void lottie_init();
+RLOTTIE_API void lottie_init(void);
 
 /**
  *  @brief Runs lottie teardown code when rlottie library  is loaded
@@ -74,7 +74,7 @@ RLOTTIE_API void lottie_init();
  *  @ingroup Lottie_Animation
  *  @internal
  */
-RLOTTIE_API void lottie_shutdown();
+RLOTTIE_API void lottie_shutdown(void);
 
 /**
  *  @brief Constructs an animation object from file path.

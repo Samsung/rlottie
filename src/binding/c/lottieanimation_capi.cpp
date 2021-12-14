@@ -43,7 +43,7 @@ struct Lottie_Animation_S
 
 static uint32_t _lottie_lib_ref_count = 0;
 
-RLOTTIE_API void lottie_init()
+RLOTTIE_API void lottie_init(void)
 {
     if (_lottie_lib_ref_count > 0) {
         _lottie_lib_ref_count++;
@@ -54,7 +54,7 @@ RLOTTIE_API void lottie_init()
     _lottie_lib_ref_count = 1;
 }
 
-RLOTTIE_API void lottie_shutdown()
+RLOTTIE_API void lottie_shutdown(void)
 {
     if (_lottie_lib_ref_count <= 0) {
         // lottie_init() is not called before lottie_shutdown()
