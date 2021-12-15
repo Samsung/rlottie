@@ -49,6 +49,7 @@ class AnimationImpl {
 public:
     void    init(std::shared_ptr<model::Composition> composition);
     bool    update(size_t frameNo, const VSize &size, bool keepAspectRatio);
+    bool    updatePartial(size_t frameNo, const VSize &size, uint offset);
     VSize   size() const { return mModel->size(); }
     double  duration() const { return mModel->duration(); }
     double  frameRate() const { return mModel->frameRate(); }
@@ -56,6 +57,7 @@ public:
     size_t  frameAtPos(double pos) const { return mModel->frameAtPos(pos); }
     Surface render(size_t frameNo, const Surface &surface,
                    bool keepAspectRatio);
+    Surface renderPartial(size_t frameNo, const Surface &surface);
     std::future<Surface> renderAsync(size_t frameNo, Surface &&surface,
                                      bool keepAspectRatio);
     const LOTLayerNode * renderTree(size_t frameNo, const VSize &size);
@@ -105,6 +107,19 @@ bool AnimationImpl::update(size_t frameNo, const VSize &size,
     return mRenderer->update(int(frameNo), size, keepAspectRatio);
 }
 
+bool AnimationImpl::updatePartial(size_t frameNo, const VSize &size,
+                           uint offset)
+{
+    frameNo += mModel->startFrame();
+
+    if (frameNo > mModel->endFrame()) frameNo = mModel->endFrame();
+
+    if (frameNo < mModel->startFrame()) frameNo = mModel->startFrame();
+
+    return mRenderer->updatePartial(int(frameNo), size, offset);
+}
+
+
 Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
                               bool keepAspectRatio)
 {
@@ -124,6 +139,26 @@ Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
 
     return surface;
 }
+
+Surface AnimationImpl::renderPartial(size_t frameNo, const Surface &surface)
+{
+    bool renderInProgress = mRenderInProgress.load();
+    if (renderInProgress) {
+        vCritical << "Already Rendering Scheduled for this Animation";
+        return surface;
+    }
+
+    mRenderInProgress.store(true);
+    updatePartial(
+        frameNo,
+        VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())),
+        uint(surface.drawRegionPosY()));
+    mRenderer->renderPartial(surface);
+    mRenderInProgress.store(false);
+
+    return surface;
+}
+
 
 void AnimationImpl::init(std::shared_ptr<model::Composition> composition)
 {
@@ -354,6 +389,11 @@ void Animation::renderSync(size_t frameNo, Surface surface,
 {
     d->render(frameNo, surface, keepAspectRatio);
 }
+void Animation::renderPartialSync(size_t frameNo, Surface surface)
+{
+    d->renderPartial(frameNo, surface);
+}
+
 
 const LayerInfoList &Animation::layers() const
 {
