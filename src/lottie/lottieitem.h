@@ -191,7 +191,7 @@ class Composition {
 public:
     explicit Composition(std::shared_ptr<model::Composition> composition);
     bool  update(int frameNo, const VSize &size, bool keepAspectRatio);
-    bool  updatePartial(int frameNo, const VSize &size, uint offset);
+    bool  updatePartial(int frameNo, const VSize &size, unsigned int offset);
     VSize size() const { return mViewSize; }
     void  buildRenderTree();
     const LOTLayerNode *renderTree() const;
@@ -209,7 +209,7 @@ private:
     VArenaAlloc                         mAllocator{2048};
     int                                 mCurFrameNo;
     bool                                mKeepAspectRatio{true};
-    uint                                mOffset{0};
+    unsigned int                        mOffset{0};
 };
 
 class Layer {

@@ -148,7 +148,7 @@ bool renderer::Composition::update(int frameNo, const VSize &size,
 }
 
 bool renderer::Composition::updatePartial(int frameNo, const VSize &size, 
-                                          const uint offset)
+                                          unsigned int offset)
 {
     // check if cached frame is same as requested frame.
     if ((mViewSize.width() == size.width()) && (mCurFrameNo == frameNo) && 
