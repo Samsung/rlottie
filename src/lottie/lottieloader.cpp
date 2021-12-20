@@ -128,18 +128,23 @@ std::shared_ptr<model::Composition> model::loadFromFile(const std::string &path,
         vCritical << "failed to open file = " << path.c_str();
         return {};
     } else {
-        std::string content;
+        // Not using string here since it's over allocating up to 2x the input size
+        f.seekg(0, std::ios_base::end);
+        std::streampos sz = f.tellg();
+        f.seekg(0, std::ios_base::beg);
 
-        std::getline(f, content, '\0');
+        if (!sz) return {};
+
+        char * buf = new char[sz + std::streampos{1}];
+        f.read(buf, sz);
         f.close();
 
-        if (content.empty()) return {};
 
-        auto obj = internal::model::parse(const_cast<char *>(content.c_str()),
+        auto obj = internal::model::parse(buf,
                                           dirname(path));
 
         if (obj && cachePolicy) ModelCache::instance().add(path, obj);
-
+        delete[] buf;
         return obj;
     }
 }
