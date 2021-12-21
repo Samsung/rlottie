@@ -75,6 +75,11 @@ public:
     {
         _resourceList = jsonFiles(std::string(DEMO_DIR));
     }
+    explicit PerfTest(const std::string& filename):
+        _resourceCount(1), _iterations(1)
+    {
+        _resourceList.push_back(filename);
+    }    
     void test(bool async)
     {
         setup();
@@ -125,7 +130,7 @@ private:
 
 static int help()
 {
-    std::cout<<"\nUsage : ./perf [--sync] [-c] [resource count] [-i] [iteration count] \n";
+    std::cout<<"\nUsage : ./perf [--sync] [-c] [resource count] [-i] [iteration count] [-f] [filename] \n";
     std::cout<<"\nExample : ./perf -c 50 -i 100 \n";
     std::cout<<"\n\t runs perf test for 100 iterations. renders 50 resource per iteration\n\n";
     return 0;
@@ -137,6 +142,7 @@ main(int argc, char ** argv)
     size_t resourceCount = 250;
     size_t iterations = 500;
     auto index = 0;
+    std::string filename;
 
     while (index < argc) {
       const char* option = argv[index];
@@ -151,10 +157,14 @@ main(int argc, char ** argv)
       } else if (!strcmp(option,"-i")) {
          iterations = (index < argc) ? atoi(argv[index]) : iterations;
          index++;
+      } else if (!strcmp(option,"-f")) {
+         filename = (index < argc) ? argv[index] : "";
+         index++;
       }
    }
 
-    PerfTest obj(resourceCount, iterations);
+    
+    PerfTest obj = filename.length() ? PerfTest(filename) : PerfTest(resourceCount, iterations);
     obj.test(async);
     return 0;
 }
