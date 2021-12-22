@@ -5,12 +5,12 @@ option('thread',
 
 option('cache',
    type: 'boolean',
-   value: true,
+   value: false,
    description: 'Enable cache support in rlottie')
 
 option('module',
    type: 'boolean',
-   value: true,
+   value: false,
    description: 'Enable module support in rlottie')
 
 option('moduledir',

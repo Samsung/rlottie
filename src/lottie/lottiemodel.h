@@ -469,10 +469,9 @@ public:
     void         setHidden(bool value) { mData._hidden = value; }
     void         setType(Object::Type type) { mData._type = type; }
     Object::Type type() const { return mData._type; }
-    void         setName(const char *name)
+    void         setName(const char *name, const size_t len)
     {
         if (name) {
-            auto len = strlen(name);
             if (len < maxShortStringLength) {
                 setShortString(true);
                 strncpy(mData._buffer, name, len + 1);

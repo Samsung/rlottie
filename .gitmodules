@@ -1,0 +1,3 @@
+[submodule "src/lottie/JSON"]
+	path = src/lottie/JSON
+	url = https://github.com/X-Ryl669/JSON.git
