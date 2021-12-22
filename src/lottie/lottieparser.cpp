@@ -2229,11 +2229,11 @@ public:
 
 #endif
 
-std::shared_ptr<model::Composition> model::parse(char *             str,
+std::shared_ptr<model::Composition> model::parse(const char *       str, size_t len,
                                                  std::string        dir_path,
                                                  model::ColorFilter filter)
 {
-    LottieParserImpl obj(str, std::move(dir_path), std::move(filter));
+    LottieParserImpl obj(str, len, std::move(dir_path), std::move(filter));
 
     if (obj.VerifyType()) {
         obj.parseComposition();

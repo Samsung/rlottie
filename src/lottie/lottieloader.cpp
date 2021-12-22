@@ -140,8 +140,7 @@ std::shared_ptr<model::Composition> model::loadFromFile(const std::string &path,
         f.close();
 
 
-        auto obj = internal::model::parse(buf,
-                                          dirname(path));
+        auto obj = internal::model::parse(buf, sz, dirname(path));
 
         if (obj && cachePolicy) ModelCache::instance().add(path, obj);
         delete[] buf;
@@ -158,7 +157,7 @@ std::shared_ptr<model::Composition> model::loadFromData(
         if (obj) return obj;
     }
 
-    auto obj = internal::model::parse(const_cast<char *>(jsonData.c_str()),
+    auto obj = internal::model::parse(jsonData.c_str(), jsonData.length(),
                                       std::move(resourcePath));
 
     if (obj && cachePolicy) ModelCache::instance().add(key, obj);
@@ -169,6 +168,6 @@ std::shared_ptr<model::Composition> model::loadFromData(
 std::shared_ptr<model::Composition> model::loadFromData(
     std::string jsonData, std::string resourcePath, model::ColorFilter filter)
 {
-    return internal::model::parse(const_cast<char *>(jsonData.c_str()),
+    return internal::model::parse(jsonData.c_str(), jsonData.length(),
                                   std::move(resourcePath), std::move(filter));
 }
