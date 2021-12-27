@@ -327,6 +327,23 @@ std::unique_ptr<Animation> Animation::loadFromData(std::string jsonData,
     return nullptr;
 }
 
+std::unique_ptr<Animation> Animation::loadFromROData(const char * data, const size_t len, 
+                                                     const char * resourcePath)
+{
+    if (!data || !len) {
+        vWarning << "json data is empty";
+        return nullptr;
+    }
+
+    auto composition = model::loadFromROData(data, len, resourcePath);
+    if (composition) {
+        auto animation = std::unique_ptr<Animation>(new Animation);
+        animation->d->init(std::move(composition));
+        return animation;
+    }
+    return nullptr;
+}
+
 std::unique_ptr<Animation> Animation::loadFromFile(const std::string &path,
                                                    bool cachePolicy)
 {

@@ -309,6 +309,21 @@ public:
                  const std::string &resourcePath="", bool cachePolicy=true);
 
     /**
+     *  @brief Constructs an animation object from JSON string read only data.
+     *
+     *  @param[in] data The JSON string internal data (not modified)
+     *  @param[in] len  The pointed data array length in bytes
+     *  @param[in] resourcePath the path will be used to search for external resource.
+     *
+     *  @return Animation object that can render the contents of the
+     *          Lottie resource represented by JSON string data.
+     *
+     *  @internal
+     */
+    static std::unique_ptr<Animation>
+    loadFromROData(const char * data, const size_t len, const char * resourcePath);
+
+    /**
      *  @brief Constructs an animation object from JSON string data and update.
      *  the color properties using ColorFilter.
 

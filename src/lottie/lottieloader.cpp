@@ -165,9 +165,16 @@ std::shared_ptr<model::Composition> model::loadFromData(
     return obj;
 }
 
+
+
 std::shared_ptr<model::Composition> model::loadFromData(
     std::string jsonData, std::string resourcePath, model::ColorFilter filter)
 {
     return internal::model::parse(jsonData.c_str(), jsonData.length(),
                                   std::move(resourcePath), std::move(filter));
+}
+
+std::shared_ptr<model::Composition> model::loadFromROData(const char * data, const size_t len, const char * resourcePath)
+{
+    return internal::model::parse(data, len, resourcePath);
 }

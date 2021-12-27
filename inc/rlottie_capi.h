@@ -77,6 +77,21 @@ RLOTTIE_API Lottie_Animation *lottie_animation_from_file(const char *path);
 RLOTTIE_API Lottie_Animation *lottie_animation_from_data(const char *data, const char *key, const char *resource_path);
 
 /**
+ *  @brief Constructs an animation object from JSON string data.
+ *
+ *  @param[in] data The JSON string data.
+ *  @param[in] len The data length in bytes
+ *  @param[in] resource_path the path that will be used to load external resource needed by the JSON data.
+ *
+ *  @return Animation object that can build the contents of the
+ *          Lottie resource represented by JSON string data.
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API Lottie_Animation *lottie_animation_from_rodata(const char *data, const size_t len, const char *resourcePath);
+
+/**
  *  @brief Free given Animation object resource.
  *
  *  @param[in] animation Animation object to free.

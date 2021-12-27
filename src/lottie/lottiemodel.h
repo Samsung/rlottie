@@ -1135,6 +1135,9 @@ std::shared_ptr<model::Composition> loadFromData(std::string jsonData,
                                                  std::string resourcePath,
                                                  ColorFilter filter);
 
+std::shared_ptr<model::Composition> loadFromROData(const char * data, const size_t len,
+                                                   const char * resourcePath);
+
 std::shared_ptr<model::Composition> parse(const char *str, size_t len, std::string dir_path,
                                           ColorFilter filter = {});
 

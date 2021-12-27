@@ -5,7 +5,7 @@
 
 #ifdef _WIN32
 # include <windows.h>
-#else
+#elif !defined(ESP_PLATFORM)
 # include <dlfcn.h>
 #endif  // _WIN32
 

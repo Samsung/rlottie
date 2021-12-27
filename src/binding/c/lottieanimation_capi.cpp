@@ -60,6 +60,17 @@ RLOTTIE_API Lottie_Animation_S *lottie_animation_from_data(const char *data, con
     }
 }
 
+RLOTTIE_API Lottie_Animation_S *lottie_animation_from_rodata(const char *data, const size_t len, const char *resourcePath)
+{
+    if (auto animation = Animation::loadFromROData(data, len, resourcePath) ) {
+        Lottie_Animation_S *handle = new Lottie_Animation_S();
+        handle->mAnimation = std::move(animation);
+        return handle;
+    } 
+    return nullptr;
+}
+
+
 RLOTTIE_API void lottie_animation_destroy(Lottie_Animation_S *animation)
 {
     if (animation) {
