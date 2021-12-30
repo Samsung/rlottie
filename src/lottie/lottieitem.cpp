@@ -496,7 +496,7 @@ VMatrix renderer::Layer::matrix(int frameNo) const
 bool renderer::Layer::visible() const
 {
     return (frameNo() >= mLayerData->inFrame() &&
-            frameNo() < mLayerData->outFrame());
+            frameNo() <= mLayerData->outFrame());
 }
 
 void renderer::Layer::preprocess(const VRect &clip)

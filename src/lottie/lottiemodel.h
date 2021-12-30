@@ -244,7 +244,7 @@ public:
         if (frames_.back().end_ <= frameNo) return frames_.back().value_.end_;
 
         for (const auto &keyFrame : frames_) {
-            if (frameNo >= keyFrame.start_ && frameNo < keyFrame.end_)
+            if (frameNo >= keyFrame.start_ && frameNo <= keyFrame.end_)
                 return keyFrame.value(frameNo);
         }
         return {};
@@ -257,7 +257,7 @@ public:
             return 0;
 
         for (const auto &frame : frames_) {
-            if (frameNo >= frame.start_ && frameNo < frame.end_)
+            if (frameNo >= frame.start_ && frameNo <= frame.end_)
                 return frame.angle(frameNo);
         }
         return 0;
@@ -346,7 +346,7 @@ public:
                 return vec.back().value_.end_.toPath(path);
 
             for (const auto &keyFrame : vec) {
-                if (frameNo >= keyFrame.start_ && frameNo < keyFrame.end_) {
+                if (frameNo >= keyFrame.start_ && frameNo <= keyFrame.end_) {
                     T::lerp(keyFrame.value_.start_, keyFrame.value_.end_,
                             keyFrame.progress(frameNo), path);
                 }
@@ -538,8 +538,8 @@ public:
     {
         return long(frameAtPos(timeInSec / duration()));
     }
-    size_t totalFrame() const { return mEndFrame - mStartFrame; }
-    long   frameDuration() const { return mEndFrame - mStartFrame - 1; }
+    size_t totalFrame() const { return mEndFrame - mStartFrame + 1; }
+    long   frameDuration() const { return mEndFrame - mStartFrame; }
     float  frameRate() const { return mFrameRate; }
     size_t startFrame() const { return mStartFrame; }
     size_t endFrame() const { return mEndFrame; }

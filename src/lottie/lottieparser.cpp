@@ -625,7 +625,7 @@ void LottieParserImpl::parseComposition()
         return;
     }
     if (comp->mStartFrame > comp->mEndFrame) {
-        // reveresed animation? missing data?
+        // reversed animation? missing data?
         return;
     }
     if (!IsValid()) {
