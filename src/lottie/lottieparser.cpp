@@ -1140,6 +1140,10 @@ void LottieParserImpl::parseShapesAttr(model::Layer *layer)
 model::Object *LottieParserImpl::parseObjectTypeAttr()
 {
     const char *type = GetString();
+    if (!type) {
+        vWarning << "No object type specified";
+        return nullptr;
+    }
     if (0 == strcmp(type, "gr")) {
         return parseGroupObject();
     } else if (0 == strcmp(type, "rc")) {
