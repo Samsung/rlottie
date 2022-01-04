@@ -147,7 +147,7 @@ bool VGradientCache::generateGradientColorTable(const VGradientStops &stops,
 
     colorTable[pos++] = curColor;
 
-    while (fpos <= curr->first) {
+    while (fpos <= curr->first && pos < size) {
         colorTable[pos] = colorTable[pos - 1];
         pos++;
         fpos += incr;
