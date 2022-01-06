@@ -47,6 +47,36 @@ typedef enum {
 typedef struct Lottie_Animation_S Lottie_Animation;
 
 /**
+ *  @brief Runs lottie initialization code when rlottie library is loaded
+ * dynamically.
+ *
+ *
+ * This api should be called before any other api when rlottie library
+ * is loaded using dlopen() or equivalent.
+ *
+ *  @see lottie_shutdown()
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_init(void);
+
+/**
+ *  @brief Runs lottie teardown code when rlottie library  is loaded
+ * dynamically.
+ *
+ * This api should be called before unloading the rlottie library for
+ * proper cleanup of the resource without doing so will result in undefined
+ * behaviour.
+ *
+ *  @see lottie_init()
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_shutdown(void);
+
+/**
  *  @brief Constructs an animation object from file path.
  *
  *  @param[in] path Lottie resource file path
