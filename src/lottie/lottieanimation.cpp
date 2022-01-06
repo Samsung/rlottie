@@ -49,12 +49,13 @@ class AnimationImpl {
 public:
     void    init(std::shared_ptr<model::Composition> composition);
     bool    update(size_t frameNo, const VSize &size, bool keepAspectRatio);
-    bool    updatePartial(size_t frameNo, const VSize &size, uint offset);
+    bool    updatePartial(size_t frameNo, const VSize &size, uint32_t offset);
     VSize   size() const { return mModel->size(); }
     double  duration() const { return mModel->duration(); }
     double  frameRate() const { return mModel->frameRate(); }
     size_t  totalFrame() const { return mModel->totalFrame(); }
     size_t  frameAtPos(double pos) const { return mModel->frameAtPos(pos); }
+    bool    checkRender();
     Surface render(size_t frameNo, const Surface &surface,
                    bool keepAspectRatio);
     Surface renderPartial(size_t frameNo, const Surface &surface);
@@ -107,8 +108,7 @@ bool AnimationImpl::update(size_t frameNo, const VSize &size,
     return mRenderer->update(int(frameNo), size, keepAspectRatio);
 }
 
-bool AnimationImpl::updatePartial(size_t frameNo, const VSize &size,
-                           uint offset)
+bool AnimationImpl::updatePartial(size_t frameNo, const VSize &size, uint32_t offset)
 {
     frameNo += mModel->startFrame();
 
@@ -120,16 +120,22 @@ bool AnimationImpl::updatePartial(size_t frameNo, const VSize &size,
 }
 
 
-Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
-                              bool keepAspectRatio)
+bool AnimationImpl::checkRender()
 {
     bool renderInProgress = mRenderInProgress.load();
     if (renderInProgress) {
         vCritical << "Already Rendering Scheduled for this Animation";
-        return surface;
+        return false;
     }
-
     mRenderInProgress.store(true);
+    return true;
+}
+
+Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
+                              bool keepAspectRatio)
+{
+    if (!checkRender()) return surface;
+
     update(
         frameNo,
         VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())),
@@ -142,17 +148,12 @@ Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
 
 Surface AnimationImpl::renderPartial(size_t frameNo, const Surface &surface)
 {
-    bool renderInProgress = mRenderInProgress.load();
-    if (renderInProgress) {
-        vCritical << "Already Rendering Scheduled for this Animation";
-        return surface;
-    }
+    if (!checkRender()) return surface;
 
-    mRenderInProgress.store(true);
     updatePartial(
         frameNo,
         VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())),
-        uint(surface.drawRegionPosY()));
+        uint32_t(surface.drawRegionPosY()));
     mRenderer->renderPartial(surface);
     mRenderInProgress.store(false);
 
@@ -213,20 +214,29 @@ class RenderTaskScheduler {
         for (unsigned n = 0; n != _count; ++n) {
             _threads.emplace_back([&, n] { run(n); });
         }
+
+        IsRunning = true;
     }
 
 public:
+    static bool IsRunning;
+
     static RenderTaskScheduler &instance()
     {
         static RenderTaskScheduler singleton;
         return singleton;
     }
 
-    ~RenderTaskScheduler()
-    {
-        for (auto &e : _q) e.done();
+    ~RenderTaskScheduler() { stop(); }
 
-        for (auto &e : _threads) e.join();
+    void stop()
+    {
+        if (IsRunning) {
+            IsRunning = false;
+
+            for (auto &e : _q) e.done();
+            for (auto &e : _threads) e.join();
+        }
     }
 
     std::future<Surface> process(SharedRenderTask task)
@@ -249,11 +259,15 @@ public:
 #else
 class RenderTaskScheduler {
 public:
+    static bool IsRunning;
+
     static RenderTaskScheduler &instance()
     {
         static RenderTaskScheduler singleton;
         return singleton;
     }
+
+    void stop() {}
 
     std::future<Surface> process(SharedRenderTask task)
     {
@@ -263,7 +277,10 @@ public:
         return std::move(task->receiver);
     }
 };
+
 #endif
+
+bool RenderTaskScheduler::IsRunning{false};
 
 std::future<Surface> AnimationImpl::renderAsync(size_t    frameNo,
                                                 Surface &&surface,
@@ -496,6 +513,29 @@ void Surface::setDrawRegion(size_t x, size_t y, size_t width, size_t height)
     mDrawArea.y = y;
     mDrawArea.w = width;
     mDrawArea.h = height;
+}
+
+namespace {
+void lottieShutdownRenderTaskScheduler()
+{
+    if (RenderTaskScheduler::IsRunning) {
+        RenderTaskScheduler::instance().stop();
+    }
+}
+}  // namespace
+
+// private apis exposed to c interface
+void lottie_init_impl()
+{
+    // do nothing for now.
+}
+
+extern void lottieShutdownRasterTaskScheduler();
+
+void lottie_shutdown_impl()
+{
+    lottieShutdownRenderTaskScheduler();
+    lottieShutdownRasterTaskScheduler();
 }
 
 #ifdef LOTTIE_LOGGING_SUPPORT
