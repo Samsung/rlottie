@@ -1067,6 +1067,10 @@ void LottieParserImpl::parseShapesAttr(model::Layer *layer)
 model::Object *LottieParserImpl::parseObjectTypeAttr()
 {
     ROString type = GetString();
+    if (!type) {
+        vWarning << "No object type specified";
+        return nullptr;
+    }
     switch(type.hash()) {
     case "gr"_hash: return parseGroupObject();
     case "rc"_hash: return parseRectObject();

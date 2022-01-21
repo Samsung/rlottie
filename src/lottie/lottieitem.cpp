@@ -178,9 +178,9 @@ bool renderer::Composition::updatePartial(int frameNo, const VSize &size,
 
 bool renderer::Composition::render(const rlottie::Surface &surface)
 {
-    mSurface.reset(reinterpret_cast<uchar *>(surface.buffer()),
-                   uint(surface.width()), uint(surface.height()),
-                   uint(surface.bytesPerLine()),
+    mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
+                   uint32_t(surface.width()), uint32_t(surface.height()),
+                   uint32_t(surface.bytesPerLine()),
                    VBitmap::Format::ARGB32_Premultiplied);
 
     /* schedule all preprocess task for this frame at once.
@@ -253,7 +253,7 @@ VRle renderer::Mask::rle()
 {
     if (!vCompare(mCombinedAlpha, 1.0f)) {
         VRle obj = mRasterizer.rle();
-        obj *= uchar(mCombinedAlpha * 255);
+        obj *= uint8_t(mCombinedAlpha * 255);
         return obj;
     } else {
         return mRasterizer.rle();
@@ -396,7 +396,7 @@ renderer::Layer::Layer(model::Layer *layerData) : mLayerData(layerData)
         mLayerMask = std::make_unique<renderer::LayerMask>(mLayerData);
 }
 
-bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                      LOTVariant &value)
 {
     if (!keyPath.matches(name(), depth)) {
@@ -412,12 +412,12 @@ bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return true;
 }
 
-bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                           LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint newDepth = keyPath.nextDepth(name(), depth);
+            uint32_t newDepth = keyPath.nextDepth(name(), depth);
             mRoot->resolveKeyPath(keyPath, newDepth, value);
         }
         return true;
@@ -425,12 +425,12 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return false;
 }
 
-bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                          LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint newDepth = keyPath.nextDepth(name(), depth);
+            uint32_t newDepth = keyPath.nextDepth(name(), depth);
             for (const auto &layer : mLayers) {
                 layer->resolveKeyPath(keyPath, newDepth, value);
             }
@@ -560,7 +560,7 @@ void renderer::CompLayer::render(VPainter *painter, const VRle &inheritMask,
             renderHelper(&srcPainter, inheritMask, matteRle, cache);
             srcPainter.end();
             painter->drawBitmap(VPoint(), srcBitmap,
-                                uchar(combinedAlpha() * 255.0f));
+                                uint8_t(combinedAlpha() * 255.0f));
             cache.release_surface(srcBitmap);
         } else {
             renderHelper(painter, inheritMask, matteRle, cache);
@@ -916,7 +916,7 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
     return {mDrawableList.data(), mDrawableList.size()};
 }
 
-bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                      LOTVariant &value)
 {
     if (!keyPath.skip(name())) {
@@ -933,7 +933,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     }
 
     if (keyPath.propagate(name(), depth)) {
-        uint newDepth = keyPath.nextDepth(name(), depth);
+        uint32_t newDepth = keyPath.nextDepth(name(), depth);
         for (auto &child : mContents) {
             child->resolveKeyPath(keyPath, newDepth, value);
         }
@@ -941,7 +941,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return true;
 }
 
-bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                     LOTVariant &value)
 {
     if (!keyPath.matches(mModel.name(), depth)) {
@@ -956,7 +956,7 @@ bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return false;
 }
 
-bool renderer::Stroke::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Stroke::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                       LOTVariant &value)
 {
     if (!keyPath.matches(mModel.name(), depth)) {
