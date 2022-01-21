@@ -54,147 +54,73 @@
 // the parse.
 
 #include <array>
+#include <stack>
+#include <string_view>
 
 #include "lottiemodel.h"
-#include "rapidjson/document.h"
+#include "JSON/JSON.hpp"
+#include "JSON/ROString.hpp"
 
-RAPIDJSON_DIAG_PUSH
-#ifdef __GNUC__
-RAPIDJSON_DIAG_OFF(effc++)
-#endif
-
-using namespace rapidjson;
-
+typedef JSONT<int32_t> JSON;
 using namespace rlottie::internal;
 
-class LookaheadParserHandler {
-public:
-    bool Null()
-    {
-        st_ = kHasNull;
-        v_.SetNull();
-        return true;
-    }
-    bool Bool(bool b)
-    {
-        st_ = kHasBool;
-        v_.SetBool(b);
-        return true;
-    }
-    bool Int(int i)
-    {
-        st_ = kHasNumber;
-        v_.SetInt(i);
-        return true;
-    }
-    bool Uint(unsigned u)
-    {
-        st_ = kHasNumber;
-        v_.SetUint(u);
-        return true;
-    }
-    bool Int64(int64_t i)
-    {
-        st_ = kHasNumber;
-        v_.SetInt64(i);
-        return true;
-    }
-    bool Uint64(int64_t u)
-    {
-        st_ = kHasNumber;
-        v_.SetUint64(u);
-        return true;
-    }
-    bool Double(double d)
-    {
-        st_ = kHasNumber;
-        v_.SetDouble(d);
-        return true;
-    }
-    bool RawNumber(const char *, SizeType, bool) { return false; }
-    bool String(const char *str, SizeType length, bool)
-    {
-        st_ = kHasString;
-        v_.SetString(str, length);
-        return true;
-    }
-    bool StartObject()
-    {
-        st_ = kEnteringObject;
-        return true;
-    }
-    bool Key(const char *str, SizeType length, bool)
-    {
-        st_ = kHasKey;
-        v_.SetString(str, length);
-        return true;
-    }
-    bool EndObject(SizeType)
-    {
-        st_ = kExitingObject;
-        return true;
-    }
-    bool StartArray()
-    {
-        st_ = kEnteringArray;
-        return true;
-    }
-    bool EndArray(SizeType)
-    {
-        st_ = kExitingArray;
-        return true;
-    }
+/** JSON does not have a value type so make one for generic usage */
+struct Value {
+    ROString strValue;
+    JSON::Token token;
 
-    void Error()
-    {
-        st_ = kError;
-    }
-protected:
-    explicit LookaheadParserHandler(char *str);
+    Value() { }
 
-protected:
-    enum LookaheadParsingState {
-        kInit,
-        kError,
-        kHasNull,
-        kHasBool,
-        kHasNumber,
-        kHasString,
-        kHasKey,
-        kEnteringObject,
-        kExitingObject,
-        kEnteringArray,
-        kExitingArray
-    };
+    double GetDouble()   { if (token.type == JSON::Token::Number) return (double)strValue; return 0; }
+       int GetInt()      { if (token.type == JSON::Token::Number) return (int)strValue; return 0; }
+    ROString GetString() { if (token.type == JSON::Token::String) return strValue; return 0; }
+    bool GetBool()       { return (token.type == JSON::Token::True); }
+    void GetNull()       { return; } // WTF?
+    //TODO: Do everything else 
 
-    Value                 v_;
-    LookaheadParsingState st_;
-    Reader                r_;
-    InsituStringStream    ss_;
-
-    static const int parseFlags = kParseDefaultFlags | kParseInsituFlag;
+    void set(const ROString & value, const JSON::Token & token) { strValue = value; this->token = token;}
 };
 
-class LottieParserImpl : public LookaheadParserHandler {
-public:
-    LottieParserImpl(char *str, std::string dir_path, model::ColorFilter filter)
-        : LookaheadParserHandler(str),
-          mColorFilter(std::move(filter)),
-          mDirPath(std::move(dir_path))
+struct LottieParserImpl {
+    enum ValueType
     {
-    }
+        Undefined = 0,
+        Null      = 1,
+        Bool      = 2,
+        Number    = 3,
+        String    = 5,
+        Array     = 6,
+        Object    = 7,
+    };
+
+public:
+    LottieParserImpl(const char *str, std::string dir_path, model::ColorFilter filter)
+        : mColorFilter(std::move(filter)),
+          mDirPath(std::move(dir_path)),
+          mLastSuper(JSON::InvalidPos),
+          mInput(str),
+          errorPos(JSON::InvalidPos)
+    { }
+    LottieParserImpl(const char *str, size_t len, std::string dir_path, model::ColorFilter filter)
+        : mColorFilter(std::move(filter)),
+          mDirPath(std::move(dir_path)),
+          mLastSuper(JSON::InvalidPos),
+          mInput(str, (int)len),
+          errorPos(JSON::InvalidPos)
+    { }
     bool VerifyType();
     bool ParseNext();
+    void Error() { errorPos = parser.pos; }
 
 public:
     VArenaAlloc &allocator() { return compRef->mArenaAlloc; }
     bool         EnterObject();
     bool         EnterArray();
-    const char * NextObjectKey();
+    ROString     NextObjectKey();
     bool         NextArrayValue();
     int          GetInt();
     double       GetDouble();
-    const char * GetString();
+    ROString     GetString();
     std::string  GetStringObject();
     bool         GetBool();
     void         GetNull();
@@ -202,11 +128,11 @@ public:
     void   SkipObject();
     void   SkipArray();
     void   SkipValue();
-    Value *PeekValue();
-    int    PeekType() const;
-    bool   IsValid() { return st_ != kError; }
+    Value *     PeekValue();
+    ValueType   PeekType() const;
+    bool   IsValid() { return errorPos == JSON::InvalidPos; }
 
-    void                  Skip(const char *key);
+    void                  Skip(const ROString & key);
     model::BlendMode      getBlendMode();
     CapStyle              getLineCap();
     JoinStyle             getLineJoin();
@@ -248,7 +174,7 @@ public:
     model::Trim *          parseTrimObject();
     model::Repeater *      parseReapeaterObject();
 
-    void parseGradientProperty(model::Gradient *gradient, const char *key);
+    void parseGradientProperty(model::Gradient *gradient, const ROString & key);
 
     VPointF parseInperpolatorPoint();
 
@@ -262,13 +188,13 @@ public:
     void getValue(model::Repeater::Transform &);
 
     template <typename T, typename Tag>
-    bool parseKeyFrameValue(const char *, model::Value<T, Tag> &)
+    bool parseKeyFrameValue(const ROString &, model::Value<T, Tag> &)
     {
         return false;
     }
 
     template <typename T>
-    bool parseKeyFrameValue(const char *                      key,
+    bool parseKeyFrameValue(const ROString & key,
                             model::Value<T, model::Position> &value);
     template <typename T, typename Tag>
     void parseKeyFrame(model::KeyFrames<T, Tag> &obj);
@@ -282,7 +208,7 @@ public:
 
     VInterpolator *interpolator(VPointF, VPointF, std::string);
 
-    model::Color toColor(const char *str);
+    model::Color toColor(const ROString & str);
 
     void resolveLayerRefs();
     void parsePathInfo();
@@ -362,6 +288,20 @@ private:
         }
     } mPathInfo;
 
+    ROString current() const { return mInput.midString(token.start, token.end - token.start); }
+    ValueType toType() const { 
+        switch(token.type) {
+        case JSON::Token::Null : return Null;
+        case JSON::Token::True: case JSON::Token::False: return Bool;
+        case JSON::Token::String: return String;
+        case JSON::Token::Object: return Object;
+        case JSON::Token::Array: return Array;
+        case JSON::Token::Number: return Number;
+        case JSON::Token::Undefined:
+        default: return Undefined;        
+        }
+    }
+
 protected:
     std::unordered_map<std::string, VInterpolator *> mInterpolatorCache;
     std::shared_ptr<model::Composition>              mComposition;
@@ -370,13 +310,15 @@ protected:
     std::vector<model::Layer *>                      mLayersToUpdate;
     std::string                                      mDirPath;
     void                                             SkipOut(int depth);
-};
 
-LookaheadParserHandler::LookaheadParserHandler(char *str)
-    : v_(), st_(kInit), ss_(str)
-{
-    r_.IterativeParseInit();
-}
+    JSON                                             parser;
+    JSON::Token                                      token;
+    int32_t                                          mLastSuper;
+    std::stack<int32_t>                              mSuperLIFO;
+    ROString                                         mInput;
+    int32_t                                          errorPos;
+    Value                                            v_;
+};
 
 bool LottieParserImpl::VerifyType()
 {
@@ -387,74 +329,85 @@ bool LottieParserImpl::VerifyType()
 
 bool LottieParserImpl::ParseNext()
 {
-    if (r_.HasParseError()) {
-        st_ = kError;
+    // Are we done?
+    if (parser.state == JSON::Done) return false;
+
+    JSON::IndexType res = parser.parseOne(mInput.getData(), mInput.getLength(), token, mLastSuper);
+    if (res < 0) {
+        Error();
+        printf("parse error: %d/%u\n", res, parser.pos);
         return false;
     }
 
-    if (!r_.IterativeParseNext<parseFlags>(ss_, *this)) {
-        vCritical << "Lottie file parsing error";
-        st_ = kError;
+    if (res == JSON::SaveSuper)
+        mSuperLIFO.push(mLastSuper);
+    if (res == JSON::RestoreSuper) {
+        if (mSuperLIFO.size()) mSuperLIFO.pop();
+        mLastSuper = mSuperLIFO.size() ? mSuperLIFO.top() : JSON::InvalidPos; 
+    }
+    if (res == JSON::Finished) {
+        // We are done.
         return false;
     }
+
+    // Then decide on what to do
+    /*
+    switch(token.parent) {
+        case JSON::EnteringObject: return EnterObject();
+        case JSON::EnteringArray: return EnterArray();
+        case JSON::HadKey:        return NextObjectKey();
+        case JSON::HadValue:  
+    }
+        vCritical << "Lottie file parsing error";
+        */
     return true;
 }
 
 bool LottieParserImpl::EnterObject()
 {
-    if (st_ != kEnteringObject) {
-        st_ = kError;
-        return false;
-    }
-
     ParseNext();
     return true;
 }
 
 bool LottieParserImpl::EnterArray()
 {
-    if (st_ != kEnteringArray) {
-        st_ = kError;
-        return false;
-    }
-
     ParseNext();
     return true;
 }
 
-const char *LottieParserImpl::NextObjectKey()
+ROString LottieParserImpl::NextObjectKey()
 {
-    if (st_ == kHasKey) {
-        const char *result = v_.GetString();
+    if (token.parent == JSON::HadKey) {
+        ROString key = current();
         ParseNext();
-        return result;
+        return key;
     }
 
     /* SPECIAL CASE
-     * The parser works with a prdefined rule that it will be only
+     * The parser works with a predefined rule that it will be only
      * while (NextObjectKey()) for each object but in case of our nested group
      * object we can call multiple time NextObjectKey() while exiting the object
      * so ignore those and don't put parser in the error state.
      * */
-    if (st_ == kExitingArray || st_ == kEnteringObject) {
+    if (token.parent == JSON::LeavingArray || token.parent == JSON::EnteringObject) {
         // #ifdef DEBUG_PARSER
         //         vDebug<<"Object: Exiting nested loop";
         // #endif
-        return nullptr;
+        return ROString();
     }
 
-    if (st_ != kExitingObject) {
-        st_ = kError;
-        return nullptr;
+    if (token.parent != JSON::LeavingObject) {
+        Error();
+        return ROString();
     }
 
     ParseNext();
-    return nullptr;
+    return ROString();
 }
 
 bool LottieParserImpl::NextArrayValue()
 {
-    if (st_ == kExitingArray) {
+    if (token.parent == JSON::LeavingArray) {
         ParseNext();
         return false;
     }
@@ -462,12 +415,12 @@ bool LottieParserImpl::NextArrayValue()
     /* SPECIAL CASE
      * same as  NextObjectKey()
      */
-    if (st_ == kExitingObject) {
+    if (token.parent == JSON::LeavingObject) {
         return false;
     }
 
-    if (st_ == kError || st_ == kHasKey) {
-        st_ = kError;
+    if (token.parent == JSON::HadKey) {
+        Error();
         return false;
     }
 
@@ -476,68 +429,68 @@ bool LottieParserImpl::NextArrayValue()
 
 int LottieParserImpl::GetInt()
 {
-    if (st_ != kHasNumber || !v_.IsInt()) {
-        st_ = kError;
+    if (token.parent != JSON::HadValue || token.type != JSON::Token::Number) {
+        Error();
         return 0;
     }
 
-    int result = v_.GetInt();
+    int result = (int)current();
     ParseNext();
     return result;
 }
 
 double LottieParserImpl::GetDouble()
 {
-    if (st_ != kHasNumber) {
-        st_ = kError;
+    if (token.parent != JSON::HadValue || token.type != JSON::Token::Number) {
+        Error();
         return 0.;
     }
 
-    double result = v_.GetDouble();
+    double result = (double)current();
     ParseNext();
     return result;
 }
 
 bool LottieParserImpl::GetBool()
 {
-    if (st_ != kHasBool) {
-        st_ = kError;
+    if (token.parent != JSON::HadValue || (token.type != JSON::Token::True && token.type != JSON::Token::False)) {
+        Error();
         return false;
     }
 
-    bool result = v_.GetBool();
+    bool result = current() == "true";
     ParseNext();
     return result;
 }
 
 void LottieParserImpl::GetNull()
 {
-    if (st_ != kHasNull) {
-        st_ = kError;
+    if (token.parent != JSON::HadValue || token.type != JSON::Token::Null) {
+        Error();
         return;
     }
 
     ParseNext();
 }
 
-const char *LottieParserImpl::GetString()
+ROString LottieParserImpl::GetString()
 {
-    if (st_ != kHasString) {
-        st_ = kError;
-        return nullptr;
+    if (token.parent != JSON::HadValue || token.type != JSON::Token::String) {
+        Error();
+        return ROString();
     }
 
-    const char *result = v_.GetString();
+    ROString result = current();
     ParseNext();
     return result;
 }
 
 std::string LottieParserImpl::GetStringObject()
 {
-    auto str = GetString();
+    ROString str = GetString();
 
     if (str) {
-        return std::string(str);
+        return std::string(str, str.getLength());
     }
 
     return {};
@@ -546,11 +499,11 @@ std::string LottieParserImpl::GetStringObject()
 void LottieParserImpl::SkipOut(int depth)
 {
     do {
-        if (st_ == kEnteringArray || st_ == kEnteringObject) {
+        if (token.parent == JSON::EnteringArray || token.parent == JSON::EnteringObject) {
             ++depth;
-        } else if (st_ == kExitingArray || st_ == kExitingObject) {
+        } else if (token.parent == JSON::LeavingArray || token.parent == JSON::LeavingObject) {
             --depth;
-        } else if (st_ == kError) {
+        } else if (errorPos != JSON::InvalidPos) {
             return;
         }
 
@@ -575,7 +528,8 @@ void LottieParserImpl::SkipObject()
 
 Value *LottieParserImpl::PeekValue()
 {
-    if (st_ >= kHasNull && st_ <= kHasKey) {
+    if (token.parent == JSON::HadValue) {
+        v_.set(current(), token);
         return &v_;
     }
 
@@ -584,29 +538,17 @@ Value *LottieParserImpl::PeekValue()
 
 // returns a rapidjson::Type, or -1 for no value (at end of
 // object/array)
-int LottieParserImpl::PeekType() const
+LottieParserImpl::ValueType LottieParserImpl::PeekType() const
 {
-    if (st_ >= kHasNull && st_ <= kHasKey) {
-        return v_.GetType();
-    }
-
-    if (st_ == kEnteringArray) {
-        return kArrayType;
-    }
-
-    if (st_ == kEnteringObject) {
-        return kObjectType;
-    }
-
-    return -1;
+    return toType();
 }
 
-void LottieParserImpl::Skip(const char * /*key*/)
+void LottieParserImpl::Skip(const ROString & /*key*/)
 {
-    if (PeekType() == kArrayType) {
+    if (PeekType() == Array) {
         EnterArray();
         SkipArray();
-    } else if (PeekType() == kObjectType) {
+    } else if (PeekType() == Object) {
         EnterObject();
         SkipObject();
     } else {
@@ -657,30 +599,24 @@ void LottieParserImpl::parseComposition()
         std::make_shared<model::Composition>();
     model::Composition *comp = sharedComposition.get();
     compRef = comp;
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "v")) {
-            comp->mVersion = GetStringObject();
-        } else if (0 == strcmp(key, "w")) {
-            comp->mSize.setWidth(GetInt());
-        } else if (0 == strcmp(key, "h")) {
-            comp->mSize.setHeight(GetInt());
-        } else if (0 == strcmp(key, "ip")) {
-            comp->mStartFrame = GetDouble();
-        } else if (0 == strcmp(key, "op")) {
-            comp->mEndFrame = GetDouble();
-        } else if (0 == strcmp(key, "fr")) {
-            comp->mFrameRate = GetDouble();
-        } else if (0 == strcmp(key, "assets")) {
-            parseAssets(comp);
-        } else if (0 == strcmp(key, "layers")) {
-            parseLayers(comp);
-        } else if (0 == strcmp(key, "markers")) {
-            parseMarkers();
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash())
+        {
+        case "v"_hash: comp->mVersion = GetStringObject(); break;
+        case "w"_hash: comp->mSize.setWidth(GetInt()); break;
+        case "h"_hash: comp->mSize.setHeight(GetInt()); break;
+        case "ip"_hash:  comp->mStartFrame = GetDouble(); break;
+        case "op"_hash:  comp->mEndFrame = GetDouble(); break;
+        case "fr"_hash:  comp->mFrameRate = GetDouble(); break;
+        case "assets"_hash: parseAssets(comp); break;
+        case "layers"_hash: parseLayers(comp); break;
+        case "markers"_hash: parseMarkers(); break;
+        default: 
 #ifdef DEBUG_PARSER
             vWarning << "Composition Attribute Skipped : " << key;
 #endif
             Skip(key);
+            break;
         }
     }
 
@@ -689,7 +625,7 @@ void LottieParserImpl::parseComposition()
         return;
     }
     if (comp->mStartFrame > comp->mEndFrame) {
-        // reveresed animation? missing data?
+        // reversed animation? missing data?
         return;
     }
     if (!IsValid()) {
@@ -710,19 +646,17 @@ void LottieParserImpl::parseMarker()
     std::string comment;
     int         timeframe{0};
     int         duration{0};
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "cm")) {
-            comment = GetStringObject();
-        } else if (0 == strcmp(key, "tm")) {
-            timeframe = GetDouble();
-        } else if (0 == strcmp(key, "dr")) {
-            duration = GetDouble();
-
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch (key.hash()) {
+        case "cm"_hash: comment = GetStringObject(); break;
+        case "tm"_hash: timeframe = GetDouble(); break;
+        case "dr"_hash: duration = GetDouble(); break;
+        default:
 #ifdef DEBUG_PARSER
             vWarning << "Marker Attribute Skipped : " << key;
 #endif
             Skip(key);
+            break;
         }
     }
     compRef->mMarkers.emplace_back(std::move(comment), timeframe,
@@ -820,25 +754,26 @@ model::Asset *LottieParserImpl::parseAsset()
     std::string relativePath;
     bool        embededResource = false;
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "w")) {
-            asset->mWidth = GetInt();
-        } else if (0 == strcmp(key, "h")) {
-            asset->mHeight = GetInt();
-        } else if (0 == strcmp(key, "p")) { /* image name */
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "w"_hash: asset->mWidth = GetInt(); break; 
+        case "h"_hash: asset->mHeight = GetInt(); break; 
+        case "p"_hash:  /* image name */
             asset->mAssetType = model::Asset::Type::Image;
             filename = GetStringObject();
-        } else if (0 == strcmp(key, "u")) { /* relative image path */
+        break; 
+        case "u"_hash:  /* relative image path */
             relativePath = GetStringObject();
-        } else if (0 == strcmp(key, "e")) { /* relative image path */
+        break; 
+        case "e"_hash:  /* relative image path */
             embededResource = GetInt();
-        } else if (0 == strcmp(key, "id")) { /* reference id*/
-            if (PeekType() == kStringType) {
+        break; 
+        case "id"_hash:  /* reference id*/
+            if (PeekType() == String)
                 asset->mRefId = GetStringObject();
-            } else {
-                asset->mRefId = toString(GetInt());
-            }
-        } else if (0 == strcmp(key, "layers")) {
+            else asset->mRefId = toString(GetInt());
+        break; 
+        case "layers"_hash: {
             asset->mAssetType = model::Asset::Type::Precomp;
             EnterArray();
             bool staticFlag = true;
@@ -850,11 +785,14 @@ model::Asset *LottieParserImpl::parseAsset()
                 }
             }
             asset->setStatic(staticFlag);
-        } else {
+            break;
+        }
+        default: 
 #ifdef DEBUG_PARSER
             vWarning << "Asset Attribute Skipped : " << key;
 #endif
             Skip(key);
+            break;
         }
     }
 
@@ -876,7 +814,7 @@ void LottieParserImpl::parseLayers(model::Composition *comp)
 {
     comp->mRootLayer = allocator().make<model::Layer>();
     comp->mRootLayer->mLayerType = model::Layer::Type::Precomp;
-    comp->mRootLayer->setName("__");
+    comp->mRootLayer->setName("__", 2);
     bool staticFlag = true;
     EnterArray();
     while (NextArrayValue()) {
@@ -889,12 +827,12 @@ void LottieParserImpl::parseLayers(model::Composition *comp)
     comp->mRootLayer->setStatic(staticFlag);
 }
 
-model::Color LottieParserImpl::toColor(const char *str)
+model::Color LottieParserImpl::toColor(const ROString & str)
 {
     if (!str) return {};
 
     model::Color color;
-    auto         len = strlen(str);
+    size_t       len = str.getLength();
 
     // some resource has empty color string
     // return a default color for those cases.
@@ -974,62 +912,51 @@ model::Layer *LottieParserImpl::parseLayer()
     curLayerRef = layer;
     bool ddd = true;
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "ty")) { /* Type of layer*/
-            layer->mLayerType = getLayerType();
-        } else if (0 == strcmp(key, "nm")) { /*Layer name*/
-            layer->setName(GetString());
-        } else if (0 == strcmp(key, "ind")) { /*Layer index in AE. Used for
-                                                 parenting and expressions.*/
-            layer->mId = GetInt();
-        } else if (0 == strcmp(key, "ddd")) { /*3d layer */
-            ddd = GetInt();
-        } else if (0 ==
-                   strcmp(key,
-                          "parent")) { /*Layer Parent. Uses "ind" of parent.*/
-            layer->mParentId = GetInt();
-        } else if (0 == strcmp(key, "refId")) { /*preComp Layer reference id*/
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "ty"_hash: layer->mLayerType = getLayerType(); break;
+        /*Layer index in AE. Used for parenting and expressions.*/
+        case "ind"_hash: layer->mId = GetInt(); break; 
+        /*3d layer */
+        case "ddd"_hash: ddd = GetInt(); break;
+        // "Layer Time Stretching"
+        case "sr"_hash: layer->mTimeStreatch = GetDouble(); break;
+        case "ip"_hash: layer->mInFrame = std::lround(GetDouble()); break;
+        case "op"_hash: layer->mOutFrame = std::lround(GetDouble()); break;
+        case "st"_hash: layer->mStartFrame = GetDouble(); break;
+        case "bm"_hash: layer->mBlendMode = getBlendMode(); break;
+        case "w"_hash:  layer->mLayerSize.setWidth(GetInt()); break;
+        case "h"_hash:  layer->mLayerSize.setHeight(GetInt()); break;
+        case "sw"_hash: layer->mLayerSize.setWidth(GetInt()); break;
+        case "sh"_hash: layer->mLayerSize.setHeight(GetInt()); break;
+        case "sc"_hash: layer->extra()->mSolidColor = toColor(GetString()); break;
+        case "tt"_hash: layer->mMatteType = getMatteType(); break;
+        case "ao"_hash: layer->mAutoOrient = GetInt(); break;
+        case "hd"_hash: layer->setHidden(GetBool()); break;
+        /*Layer Parent. Uses "ind" of parent.*/
+        case "parent"_hash: layer->mParentId = GetInt(); break;
+        case "hasMask"_hash: layer->mHasMask = GetBool(); break;
+        // time remapping
+        case "tm"_hash: parseProperty(layer->extra()->mTimeRemap); break;
+        case "shapes"_hash: parseShapesAttr(layer); break;
+        case "masksProperties"_hash: parseMaskProperty(layer); break;
+        case "ks"_hash: {
+            EnterObject();
+            layer->mTransform = parseTransformObject(ddd);
+            break;
+        } 
+        case "nm"_hash: { 
+            ROString name = GetString(); 
+            layer->setName(name.getData(), name.getLength()); 
+            break; 
+        }
+        /*preComp Layer reference id*/
+        case "refId"_hash: { 
             layer->extra()->mPreCompRefId = GetStringObject();
             layer->mHasGradient = true;
             mLayersToUpdate.push_back(layer);
-        } else if (0 == strcmp(key, "sr")) {  // "Layer Time Stretching"
-            layer->mTimeStreatch = GetDouble();
-        } else if (0 == strcmp(key, "tm")) {  // time remapping
-            parseProperty(layer->extra()->mTimeRemap);
-        } else if (0 == strcmp(key, "ip")) {
-            layer->mInFrame = std::lround(GetDouble());
-        } else if (0 == strcmp(key, "op")) {
-            layer->mOutFrame = std::lround(GetDouble());
-        } else if (0 == strcmp(key, "st")) {
-            layer->mStartFrame = GetDouble();
-        } else if (0 == strcmp(key, "bm")) {
-            layer->mBlendMode = getBlendMode();
-        } else if (0 == strcmp(key, "ks")) {
-            EnterObject();
-            layer->mTransform = parseTransformObject(ddd);
-        } else if (0 == strcmp(key, "shapes")) {
-            parseShapesAttr(layer);
-        } else if (0 == strcmp(key, "w")) {
-            layer->mLayerSize.setWidth(GetInt());
-        } else if (0 == strcmp(key, "h")) {
-            layer->mLayerSize.setHeight(GetInt());
-        } else if (0 == strcmp(key, "sw")) {
-            layer->mLayerSize.setWidth(GetInt());
-        } else if (0 == strcmp(key, "sh")) {
-            layer->mLayerSize.setHeight(GetInt());
-        } else if (0 == strcmp(key, "sc")) {
-            layer->extra()->mSolidColor = toColor(GetString());
-        } else if (0 == strcmp(key, "tt")) {
-            layer->mMatteType = getMatteType();
-        } else if (0 == strcmp(key, "hasMask")) {
-            layer->mHasMask = GetBool();
-        } else if (0 == strcmp(key, "masksProperties")) {
-            parseMaskProperty(layer);
-        } else if (0 == strcmp(key, "ao")) {
-            layer->mAutoOrient = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            layer->setHidden(GetBool());
-        } else {
+        } break;
+        default:
 #ifdef DEBUG_PARSER
             vWarning << "Layer Attribute Skipped : " << key;
 #endif
@@ -1088,11 +1015,11 @@ model::Mask *LottieParserImpl::parseMaskObject()
     auto obj = allocator().make<model::Mask>();
 
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "inv")) {
-            obj->mInv = GetBool();
-        } else if (0 == strcmp(key, "mode")) {
-            const char *str = GetString();
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "inv"_hash: obj->mInv = GetBool(); break;
+        case "mode"_hash: {
+            ROString str = GetString();
             if (!str) {
                 obj->mMode = model::Mask::Mode::None;
                 continue;
@@ -1117,11 +1044,11 @@ model::Mask *LottieParserImpl::parseMaskObject()
                 obj->mMode = model::Mask::Mode::None;
                 break;
             }
-        } else if (0 == strcmp(key, "pt")) {
-            parseShapeProperty(obj->mShape);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOpacity);
-        } else {
+            break;
+        } 
+        case "pt"_hash: parseShapeProperty(obj->mShape); break;
+        case "o"_hash: parseProperty(obj->mOpacity); break;
+        default:
             Skip(key);
         }
     }
@@ -1139,46 +1066,44 @@ void LottieParserImpl::parseShapesAttr(model::Layer *layer)
 
 model::Object *LottieParserImpl::parseObjectTypeAttr()
 {
-    const char *type = GetString();
+    ROString type = GetString();
     if (!type) {
         vWarning << "No object type specified";
         return nullptr;
     }
-    if (0 == strcmp(type, "gr")) {
-        return parseGroupObject();
-    } else if (0 == strcmp(type, "rc")) {
-        return parseRectObject();
-    } else if (0 == strcmp(type, "rd")) {
+    switch(type.hash()) {
+    case "gr"_hash: return parseGroupObject();
+    case "rc"_hash: return parseRectObject();
+    case "rd"_hash: {
         curLayerRef->mHasRoundedCorner = true;
         return parseRoundedCorner();
-    }  else if (0 == strcmp(type, "el")) {
-        return parseEllipseObject();
-    } else if (0 == strcmp(type, "tr")) {
-        return parseTransformObject();
-    } else if (0 == strcmp(type, "fl")) {
-        return parseFillObject();
-    } else if (0 == strcmp(type, "st")) {
-        return parseStrokeObject();
-    } else if (0 == strcmp(type, "gf")) {
+    }
+    case "el"_hash: return parseEllipseObject();
+    case "tr"_hash: return parseTransformObject();
+    case "fl"_hash: return parseFillObject();
+    case "st"_hash: return parseStrokeObject();
+    case "gf"_hash: {
         curLayerRef->mHasGradient = true;
         return parseGFillObject();
-    } else if (0 == strcmp(type, "gs")) {
+    }
+    case "gs"_hash: {       
         curLayerRef->mHasGradient = true;
         return parseGStrokeObject();
-    } else if (0 == strcmp(type, "sh")) {
-        return parseShapeObject();
-    } else if (0 == strcmp(type, "sr")) {
-        return parsePolystarObject();
-    } else if (0 == strcmp(type, "tm")) {
+    }
+    case "sh"_hash: return parseShapeObject();
+    case "sr"_hash: return parsePolystarObject();
+    case "tm"_hash: {
         curLayerRef->mHasPathOperator = true;
         return parseTrimObject();
-    } else if (0 == strcmp(type, "rp")) {
+    }
+    case "rp"_hash: {
         curLayerRef->mHasRepeater = true;
         return parseReapeaterObject();
-    } else if (0 == strcmp(type, "mm")) {
+    }
+    case "mm"_hash: 
         vWarning << "Merge Path is not supported yet";
         return nullptr;
-    } else {
+    default:
 #ifdef DEBUG_PARSER
         vDebug << "The Object Type not yet handled = " << type;
 #endif
@@ -1189,8 +1114,8 @@ model::Object *LottieParserImpl::parseObjectTypeAttr()
 void LottieParserImpl::parseObject(model::Group *parent)
 {
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "ty")) {
+    while (ROString key = NextObjectKey()) {
+        if (key == "ty") {
             auto child = parseObjectTypeAttr();
             if (child && !child->hidden()) {
                 if (child->type() == model::Object::Type::RoundedCorner) {
@@ -1225,10 +1150,10 @@ model::Object *LottieParserImpl::parseGroupObject()
 {
     auto group = allocator().make<model::Group>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            group->setName(GetString());
-        } else if (0 == strcmp(key, "it")) {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  group->setName(name.getData(), name.getLength()); break; }
+        case "it"_hash: {
             EnterArray();
             while (NextArrayValue()) {
                 parseObject(group);
@@ -1240,7 +1165,9 @@ model::Object *LottieParserImpl::parseGroupObject()
                     static_cast<model::Transform *>(group->mChildren.back());
                 group->mChildren.pop_back();
             }
-        } else {
+            break;
+        }
+        default:
             Skip(key);
         }
     }
@@ -1263,21 +1190,15 @@ model::Rect *LottieParserImpl::parseRectObject()
 {
     auto obj = allocator().make<model::Rect>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "p")) {
-            parseProperty(obj->mPos);
-        } else if (0 == strcmp(key, "s")) {
-            parseProperty(obj->mSize);
-        } else if (0 == strcmp(key, "r")) {
-            parseProperty(obj->mRound);
-        } else if (0 == strcmp(key, "d")) {
-            obj->mDirection = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
-            Skip(key);
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "p"_hash: parseProperty(obj->mPos); break;
+        case "s"_hash: parseProperty(obj->mSize); break;
+        case "r"_hash: parseProperty(obj->mRound); break;
+        case "d"_hash: obj->mDirection = GetInt(); break;
+        case "hd"_hash: obj->setHidden(GetBool()); break;
+        default:           Skip(key);
         }
     }
     obj->setStatic(obj->mPos.isStatic() && obj->mSize.isStatic() &&
@@ -1292,14 +1213,12 @@ model::RoundedCorner *LottieParserImpl::parseRoundedCorner()
 {
     auto obj = allocator().make<model::RoundedCorner>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "r")) {
-            parseProperty(obj->mRadius);
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "r"_hash: parseProperty(obj->mRadius); break;
+        case "hd"_hash: obj->setHidden(GetBool()); break;
+        default:
             Skip(key);
         }
     }
@@ -1314,18 +1233,14 @@ model::Ellipse *LottieParserImpl::parseEllipseObject()
 {
     auto obj = allocator().make<model::Ellipse>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "p")) {
-            parseProperty(obj->mPos);
-        } else if (0 == strcmp(key, "s")) {
-            parseProperty(obj->mSize);
-        } else if (0 == strcmp(key, "d")) {
-            obj->mDirection = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "p"_hash: parseProperty(obj->mPos); break;
+        case "s"_hash: parseProperty(obj->mSize); break;
+        case "d"_hash: obj->mDirection = GetInt(); break;
+        case "hd"_hash: obj->setHidden(GetBool()); break;
+        default:
             Skip(key);
         }
     }
@@ -1340,16 +1255,13 @@ model::Path *LottieParserImpl::parseShapeObject()
 {
     auto obj = allocator().make<model::Path>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "ks")) {
-            parseShapeProperty(obj->mShape);
-        } else if (0 == strcmp(key, "d")) {
-            obj->mDirection = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "ks"_hash: parseShapeProperty(obj->mShape); break;
+        case "d"_hash:  obj->mDirection = GetInt(); break;
+        case "hd"_hash: obj->setHidden(GetBool()); break;
+        default:
 #ifdef DEBUG_PARSER
             vDebug << "Shape property ignored :" << key;
 #endif
@@ -1368,33 +1280,26 @@ model::Polystar *LottieParserImpl::parsePolystarObject()
 {
     auto obj = allocator().make<model::Polystar>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "p")) {
-            parseProperty(obj->mPos);
-        } else if (0 == strcmp(key, "pt")) {
-            parseProperty(obj->mPointCount);
-        } else if (0 == strcmp(key, "ir")) {
-            parseProperty(obj->mInnerRadius);
-        } else if (0 == strcmp(key, "is")) {
-            parseProperty(obj->mInnerRoundness);
-        } else if (0 == strcmp(key, "or")) {
-            parseProperty(obj->mOuterRadius);
-        } else if (0 == strcmp(key, "os")) {
-            parseProperty(obj->mOuterRoundness);
-        } else if (0 == strcmp(key, "r")) {
-            parseProperty(obj->mRotation);
-        } else if (0 == strcmp(key, "sy")) {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "p"_hash:  parseProperty(obj->mPos);               break;
+        case "pt"_hash: parseProperty(obj->mPointCount);        break;
+        case "ir"_hash: parseProperty(obj->mInnerRadius);       break;
+        case "is"_hash: parseProperty(obj->mInnerRoundness);    break;
+        case "or"_hash: parseProperty(obj->mOuterRadius);       break;
+        case "os"_hash: parseProperty(obj->mOuterRoundness);    break;
+        case "r"_hash:  parseProperty(obj->mRotation);          break;
+        case "sy"_hash: {
             int starType = GetInt();
             if (starType == 1) obj->mPolyType = model::Polystar::PolyType::Star;
             if (starType == 2)
                 obj->mPolyType = model::Polystar::PolyType::Polygon;
-        } else if (0 == strcmp(key, "d")) {
-            obj->mDirection = GetInt();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+            break;
+        }
+        case "d"_hash:  obj->mDirection = GetInt(); break;
+        case "hd"_hash: obj->setHidden(GetBool());  break;
+        default:
 #ifdef DEBUG_PARSER
             vDebug << "Polystar property ignored :" << key;
 #endif
@@ -1433,20 +1338,15 @@ model::Trim *LottieParserImpl::parseTrimObject()
 {
     auto obj = allocator().make<model::Trim>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "s")) {
-            parseProperty(obj->mStart);
-        } else if (0 == strcmp(key, "e")) {
-            parseProperty(obj->mEnd);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOffset);
-        } else if (0 == strcmp(key, "m")) {
-            obj->mTrimType = getTrimType();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "s"_hash:  parseProperty(obj->mStart);     break;
+        case "e"_hash:  parseProperty(obj->mEnd);       break;
+        case "o"_hash:  parseProperty(obj->mOffset);    break;
+        case "m"_hash:  obj->mTrimType = getTrimType(); break;
+        case "hd"_hash: obj->setHidden(GetBool());      break;
+        default:
 #ifdef DEBUG_PARSER
             vDebug << "Trim property ignored :" << key;
 #endif
@@ -1462,20 +1362,15 @@ void LottieParserImpl::getValue(model::Repeater::Transform &obj)
 {
     EnterObject();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "a")) {
-            parseProperty(obj.mAnchor);
-        } else if (0 == strcmp(key, "p")) {
-            parseProperty(obj.mPosition);
-        } else if (0 == strcmp(key, "r")) {
-            parseProperty(obj.mRotation);
-        } else if (0 == strcmp(key, "s")) {
-            parseProperty(obj.mScale);
-        } else if (0 == strcmp(key, "so")) {
-            parseProperty(obj.mStartOpacity);
-        } else if (0 == strcmp(key, "eo")) {
-            parseProperty(obj.mEndOpacity);
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "a"_hash: parseProperty(obj.mAnchor); break;
+        case "p"_hash: parseProperty(obj.mPosition); break;
+        case "r"_hash: parseProperty(obj.mRotation); break;
+        case "s"_hash: parseProperty(obj.mScale); break;
+        case "so"_hash: parseProperty(obj.mStartOpacity); break;
+        case "eo"_hash: parseProperty(obj.mEndOpacity); break;
+        default:
             Skip(key);
         }
     }
@@ -1487,10 +1382,10 @@ model::Repeater *LottieParserImpl::parseReapeaterObject()
 
     obj->setContent(allocator().make<model::Group>());
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "c")) {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "c"_hash: {
             parseProperty(obj->mCopies);
             float maxCopy = 0.0;
             if (!obj->mCopies.isStatic()) {
@@ -1500,17 +1395,15 @@ model::Repeater *LottieParserImpl::parseReapeaterObject()
                     if (maxCopy < keyFrame.value_.end_)
                         maxCopy = keyFrame.value_.end_;
                 }
-            } else {
-                maxCopy = obj->mCopies.value();
             }
+            else maxCopy = obj->mCopies.value();
             obj->mMaxCopies = maxCopy;
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOffset);
-        } else if (0 == strcmp(key, "tr")) {
-            getValue(obj->mTransform);
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+            break;
+        }
+        case "o"_hash:  parseProperty(obj->mOffset); break;
+        case "tr"_hash: getValue(obj->mTransform); break;
+        case "hd"_hash: obj->setHidden(GetBool()); break;
+        default:
 #ifdef DEBUG_PARSER
             vDebug << "Repeater property ignored :" << key;
 #endif
@@ -1536,47 +1429,46 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
         obj->mExtra->m3DData = true;
     }
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            objT->setName(GetString());
-        } else if (0 == strcmp(key, "a")) {
-            parseProperty(obj->mAnchor);
-        } else if (0 == strcmp(key, "p")) {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  objT->setName(name.getData(), name.getLength()); break; } 
+        case "a"_hash: parseProperty(obj->mAnchor);     break;
+        case "r"_hash: parseProperty(obj->mRotation);   break;
+        case "s"_hash: parseProperty(obj->mScale);      break;
+        case "o"_hash: parseProperty(obj->mOpacity);    break;
+        case "hd"_hash: objT->setHidden(GetBool());     break;
+        case "rx"_hash: 
+            if (!obj->mExtra) return nullptr;
+            parseProperty(obj->mExtra->m3DRx);
+            break;
+        case "ry"_hash: 
+            if (!obj->mExtra) return nullptr;
+            parseProperty(obj->mExtra->m3DRy);
+            break;
+        case "rz"_hash: 
+            if (!obj->mExtra) return nullptr;
+            parseProperty(obj->mExtra->m3DRz);
+            break;
+        case "p"_hash: {
             EnterObject();
             bool separate = false;
-            while (const char *key = NextObjectKey()) {
-                if (0 == strcmp(key, "k")) {
-                    parsePropertyHelper(obj->mPosition);
-                } else if (0 == strcmp(key, "s")) {
+            while (ROString k = NextObjectKey()) {
+                switch(k.hash()) {
+                case "k"_hash: parsePropertyHelper(obj->mPosition); break;
+                case "s"_hash: 
                     obj->createExtraData();
                     obj->mExtra->mSeparate = GetBool();
                     separate = true;
-                } else if (separate && (0 == strcmp(key, "x"))) {
-                    parseProperty(obj->mExtra->mSeparateX);
-                } else if (separate && (0 == strcmp(key, "y"))) {
-                    parseProperty(obj->mExtra->mSeparateY);
-                } else {
+                    break;
+                case "x"_hash:  if (separate) parseProperty(obj->mExtra->mSeparateX); break;
+                case "y"_hash: if (separate) parseProperty(obj->mExtra->mSeparateY); break;
+                default:
                     Skip(key);
                 }
             }
-        } else if (0 == strcmp(key, "r")) {
-            parseProperty(obj->mRotation);
-        } else if (0 == strcmp(key, "s")) {
-            parseProperty(obj->mScale);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOpacity);
-        } else if (0 == strcmp(key, "hd")) {
-            objT->setHidden(GetBool());
-        } else if (0 == strcmp(key, "rx")) {
-            if (!obj->mExtra) return nullptr;
-            parseProperty(obj->mExtra->m3DRx);
-        } else if (0 == strcmp(key, "ry")) {
-            if (!obj->mExtra) return nullptr;
-            parseProperty(obj->mExtra->m3DRy);
-        } else if (0 == strcmp(key, "rz")) {
-            if (!obj->mExtra) return nullptr;
-            parseProperty(obj->mExtra->m3DRz);
-        } else {
+            break;
+        }
+        default:
             Skip(key);
         }
     }
@@ -1603,22 +1495,17 @@ model::Fill *LottieParserImpl::parseFillObject()
 {
     auto obj = allocator().make<model::Fill>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "c")) {
-            parseProperty(obj->mColor);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOpacity);
-        } else if (0 == strcmp(key, "fillEnabled")) {
-            obj->mEnabled = GetBool();
-        } else if (0 == strcmp(key, "r")) {
-            obj->mFillRule = getFillRule();
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "c"_hash:             parseProperty(obj->mColor);      break;
+        case "o"_hash:             parseProperty(obj->mOpacity);    break;
+        case "fillEnabled"_hash:   obj->mEnabled = GetBool();       break;
+        case "r"_hash:             obj->mFillRule = getFillRule();  break;
+        case "hd"_hash:            obj->setHidden(GetBool());       break;
+        default:
 #ifdef DEBUG_PARSER
-            vWarning << "Fill property skipped = " << key;
+          vWarning << "Fill property skipped = " << key;
 #endif
             Skip(key);
         }
@@ -1686,30 +1573,21 @@ model::Stroke *LottieParserImpl::parseStrokeObject()
 {
     auto obj = allocator().make<model::Stroke>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "c")) {
-            parseProperty(obj->mColor);
-        } else if (0 == strcmp(key, "o")) {
-            parseProperty(obj->mOpacity);
-        } else if (0 == strcmp(key, "w")) {
-            parseProperty(obj->mWidth);
-        } else if (0 == strcmp(key, "fillEnabled")) {
-            obj->mEnabled = GetBool();
-        } else if (0 == strcmp(key, "lc")) {
-            obj->mCapStyle = getLineCap();
-        } else if (0 == strcmp(key, "lj")) {
-            obj->mJoinStyle = getLineJoin();
-        } else if (0 == strcmp(key, "ml")) {
-            obj->mMiterLimit = GetDouble();
-        } else if (0 == strcmp(key, "d")) {
-            parseDashProperty(obj->mDash);
-        } else if (0 == strcmp(key, "hd")) {
-            obj->setHidden(GetBool());
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "c"_hash:             parseProperty(obj->mColor);          break;
+        case "o"_hash:             parseProperty(obj->mOpacity);        break;
+        case "w"_hash:             parseProperty(obj->mWidth);          break;
+        case "fillEnabled"_hash:   obj->mEnabled = GetBool();           break;
+        case "lc"_hash:            obj->mCapStyle = getLineCap();       break;
+        case "lj"_hash:            obj->mJoinStyle = getLineJoin();     break;
+        case "ml"_hash:            obj->mMiterLimit = GetDouble();      break;
+        case "d"_hash:             parseDashProperty(obj->mDash);       break;
+        case "hd"_hash:            obj->setHidden(GetBool());           break;
+        default:
 #ifdef DEBUG_PARSER
-            vWarning << "Stroke property skipped = " << key;
+          vWarning << "Stroke property skipped = " << key;
 #endif
             Skip(key);
         }
@@ -1720,34 +1598,29 @@ model::Stroke *LottieParserImpl::parseStrokeObject()
 }
 
 void LottieParserImpl::parseGradientProperty(model::Gradient *obj,
-                                             const char *     key)
+                                             const ROString & key)
 {
-    if (0 == strcmp(key, "t")) {
-        obj->mGradientType = GetInt();
-    } else if (0 == strcmp(key, "o")) {
-        parseProperty(obj->mOpacity);
-    } else if (0 == strcmp(key, "s")) {
-        parseProperty(obj->mStartPoint);
-    } else if (0 == strcmp(key, "e")) {
-        parseProperty(obj->mEndPoint);
-    } else if (0 == strcmp(key, "h")) {
-        parseProperty(obj->mHighlightLength);
-    } else if (0 == strcmp(key, "a")) {
-        parseProperty(obj->mHighlightAngle);
-    } else if (0 == strcmp(key, "g")) {
+    switch(key.hash()) {    
+    case "t"_hash:  obj->mGradientType = GetInt();        break;
+    case "o"_hash:  parseProperty(obj->mOpacity);         break;
+    case "s"_hash:  parseProperty(obj->mStartPoint);      break;
+    case "e"_hash:  parseProperty(obj->mEndPoint);        break;
+    case "h"_hash:  parseProperty(obj->mHighlightLength); break;
+    case "a"_hash:  parseProperty(obj->mHighlightAngle);  break;
+    case "hd"_hash: obj->setHidden(GetBool());            break;
+    case "g"_hash: {
         EnterObject();
-        while (const char *key = NextObjectKey()) {
-            if (0 == strcmp(key, "k")) {
-                parseProperty(obj->mGradient);
-            } else if (0 == strcmp(key, "p")) {
-                obj->mColorPoints = GetInt();
-            } else {
-                Skip(nullptr);
+        while (ROString k = NextObjectKey()) {
+            if (k == "k") parseProperty(obj->mGradient);
+            else if (k == "p") obj->mColorPoints = GetInt();
+            else
+            {
+                Skip(k);
             }
         }
-    } else if (0 == strcmp(key, "hd")) {
-        obj->setHidden(GetBool());
-    } else {
+        break;
+    }
+    default:
 #ifdef DEBUG_PARSER
         vWarning << "Gradient property skipped = " << key;
 #endif
@@ -1766,12 +1639,11 @@ model::GradientFill *LottieParserImpl::parseGFillObject()
 {
     auto obj = allocator().make<model::GradientFill>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "r")) {
-            obj->mFillRule = getFillRule();
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "r"_hash: obj->mFillRule = getFillRule(); break;
+        default:
             parseGradientProperty(obj, key);
         }
     }
@@ -1783,8 +1655,8 @@ void LottieParserImpl::parseDashProperty(model::Dash &dash)
     EnterArray();
     while (NextArrayValue()) {
         EnterObject();
-        while (const char *key = NextObjectKey()) {
-            if (0 == strcmp(key, "v")) {
+        while (ROString key = NextObjectKey()) {
+            if (key == "v") {
                 dash.mData.emplace_back();
                 parseProperty(dash.mData.back());
             } else {
@@ -1801,20 +1673,15 @@ model::GradientStroke *LottieParserImpl::parseGStrokeObject()
 {
     auto obj = allocator().make<model::GradientStroke>();
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "nm")) {
-            obj->setName(GetString());
-        } else if (0 == strcmp(key, "w")) {
-            parseProperty(obj->mWidth);
-        } else if (0 == strcmp(key, "lc")) {
-            obj->mCapStyle = getLineCap();
-        } else if (0 == strcmp(key, "lj")) {
-            obj->mJoinStyle = getLineJoin();
-        } else if (0 == strcmp(key, "ml")) {
-            obj->mMiterLimit = GetDouble();
-        } else if (0 == strcmp(key, "d")) {
-            parseDashProperty(obj->mDash);
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "nm"_hash: { ROString name = GetString();  obj->setName(name.getData(), name.getLength()); break; } 
+        case "w"_hash:   parseProperty(obj->mWidth);        break;
+        case "lc"_hash:  obj->mCapStyle = getLineCap();     break;
+        case "lj"_hash:  obj->mJoinStyle = getLineJoin();   break;
+        case "ml"_hash:  obj->mMiterLimit = GetDouble();    break;
+        case "d"_hash:   parseDashProperty(obj->mDash);     break;
+        default:
             parseGradientProperty(obj, key);
         }
     }
@@ -1840,7 +1707,7 @@ void LottieParserImpl::getValue(VPointF &pt)
     float val[4] = {0.f};
     int   i = 0;
 
-    if (PeekType() == kArrayType) EnterArray();
+    if (PeekType() == Array) EnterArray();
 
     while (NextArrayValue()) {
         const auto value = GetDouble();
@@ -1854,14 +1721,14 @@ void LottieParserImpl::getValue(VPointF &pt)
 
 void LottieParserImpl::getValue(float &val)
 {
-    if (PeekType() == kArrayType) {
+    if (PeekType() == Array) {
         EnterArray();
         if (NextArrayValue()) val = GetDouble();
         // discard rest
         while (NextArrayValue()) {
             GetDouble();
         }
-    } else if (PeekType() == kNumberType) {
+    } else if (PeekType() == Number) {
         val = GetDouble();
     } else {
         Error();
@@ -1872,7 +1739,7 @@ void LottieParserImpl::getValue(model::Color &color)
 {
     float val[4] = {0.f};
     int   i = 0;
-    if (PeekType() == kArrayType) EnterArray();
+    if (PeekType() == Array) EnterArray();
 
     while (NextArrayValue()) {
         const auto value = GetDouble();
@@ -1890,7 +1757,7 @@ void LottieParserImpl::getValue(model::Color &color)
 
 void LottieParserImpl::getValue(model::Gradient::Data &grad)
 {
-    if (PeekType() == kArrayType) EnterArray();
+    if (PeekType() == Array) EnterArray();
 
     while (NextArrayValue()) {
         grad.mGradient.push_back(GetDouble());
@@ -1899,12 +1766,12 @@ void LottieParserImpl::getValue(model::Gradient::Data &grad)
 
 void LottieParserImpl::getValue(int &val)
 {
-    if (PeekType() == kArrayType) {
+    if (PeekType() == Array) {
         EnterArray();
         while (NextArrayValue()) {
             val = GetInt();
         }
-    } else if (PeekType() == kNumberType) {
+    } else if (PeekType() == Number) {
         val = GetInt();
     } else {
         Error();
@@ -1919,22 +1786,19 @@ void LottieParserImpl::parsePathInfo()
      * The shape object could be wrapped by a array
      * if its part of the keyframe object
      */
-    bool arrayWrapper = (PeekType() == kArrayType);
+    bool arrayWrapper = (PeekType() == Array);
     if (arrayWrapper) EnterArray();
 
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "i")) {
-            getValue(mPathInfo.mInPoint);
-        } else if (0 == strcmp(key, "o")) {
-            getValue(mPathInfo.mOutPoint);
-        } else if (0 == strcmp(key, "v")) {
-            getValue(mPathInfo.mVertices);
-        } else if (0 == strcmp(key, "c")) {
-            mPathInfo.mClosed = GetBool();
-        } else {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "i"_hash: getValue(mPathInfo.mInPoint); break;
+        case "o"_hash: getValue(mPathInfo.mOutPoint); break;
+        case "v"_hash: getValue(mPathInfo.mVertices); break;
+        case "c"_hash: mPathInfo.mClosed = GetBool(); break;
+        default:
             Error();
-            Skip(nullptr);
+            Skip(key);
         }
     }
     // exit properly from the array
@@ -1954,11 +1818,11 @@ VPointF LottieParserImpl::parseInperpolatorPoint()
 {
     VPointF cp;
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "x")) {
+    while (ROString key = NextObjectKey()) {
+        if (key == "x") {
             getValue(cp.rx());
         }
-        if (0 == strcmp(key, "y")) {
+        else if (key == "y") {
             getValue(cp.ry());
         }
     }
@@ -1967,12 +1831,12 @@ VPointF LottieParserImpl::parseInperpolatorPoint()
 
 template <typename T>
 bool LottieParserImpl::parseKeyFrameValue(
-    const char *key, model::Value<T, model::Position> &value)
+    const ROString & key, model::Value<T, model::Position> &value)
 {
-    if (0 == strcmp(key, "ti")) {
+    if (key == "ti") {
         value.hasTangent_ = true;
         getValue(value.inTangent_);
-    } else if (0 == strcmp(key, "to")) {
+    } else if (key == "to") {
         value.hasTangent_ = true;
         getValue(value.outTangent_);
     } else {
@@ -2023,24 +1887,27 @@ void LottieParserImpl::parseKeyFrame(model::KeyFrames<T, Tag> &obj)
     VPointF                                  inTangent;
     VPointF                                  outTangent;
 
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "i")) {
+    while (ROString key = NextObjectKey()) {
+        switch(key.hash()) {
+        case "i"_hash: {
             parsed.interpolator = true;
             inTangent = parseInperpolatorPoint();
-        } else if (0 == strcmp(key, "o")) {
-            outTangent = parseInperpolatorPoint();
-        } else if (0 == strcmp(key, "t")) {
-            keyframe.start_ = GetDouble();
-        } else if (0 == strcmp(key, "s")) {
+            break;
+        }
+        case "o"_hash: outTangent = parseInperpolatorPoint();   break;
+        case "t"_hash: keyframe.start_ = GetDouble();           break;
+        case "s"_hash: {
             parsed.value = true;
             getValue(keyframe.value_.start_);
             continue;
-        } else if (0 == strcmp(key, "e")) {
+        }
+        case "e"_hash: {
             parsed.noEndValue = false;
             getValue(keyframe.value_.end_);
             continue;
-        } else if (0 == strcmp(key, "n")) {
-            if (PeekType() == kStringType) {
+        }
+        case "n"_hash: {
+            if (PeekType() == String) {
                 parsed.interpolatorKey = GetStringObject();
             } else {
                 EnterArray();
@@ -2049,17 +1916,18 @@ void LottieParserImpl::parseKeyFrame(model::KeyFrames<T, Tag> &obj)
                         parsed.interpolatorKey = GetStringObject();
                     } else {
                         // skip rest of the string
-                        Skip(nullptr);
+                        Skip(key);
                     }
                 }
             }
             continue;
-        } else if (parseKeyFrameValue(key, keyframe.value_)) {
-            continue;
-        } else if (0 == strcmp(key, "h")) {
+        }
+        case "h"_hash: {
             parsed.hold = GetInt();
             continue;
-        } else {
+        }
+        default:
+            if (parseKeyFrameValue(key, keyframe.value_)) continue;
 #ifdef DEBUG_PARSER
             vDebug << "key frame property skipped = " << key;
 #endif
@@ -2100,16 +1968,16 @@ void LottieParserImpl::parseKeyFrame(model::KeyFrames<T, Tag> &obj)
 void LottieParserImpl::parseShapeProperty(model::Property<model::PathData> &obj)
 {
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "k")) {
-            if (PeekType() == kArrayType) {
+    while (ROString key = NextObjectKey()) {
+        if (key == "k") {
+            if (PeekType() == Array) {
                 EnterArray();
                 while (NextArrayValue()) {
                     parseKeyFrame(obj.animation());
                 }
             } else {
                 if (!obj.isStatic()) {
-                    st_ = kError;
+                    Error();
                     return;
                 }
                 getValue(obj.value());
@@ -2118,7 +1986,7 @@ void LottieParserImpl::parseShapeProperty(model::Property<model::PathData> &obj)
 #ifdef DEBUG_PARSER
             vDebug << "shape property ignored = " << key;
 #endif
-            Skip(nullptr);
+            Skip(key);
         }
     }
     obj.cache();
@@ -2127,9 +1995,9 @@ void LottieParserImpl::parseShapeProperty(model::Property<model::PathData> &obj)
 template <typename T, typename Tag>
 void LottieParserImpl::parsePropertyHelper(model::Property<T, Tag> &obj)
 {
-    if (PeekType() == kNumberType) {
+    if (PeekType() == Number) {
         if (!obj.isStatic()) {
-            st_ = kError;
+            Error();
             return;
         }
         /*single value property with no animation*/
@@ -2138,7 +2006,7 @@ void LottieParserImpl::parsePropertyHelper(model::Property<T, Tag> &obj)
         EnterArray();
         while (NextArrayValue()) {
             /* property with keyframe info*/
-            if (PeekType() == kObjectType) {
+            if (PeekType() == Object) {
                 parseKeyFrame(obj.animation());
             } else {
                 /* Read before modifying.
@@ -2148,7 +2016,7 @@ void LottieParserImpl::parsePropertyHelper(model::Property<T, Tag> &obj)
                  * thats why this hack is there
                  */
                 if (!obj.isStatic()) {
-                    st_ = kError;
+                    Error();
                     return;
                 }
                 /*multi value property with no animation*/
@@ -2168,8 +2036,8 @@ template <typename T>
 void LottieParserImpl::parseProperty(model::Property<T> &obj)
 {
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "k")) {
+    while (ROString key = NextObjectKey()) {
+        if (key == "k") {
             parsePropertyHelper(obj);
         } else {
             Skip(key);
@@ -2365,11 +2233,11 @@ public:
 
 #endif
 
-std::shared_ptr<model::Composition> model::parse(char *             str,
+std::shared_ptr<model::Composition> model::parse(const char *       str, size_t len,
                                                  std::string        dir_path,
                                                  model::ColorFilter filter)
 {
-    LottieParserImpl obj(str, std::move(dir_path), std::move(filter));
+    LottieParserImpl obj(str, len, std::move(dir_path), std::move(filter));
 
     if (obj.VerifyType()) {
         obj.parseComposition();
@@ -2391,4 +2259,3 @@ std::shared_ptr<model::Composition> model::parse(char *             str,
     return {};
 }
 
-RAPIDJSON_DIAG_POP

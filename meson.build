@@ -54,6 +54,10 @@ if get_option('dumptree') == true
     config_h.set10('LOTTIE_DUMP_TREE_SUPPORT', true)
 endif
 
+if get_option('json') == true
+    config_h.set10('LOTTIE_JSON_SUPPORT', true)
+endif
+
 
 configure_file(
   output: 'config.h',

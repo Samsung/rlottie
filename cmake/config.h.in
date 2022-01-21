@@ -17,3 +17,9 @@
 #ifdef LOTTIE_CACHE
 #define LOTTIE_CACHE_SUPPORT
 #endif
+
+#cmakedefine LOTTIE_JSON
+
+#ifdef LOTTIE_JSON
+#define LOTTIE_JSON_SUPPORT
+#endif
