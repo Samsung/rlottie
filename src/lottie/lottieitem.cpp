@@ -201,9 +201,9 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
 
 bool renderer::Composition::renderPartial(const rlottie::Surface &surface)
 {
-    mSurface.reset(reinterpret_cast<uchar *>(surface.buffer()),
-                   uint(surface.width()), uint(surface.drawRegionHeight()),
-                   uint(surface.bytesPerLine()),
+    mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
+                   uint32_t(surface.width()), uint32_t(surface.drawRegionHeight()),
+                   uint32_t(surface.bytesPerLine()),
                    VBitmap::Format::ARGB32_Premultiplied);
 
     /* schedule all preprocess task for this frame at once.
