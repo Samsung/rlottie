@@ -5,12 +5,12 @@ option('thread',
 
 option('cache',
    type: 'boolean',
-   value: false,
+   value: true,
    description: 'Enable cache support in rlottie')
 
 option('module',
    type: 'boolean',
-   value: false,
+   value: true,
    description: 'Enable module support in rlottie')
 
 option('moduledir',
@@ -42,5 +42,9 @@ option('cmake',
   value: false,
   description: 'Enable Generating  CMake config files')
 
+option('json',
+   type: 'boolean',
+   value: false,
+   description: 'Use readonly JSON parser instead of RapidJSON')
 
 

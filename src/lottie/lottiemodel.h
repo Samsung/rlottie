@@ -469,6 +469,7 @@ public:
     void         setHidden(bool value) { mData._hidden = value; }
     void         setType(Object::Type type) { mData._type = type; }
     Object::Type type() const { return mData._type; }
+    void         setName(const char*name) { setName(name, strlen(name)); }
     void         setName(const char *name, const size_t len)
     {
         if (name) {
@@ -1139,8 +1140,13 @@ std::shared_ptr<model::Composition> loadFromData(std::string jsonData,
 std::shared_ptr<model::Composition> loadFromROData(const char * data, const size_t len,
                                                    const char * resourcePath);
 
+#ifdef LOTTIE_JSON_SUPPORT
 std::shared_ptr<model::Composition> parse(const char *str, size_t len, std::string dir_path,
                                           ColorFilter filter = {});
+#else
+std::shared_ptr<model::Composition> parse(char *str, std::string dir_path,
+                                          ColorFilter filter = {});
+#endif
 
 }  // namespace model
 

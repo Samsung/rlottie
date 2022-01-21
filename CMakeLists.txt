@@ -35,6 +35,7 @@ option(LOTTIE_TEST "Build LOTTIE AUTOTESTS" OFF)
 option(LOTTIE_CCACHE "Enable LOTTIE ccache SUPPORT" OFF)
 option(LOTTIE_ASAN "Compile with asan" OFF)
 option(LOTTIE_JSON "Use readonly JSON parser" OFF)
+option(LOTTIE_EXAMPLE "Build examples" ON)
 
 set(LOTTIE_MODULE_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}rlottie-image-loader${CMAKE_SHARED_LIBRARY_SUFFIX}"
     CACHE STRING "Absolute or relative path to dynamic loader plugin.")
@@ -138,7 +139,10 @@ endif (NOT LIB_INSTALL_DIR)
 #declare source and include files
 add_subdirectory(inc)
 add_subdirectory(src)
-#add_subdirectory(example)
+
+if (LOTTIE_EXAMPLE)
+    add_subdirectory(example)
+endif()
 
 if (LOTTIE_TEST)
     enable_testing()
