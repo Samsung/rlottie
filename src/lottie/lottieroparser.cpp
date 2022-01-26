@@ -490,7 +490,7 @@ std::string LottieParserImpl::GetStringObject()
     ROString str = GetString();
 
     if (str) {
-        return std::string(str, str.getLength());
+        return std::string(str.getData(), str.getLength());
     }
 
     return {};

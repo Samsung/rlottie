@@ -1,6 +1,5 @@
 
 source_file = [
-    'lottieparser.cpp',
     'lottieloader.cpp',
     'lottiemodel.cpp',
     'lottieproxymodel.cpp',
@@ -9,6 +8,13 @@ source_file = [
     'lottieitem_capi.cpp',
     'lottiekeypath.cpp'
 ]
+
+if get_option('json')
+    source_file += ['lottieroparser.cpp']
+else
+    source_file += ['lottieparser.cpp']
+endif
+
 
 lottie_dep = declare_dependency(
                                   include_directories : include_directories('.'),

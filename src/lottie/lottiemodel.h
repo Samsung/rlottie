@@ -475,10 +475,15 @@ public:
         if (name) {
             if (len < maxShortStringLength) {
                 setShortString(true);
-                strncpy(mData._buffer, name, len + 1);
+                memcpy(mData._buffer, name, len);
+                mData._buffer[len] = 0;
             } else {
                 setShortString(false);
-                mPtr = strdup(name);
+                mPtr = (char*)malloc(len+1);
+                if (mPtr) {
+                    memcpy(mPtr, name, len);
+                    mPtr[len] = 0;
+                }
             }
         }
     }

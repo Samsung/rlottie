@@ -53,6 +53,19 @@ public:
       ecore_animator_frametime_set(1.0f/120.0f);
   }
 
+  void show(const char * filepath) {
+        std::unique_ptr<LottieView> view(new LottieView(mApp->evas(), mStrategy));
+        view->setFilePath(filepath);
+        view->setPos(3, 3);
+        int vw = mApp->width() - 6;
+        view->setSize(vw, vw);
+        view->show();
+        view->play();
+        view->loop(true);
+        mViews.push_back(std::move(view));
+  }
+
+
   void show(int numberOfImage) {
     auto resource = EvasApp::jsonFiles(std::string(DEMO_DIR));
 
@@ -92,9 +105,10 @@ public:
     }
 
   static int help() {
-            printf("Usage ./lottieviewTest [-s] [strategy] [-t] [timeout] [-c] [count]\n");
+            printf("Usage ./lottieviewTest [-s] [strategy] [-t] [timeout] [-c] [count] [-f] path\n");
             printf("\n \t-t : timeout duration in seconds\n");
             printf("\n \t-c : number of resource in the grid\n");
+            printf("\n \t-f : File to play\n");
             printf("\n \t-s : Rendering Strategy\n");
             printf("\t\t 0  - Test Lottie SYNC Renderer with CPP API\n");
             printf("\t\t 1  - Test Lottie ASYNC Renderer with CPP API\n");
@@ -134,6 +148,7 @@ main(int argc, char **argv)
     auto index = 0;
     double timeOut = 0;
     size_t itemCount = 250;
+    std::string filePath;
     while (index < argc) {
       const char* option = argv[index];
       index++;
@@ -148,6 +163,9 @@ main(int argc, char **argv)
       } else if (!strcmp(option,"-c")) {
          itemCount = (index < argc) ? atoi(argv[index]) : 10;
          index++;
+      } else if (!strcmp(option,"-f")) {
+         filePath = argv[index];
+         index++;
       }
     }
 
@@ -155,7 +173,8 @@ main(int argc, char **argv)
    app->setup();
 
    LottieViewTest *view = new LottieViewTest(app, st, timeOut);
-   view->show(itemCount);
+   if (filePath.length()) view->show(filePath.c_str());
+   else view->show(itemCount);
 
    app->addExitCb(onExitCb, view);
 
