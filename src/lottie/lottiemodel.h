@@ -157,8 +157,8 @@ struct PathData {
 
 template <typename T, typename Tag = void>
 struct Value {
-    T     start_;
-    T     end_;
+    T     start_{};
+    T     end_{};
     T     at(float t) const { return lerp(start_, end_, t); }
     float angle(float) const { return 0; }
     void  cache() {}
@@ -168,10 +168,10 @@ struct Position;
 
 template <typename T>
 struct Value<T, Position> {
-    T     start_;
-    T     end_;
-    T     inTangent_;
-    T     outTangent_;
+    T     start_{};
+    T     end_{};
+    T     inTangent_{};
+    T     outTangent_{};
     float length_{0};
     bool  hasTangent_{false};
 
