@@ -1163,6 +1163,11 @@ void renderer::Polystar::updatePath(VPath &path, int frameNo)
     path.reset();
     VMatrix m;
 
+    if (!(points > 0)) {
+        vWarning << "The number of path points is below zero or NaN at all";
+        return;
+    }
+
     if (mData->mPolyType == model::Polystar::PolyType::Star) {
         path.addPolystar(points, innerRadius, outerRadius, innerRoundness,
                          outerRoundness, 0.0, 0.0, 0.0, mData->direction());
