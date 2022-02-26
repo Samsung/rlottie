@@ -340,6 +340,7 @@ public:
             value().toPath(path);
         } else {
             const auto &vec = animation().frames_;
+            if (vec.empty()) return;
             if (vec.front().start_ >= frameNo)
                 return vec.front().value_.start_.toPath(path);
             if (vec.back().end_ <= frameNo)
