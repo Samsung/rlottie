@@ -660,6 +660,7 @@ class Group : public Object {
 public:
     Group() : Object(Object::Type::Group) {}
     explicit Group(Object::Type type) : Object(type) {}
+    bool includes(Group *);
 
 public:
     std::vector<Object *> mChildren;
