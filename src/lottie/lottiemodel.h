@@ -1055,8 +1055,8 @@ public:
 private:
     Segment noloop(float start, float end) const
     {
-        assert(start >= 0);
-        assert(end >= 0);
+        if (!(start >= 0)) start = 0;
+        if (!(end >= 0)) end = 0;
         Segment s;
         s.start = std::min(start, end);
         s.end = std::max(start, end);
@@ -1064,8 +1064,8 @@ private:
     }
     Segment loop(float start, float end) const
     {
-        assert(start >= 0);
-        assert(end >= 0);
+        if (!(start >= 0)) start = 0;
+        if (!(end >= 0)) end = 0;
         Segment s;
         s.start = std::max(start, end);
         s.end = std::min(start, end);
