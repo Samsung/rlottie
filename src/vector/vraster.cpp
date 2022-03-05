@@ -373,6 +373,7 @@ struct VRleTask {
     {
         if (mPath.points().size() > SHRT_MAX ||
             mPath.points().size() + mPath.segments() > SHRT_MAX) {
+            mRle.notify();
             return;
         }
 
