@@ -41,6 +41,7 @@
 #include<future>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 class RenderStrategy {
 public:

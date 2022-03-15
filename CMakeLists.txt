@@ -35,6 +35,7 @@ option(LOTTIE_TEST "Build LOTTIE AUTOTESTS" OFF)
 option(LOTTIE_CCACHE "Enable LOTTIE ccache SUPPORT" OFF)
 option(LOTTIE_ASAN "Compile with asan" OFF)
 option(LOTTIE_JSON "Use readonly JSON parser" OFF)
+option(LOTTIE_MEMSHRINK "Minimize memory but increase parsing time" OFF)
 option(LOTTIE_EXAMPLE "Build examples" ON)
 
 set(LOTTIE_MODULE_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}rlottie-image-loader${CMAKE_SHARED_LIBRARY_SUFFIX}"

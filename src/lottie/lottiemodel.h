@@ -29,7 +29,6 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
-#include <vector>
 #include "varenaalloc.h"
 #include "vbezier.h"
 #include "vbrush.h"
@@ -38,6 +37,7 @@
 #include "vpath.h"
 #include "vpoint.h"
 #include "vrect.h"
+#include "vvector.h"
 
 V_USE_NAMESPACE
 
@@ -104,7 +104,7 @@ inline const Color operator*(float m, const Color &c)
 }
 
 struct PathData {
-    std::vector<VPointF> mPoints;
+    VVector<VPointF> mPoints;
     bool                 mClosed = false; /* "c" */
     void        reserve(size_t size) { mPoints.reserve(mPoints.size() + size); }
     static void lerp(const PathData &start, const PathData &end, float t,
@@ -277,7 +277,7 @@ public:
     }
 
 public:
-    std::vector<Frame> frames_;
+    VVector<Frame> frames_;
 };
 
 template <typename T, typename Tag = void>
@@ -400,7 +400,7 @@ private:
 class Path;
 struct PathData;
 struct Dash {
-    std::vector<Property<float>> mData;
+    VVector<Property<float>> mData;
     bool                         empty() const { return mData.empty(); }
     size_t                       size() const { return mData.size(); }
     bool                         isStatic() const
@@ -409,7 +409,7 @@ struct Dash {
             if (!elm.isStatic()) return false;
         return true;
     }
-    void getDashInfo(int frameNo, std::vector<float> &result) const;
+    void getDashInfo(int frameNo, VVector<float> &result) const;
 };
 
 class Mask {
@@ -516,7 +516,7 @@ struct Asset {
     Type                  mAssetType{Type::Precomp};
     bool                  mStatic{true};
     std::string           mRefId;  // ref id
-    std::vector<Object *> mLayers;
+    VVector<Object *> mLayers;
     // image asset data
     int     mWidth{0};
     int     mHeight{0};
@@ -528,8 +528,8 @@ class Layer;
 class Composition : public Object {
 public:
     Composition() : Object(Object::Type::Composition) {}
-    std::vector<LayerInfo>     layerInfoList() const;
-    const std::vector<Marker> &markers() const { return mMarkers; }
+    VVector<LayerInfo>     layerInfoList() const;
+    const VVector<Marker> &markers() const { return mMarkers; }
     double                     duration() const
     {
         return frameDuration() / frameRate();  // in second
@@ -572,7 +572,7 @@ public:
     Layer *                                  mRootLayer{nullptr};
     std::unordered_map<std::string, Asset *> mAssets;
 
-    std::vector<Marker> mMarkers;
+    VVector<Marker> mMarkers;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
 };
@@ -666,7 +666,7 @@ public:
     explicit Group(Object::Type type) : Object(type) {}
 
 public:
-    std::vector<Object *> mChildren;
+    VVector<Object *> mChildren;
     Transform *           mTransform{nullptr};
 };
 
@@ -716,7 +716,7 @@ public:
         Property<float>     mTimeRemap; /* "tm" */
         Composition *       mCompRef{nullptr};
         Asset *             mAsset{nullptr};
-        std::vector<Mask *> mMasks;
+        VVector<Mask *> mMasks;
     };
 
     Layer::Extra *extra()
@@ -787,7 +787,7 @@ public:
     JoinStyle joinStyle() const { return mJoinStyle; }
     float     miterLimit() const { return mMiterLimit; }
     bool      hasDashInfo() const { return !mDash.empty(); }
-    void      getDashInfo(int frameNo, std::vector<float> &result) const
+    void      getDashInfo(int frameNo, VVector<float> &result) const
     {
         return mDash.getDashInfo(frameNo, result);
     }
@@ -815,7 +815,7 @@ public:
                                                const Gradient::Data &g);
 
     public:
-        std::vector<float> mGradient;
+        VVector<float> mGradient;
     };
     explicit Gradient(Object::Type type) : Object(type) {}
     inline float opacity(int frameNo) const
@@ -848,7 +848,7 @@ public:
     JoinStyle joinStyle() const { return mJoinStyle; }
     float     miterLimit() const { return mMiterLimit; }
     bool      hasDashInfo() const { return !mDash.empty(); }
-    void      getDashInfo(int frameNo, std::vector<float> &result) const
+    void      getDashInfo(int frameNo, VVector<float> &result) const
     {
         return mDash.getDashInfo(frameNo, result);
     }

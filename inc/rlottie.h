@@ -24,8 +24,8 @@
 #define _RLOTTIE_H_
 
 #include <future>
-#include <vector>
 #include <memory>
+#include "../src/vector/vvector.h"
 
 #if defined _WIN32 || defined __CYGWIN__
   #ifdef RLOTTIE_BUILD
@@ -255,7 +255,7 @@ private:
     }mDrawArea;
 };
 
-using MarkerList = std::vector<std::tuple<std::string, int , int>>;
+using MarkerList = VVector<std::tuple<std::string, int , int>>;
 /**
  *  @brief https://helpx.adobe.com/after-effects/using/layer-markers-composition-markers.html
  *  Markers exported form AE are used to describe a segmnet of an animation {comment/tag , startFrame, endFrame}
@@ -263,7 +263,7 @@ using MarkerList = std::vector<std::tuple<std::string, int , int>>;
  *  start frame and duration of that segment.
  */
 
-using LayerInfoList = std::vector<std::tuple<std::string, int , int>>;
+using LayerInfoList = VVector<std::tuple<std::string, int , int>>;
 
 
 using ColorFilter = std::function<void(float &r , float &g, float &b)>;

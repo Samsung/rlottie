@@ -16,7 +16,7 @@
 #include <new>
 #include <type_traits>
 #include <utility>
-#include <vector>
+#include "vvector.h"
 
 // SkArenaAlloc allocates object and destroys the allocated objects when destroyed. It's designed
 // to minimize the number of underlying block allocations. SkArenaAlloc allocates first out of an

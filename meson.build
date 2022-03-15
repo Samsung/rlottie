@@ -58,6 +58,10 @@ if get_option('json') == true
     config_h.set10('LOTTIE_JSON_SUPPORT', true)
 endif
 
+if get_option('memshrink') == true
+    config_h.set10('LOTTIE_MEMSHRINK_SUPPORT', true)
+endif
+
 
 configure_file(
   output: 'config.h',

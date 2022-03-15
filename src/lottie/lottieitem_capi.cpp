@@ -237,8 +237,8 @@ void renderer::Drawable::sync()
 
     if (mFlag & DirtyState::Path) {
         applyDashOp();
-        const std::vector<VPath::Element> &elm = mPath.elements();
-        const std::vector<VPointF> &       pts = mPath.points();
+        const VVector<VPath::Element> &elm = mPath.elements();
+        const VVector<VPointF> &       pts = mPath.points();
         const float *ptPtr = reinterpret_cast<const float *>(pts.data());
         const char * elmPtr = reinterpret_cast<const char *>(elm.data());
         mCNode->mPath.elmPtr = elmPtr;

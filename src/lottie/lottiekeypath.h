@@ -24,8 +24,8 @@
 #define LOTTIEKEYPATH_H
 
 #include <string>
-#include <vector>
 #include "vglobal.h"
+#include "vvector.h"
 
 class LOTKeyPath {
 public:
@@ -47,7 +47,7 @@ private:
     size_t size() const { return mKeys.size() - 1; }
 
 private:
-    std::vector<std::string> mKeys;
+    VVector<std::string> mKeys;
 };
 
 #endif  // LOTTIEKEYPATH_H

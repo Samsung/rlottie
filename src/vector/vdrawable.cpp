@@ -97,7 +97,7 @@ void VDrawable::setStrokeInfo(CapStyle cap, JoinStyle join, float miterLimit,
     mFlag |= DirtyState::Path;
 }
 
-void VDrawable::setDashInfo(std::vector<float> &dashInfo)
+void VDrawable::setDashInfo(VVector<float> &dashInfo)
 {
     assert(mStrokeInfo);
     assert(mType == VDrawable::Type::StrokeWithDash);

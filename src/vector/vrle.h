@@ -23,7 +23,7 @@
 #ifndef VRLE_H
 #define VRLE_H
 
-#include <vector>
+#include "vvector.h"
 #include "vcowptr.h"
 #include "vglobal.h"
 #include "vpoint.h"
@@ -99,7 +99,7 @@ public:
         void  addRect(const VRect &rect);
         void  clone(const VRle::Data &);
 
-        std::vector<VRle::Span> mSpans;
+        VVector<VRle::Span> mSpans;
         VPoint                  mOffset;
         mutable VRect           mBbox;
         mutable bool            mBboxDirty = true;

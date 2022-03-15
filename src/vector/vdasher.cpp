@@ -194,8 +194,8 @@ void VDasher::dashHelper(const VPath &path, VPath &result)
     mResult = &result;
     mResult->reserve(path.points().size(), path.elements().size());
     mIndex = 0;
-    const std::vector<VPath::Element> &elms = path.elements();
-    const std::vector<VPointF> &       pts = path.points();
+    const VVector<VPath::Element> &elms = path.elements();
+    const VVector<VPointF> &       pts = path.points();
     const VPointF *                    ptPtr = pts.data();
 
     for (auto &i : elms) {

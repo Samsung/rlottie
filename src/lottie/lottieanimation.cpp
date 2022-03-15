@@ -25,6 +25,7 @@
 #include "rlottie.h"
 
 #include <fstream>
+#include "vvector.h"
 
 using namespace rlottie;
 using namespace rlottie::internal;
@@ -185,10 +186,10 @@ void AnimationImpl::init(std::shared_ptr<model::Composition> composition)
  * just waits for new task on its own queue.
  */
 class RenderTaskScheduler {
-    const unsigned           _count{std::thread::hardware_concurrency()};
-    std::vector<std::thread> _threads;
-    std::vector<TaskQueue<SharedRenderTask>> _q{_count};
-    std::atomic<unsigned>                    _index{0};
+    const unsigned                          _count{std::thread::hardware_concurrency()};
+    VVector<std::thread>                    _threads;
+    VVector<TaskQueue<SharedRenderTask>>    _q{_count};
+    std::atomic<unsigned>                   _index{0};
 
     void run(unsigned i)
     {

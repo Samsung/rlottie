@@ -258,7 +258,7 @@ public:
     void getValue(int &ival);
     void getValue(model::PathData &shape);
     void getValue(model::Gradient::Data &gradient);
-    void getValue(std::vector<VPointF> &v);
+    void getValue(VVector<VPointF> &v);
     void getValue(model::Repeater::Transform &);
 
     template <typename T, typename Tag>
@@ -290,10 +290,10 @@ public:
 private:
     model::ColorFilter mColorFilter;
     struct {
-        std::vector<VPointF> mInPoint;  /* "i" */
-        std::vector<VPointF> mOutPoint; /* "o" */
-        std::vector<VPointF> mVertices; /* "v" */
-        std::vector<VPointF> mResult;
+        VVector<VPointF> mInPoint;  /* "i" */
+        VVector<VPointF> mOutPoint; /* "o" */
+        VVector<VPointF> mVertices; /* "v" */
+        VVector<VPointF> mResult;
         bool                 mClosed{false};
 
         void convert()
@@ -367,7 +367,7 @@ protected:
     std::shared_ptr<model::Composition>              mComposition;
     model::Composition *                             compRef{nullptr};
     model::Layer *                                   curLayerRef{nullptr};
-    std::vector<model::Layer *>                      mLayersToUpdate;
+    VVector<model::Layer *>                      mLayersToUpdate;
     std::string                                      mDirPath;
     void                                             SkipOut(int depth);
 };
@@ -1824,7 +1824,7 @@ model::GradientStroke *LottieParserImpl::parseGStrokeObject()
     return obj;
 }
 
-void LottieParserImpl::getValue(std::vector<VPointF> &v)
+void LottieParserImpl::getValue(VVector<VPointF> &v)
 {
     EnterArray();
     while (NextArrayValue()) {

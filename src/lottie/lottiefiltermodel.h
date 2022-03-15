@@ -307,7 +307,7 @@ private:
         return *result;
     }
     std::bitset<32>         mBitset{0};
-    std::vector<LOTVariant> mFilters;
+    VVector<LOTVariant> mFilters;
 };
 
 template <typename T>
@@ -366,7 +366,7 @@ public:
     CapStyle  capStyle() const { return this->model()->capStyle(); }
     JoinStyle joinStyle() const { return this->model()->joinStyle(); }
     bool      hasDashInfo() const { return this->model()->hasDashInfo(); }
-    void      getDashInfo(int frameNo, std::vector<float>& result) const
+    void      getDashInfo(int frameNo, VVector<float>& result) const
     {
         return this->model()->getDashInfo(frameNo, result);
     }

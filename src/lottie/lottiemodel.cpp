@@ -62,8 +62,7 @@ public:
                 //   object before the repeater
                 ++i;
                 // 2. move all the children till repater to the group
-                std::move(obj->mChildren.begin(), i.base(),
-                          back_inserter(content->mChildren));
+                std::move(obj->mChildren.begin(), i.base(), std::back_inserter(content->mChildren));
                 // 3. erase the objects from the original children list
                 obj->mChildren.erase(obj->mChildren.begin(), i.base());
 
@@ -201,7 +200,7 @@ VMatrix model::Transform::Data::matrix(int frameNo, bool autoOrient) const
     return m;
 }
 
-void model::Dash::getDashInfo(int frameNo, std::vector<float> &result) const
+void model::Dash::getDashInfo(int frameNo, VVector<float> &result) const
 {
     result.clear();
 
@@ -348,11 +347,11 @@ void model::Asset::loadImagePath(std::string path)
     if (!path.empty()) mBitmap = VImageLoader::instance().load(path.c_str());
 }
 
-std::vector<LayerInfo> model::Composition::layerInfoList() const
+VVector<LayerInfo> model::Composition::layerInfoList() const
 {
     if (!mRootLayer || mRootLayer->mChildren.empty()) return {};
 
-    std::vector<LayerInfo> result;
+    VVector<LayerInfo> result;
 
     result.reserve(mRootLayer->mChildren.size());
 

@@ -878,7 +878,7 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 {
     mRoot->addChildren(layerData, allocator);
 
-    std::vector<renderer::Shape *> list;
+    VVector<renderer::Shape *> list;
     mRoot->processPaintItems(list);
 
     if (layerData->hasPathOperator()) {
@@ -1044,14 +1044,14 @@ void renderer::Group::applyTrim()
     }
 }
 
-void renderer::Group::renderList(std::vector<VDrawable *> &list)
+void renderer::Group::renderList(VVector<VDrawable *> &list)
 {
     for (const auto &content : mContents) {
         content->renderList(list);
     }
 }
 
-void renderer::Group::processPaintItems(std::vector<renderer::Shape *> &list)
+void renderer::Group::processPaintItems(VVector<renderer::Shape *> &list)
 {
     size_t curOpCount = list.size();
     for (auto i = mContents.rbegin(); i != mContents.rend(); ++i) {
@@ -1078,7 +1078,7 @@ void renderer::Group::processPaintItems(std::vector<renderer::Shape *> &list)
     }
 }
 
-void renderer::Group::processTrimItems(std::vector<renderer::Shape *> &list)
+void renderer::Group::processTrimItems(VVector<renderer::Shape *> &list)
 {
     size_t curOpCount = list.size();
     for (auto i = mContents.rbegin(); i != mContents.rend(); ++i) {
@@ -1260,7 +1260,7 @@ void renderer::Paint::updateRenderNode()
     }
 }
 
-void renderer::Paint::renderList(std::vector<VDrawable *> &list)
+void renderer::Paint::renderList(VVector<VDrawable *> &list)
 {
     if (mRenderNodeUpdate) {
         updateRenderNode();
@@ -1278,11 +1278,11 @@ void renderer::Paint::renderList(std::vector<VDrawable *> &list)
     if (mContentToRender) list.push_back(&mDrawable);
 }
 
-void renderer::Paint::addPathItems(std::vector<renderer::Shape *> &list,
+void renderer::Paint::addPathItems(VVector<renderer::Shape *> &list,
                                    size_t                          startOffset)
 {
-    std::copy(list.begin() + startOffset, list.end(),
-              back_inserter(mPathItems));
+    mPathItems.reserve(mPathItems.size() + list.end() - list.begin() - startOffset);
+    std::copy(list.begin() + startOffset, list.end(), std::back_inserter(mPathItems));
 }
 
 renderer::Fill::Fill(model::Fill *data)
@@ -1334,7 +1334,7 @@ renderer::Stroke::Stroke(model::Stroke *data)
     }
 }
 
-static vthread_local std::vector<float> Dash_Vector;
+static vthread_local VVector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
                                      float alpha)
@@ -1479,11 +1479,11 @@ void renderer::Trim::update()
     }
 }
 
-void renderer::Trim::addPathItems(std::vector<renderer::Shape *> &list,
+void renderer::Trim::addPathItems(VVector<renderer::Shape *> &list,
                                   size_t                          startOffset)
 {
-    std::copy(list.begin() + startOffset, list.end(),
-              back_inserter(mPathItems));
+    mPathItems.reserve(mPathItems.size() + list.end() - list.begin() - startOffset);
+    std::copy(list.begin() + startOffset, list.end(), std::back_inserter(mPathItems));
 }
 
 renderer::Repeater::Repeater(model::Repeater *data, VArenaAlloc *allocator)
@@ -1537,7 +1537,7 @@ void renderer::Repeater::update(int frameNo, const VMatrix &parentMatrix,
     }
 }
 
-void renderer::Repeater::renderList(std::vector<VDrawable *> &list)
+void renderer::Repeater::renderList(VVector<VDrawable *> &list)
 {
     if (mHidden) return;
     return renderer::Group::renderList(list);

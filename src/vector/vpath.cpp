@@ -22,7 +22,6 @@
 #include "vpath.h"
 #include <cassert>
 #include <iterator>
-#include <vector>
 #include "vbezier.h"
 #include "vdebug.h"
 #include "vline.h"
@@ -695,12 +694,10 @@ void VPath::VPathData::addPath(const VPathData &path, const VMatrix *m)
             m_points.push_back(m->map(i));
         }
     } else {
-        std::copy(path.m_points.begin(), path.m_points.end(),
-                  back_inserter(m_points));
+        std::copy(path.m_points.begin(), path.m_points.end(), std::back_inserter(m_points));
     }
 
-    std::copy(path.m_elements.begin(), path.m_elements.end(),
-              back_inserter(m_elements));
+    std::copy(path.m_elements.begin(), path.m_elements.end(), std::back_inserter(m_elements));
 
     m_segments += segment;
     mLengthDirty = true;

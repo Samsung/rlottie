@@ -108,7 +108,7 @@ public:
     void release_surface(VBitmap &surface) { mCache.push_back(surface); }
 
 private:
-    std::vector<VBitmap> mCache;
+    VVector<VBitmap> mCache;
 };
 
 class Drawable final : public VDrawable {
@@ -128,9 +128,9 @@ public:
 struct CApiData {
     CApiData();
     LOTLayerNode                mLayer;
-    std::vector<LOTMask>        mMasks;
-    std::vector<LOTLayerNode *> mLayers;
-    std::vector<LOTNode *>      mCNodeList;
+    VVector<LOTMask>        mMasks;
+    VVector<LOTLayerNode *> mLayers;
+    VVector<LOTNode *>      mCNodeList;
 };
 
 class Clipper {
@@ -179,7 +179,7 @@ public:
     void preprocess(const VRect &clip);
 
 public:
-    std::vector<Mask> mMasks;
+    VVector<Mask> mMasks;
     VRle              mRle;
     bool              mStatic{true};
     bool              mDirty{true};
@@ -238,9 +238,9 @@ public:
     bool             visible() const;
     virtual void     buildLayerNode();
     LOTLayerNode &   clayer() { return mCApiData->mLayer; }
-    std::vector<LOTLayerNode *> &clayers() { return mCApiData->mLayers; }
-    std::vector<LOTMask> &       cmasks() { return mCApiData->mMasks; }
-    std::vector<LOTNode *> &     cnodes() { return mCApiData->mCNodeList; }
+    VVector<LOTLayerNode *> &clayers() { return mCApiData->mLayers; }
+    VVector<LOTMask> &       cmasks() { return mCApiData->mMasks; }
+    VVector<LOTNode *> &     cnodes() { return mCApiData->mCNodeList; }
     const char *                 name() const { return mLayerData->name(); }
     virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                 LOTVariant &value);
@@ -293,7 +293,7 @@ private:
                           SurfaceCache &cache);
 
 private:
-    std::vector<Layer *>     mLayers;
+    VVector<Layer *>     mLayers;
     std::unique_ptr<Clipper> mClipper;
 };
 
@@ -326,7 +326,7 @@ public:
 protected:
     void                     preprocessStage(const VRect &clip) final;
     void                     updateContent() final;
-    std::vector<VDrawable *> mDrawableList;
+    VVector<VDrawable *> mDrawableList;
     Group *                  mRoot{nullptr};
 };
 
@@ -363,7 +363,7 @@ public:
     Object &     operator=(Object &&) noexcept = delete;
     virtual void update(int frameNo, const VMatrix &parentMatrix,
                         float parentAlpha, const DirtyFlag &flag) = 0;
-    virtual void renderList(std::vector<VDrawable *> &) {}
+    virtual void renderList(VVector<VDrawable *> &) {}
     virtual bool resolveKeyPath(LOTKeyPath &, uint32_t, LOTVariant &)
     {
         return false;
@@ -380,9 +380,9 @@ public:
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) override;
     void applyTrim();
-    void processTrimItems(std::vector<Shape *> &list);
-    void processPaintItems(std::vector<Shape *> &list);
-    void renderList(std::vector<VDrawable *> &list) override;
+    void processTrimItems(VVector<Shape *> &list);
+    void processPaintItems(VVector<Shape *> &list);
+    void renderList(VVector<VDrawable *> &list) override;
     Object::Type   type() const final { return Object::Type::Group; }
     const VMatrix &matrix() const { return mMatrix; }
     const char *   name() const
@@ -394,7 +394,7 @@ public:
                         LOTVariant &value) override;
 
 protected:
-    std::vector<Object *> mContents;
+    VVector<Object *> mContents;
     VMatrix               mMatrix;
 
 private:
@@ -506,10 +506,10 @@ private:
 class Paint : public Object {
 public:
     Paint(bool staticContent);
-    void addPathItems(std::vector<Shape *> &list, size_t startOffset);
+    void addPathItems(VVector<Shape *> &list, size_t startOffset);
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) override;
-    void renderList(std::vector<VDrawable *> &list) final;
+    void renderList(VVector<VDrawable *> &list) final;
     Object::Type type() const final { return Object::Type::Paint; }
 
 protected:
@@ -520,7 +520,7 @@ private:
     void updateRenderNode();
 
 protected:
-    std::vector<Shape *> mPathItems;
+    VVector<Shape *> mPathItems;
     Drawable             mDrawable;
     VPath                mPath;
     DirtyFlag            mFlag;
@@ -586,7 +586,7 @@ public:
                 const DirtyFlag &flag) final;
     Object::Type type() const final { return Object::Type::Trim; }
     void         update();
-    void         addPathItems(std::vector<Shape *> &list, size_t startOffset);
+    void         addPathItems(VVector<Shape *> &list, size_t startOffset);
 
 private:
     bool pathDirty() const
@@ -601,7 +601,7 @@ private:
         model::Trim::Segment mSegment{};
     };
     Cache                mCache;
-    std::vector<Shape *> mPathItems;
+    VVector<Shape *> mPathItems;
     model::Trim *        mData{nullptr};
     VPathMesure          mPathMesure;
     bool                 mDirty{true};
@@ -612,7 +612,7 @@ public:
     explicit Repeater(model::Repeater *data, VArenaAlloc *allocator);
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) final;
-    void renderList(std::vector<VDrawable *> &list) final;
+    void renderList(VVector<VDrawable *> &list) final;
 
 private:
     model::Repeater *mRepeaterData{nullptr};
