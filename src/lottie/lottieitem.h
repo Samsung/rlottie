@@ -98,7 +98,7 @@ public:
     {
         if (mCache.empty()) return {width, height, format};
 
-        auto surface = mCache.back();
+        VBitmap surface = mCache.back();
         surface.reset(width, height, format);
 
         mCache.pop_back();
