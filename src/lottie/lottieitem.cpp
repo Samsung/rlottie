@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2020 Samsung Electronics Co., Ltd. All rights reserved.
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1488,4 +1488,10 @@ void renderer::Repeater::renderList(std::vector<VDrawable *> &list)
 {
     if (mHidden) return;
     return renderer::Group::renderList(list);
+}
+
+void renderer::Composition::setDirty()
+{
+    mCurFrameNo = -1;
+    mRootLayer->setDirty();
 }

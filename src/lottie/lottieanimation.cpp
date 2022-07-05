@@ -70,13 +70,16 @@ public:
     const MarkerList &markers() const { return mModel->markers(); }
     void              setValue(const std::string &keypath, LOTVariant &&value);
     void              removeFilter(const std::string &keypath, Property prop);
-
+    std::vector<Color> colorPalette() const;
+    void setReplacementColors(const std::vector<Color> &replacementColors);
+   
 private:
     mutable LayerInfoList                  mLayerList;
     model::Composition *                   mModel;
     SharedRenderTask                       mTask;
     std::atomic<bool>                      mRenderInProgress;
     std::unique_ptr<renderer::Composition> mRenderer{nullptr};
+    std::vector<model::Color>              mReplacementColors;
 };
 
 void AnimationImpl::setValue(const std::string &keypath, LOTVariant &&value)
@@ -108,9 +111,15 @@ bool AnimationImpl::update(size_t frameNo, const VSize &size,
 Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
                               bool keepAspectRatio)
 {
+    static std::atomic_flag  sReplacementColorsLock;
+// model::Color::s_ReplacementColors is global.  Make sure only one thread renders at a time.
+    while ( sReplacementColorsLock.test_and_set() ) {}
+
+    model::Color::s_ReplacementColors = mReplacementColors;
     bool renderInProgress = mRenderInProgress.load();
     if (renderInProgress) {
         vCritical << "Already Rendering Scheduled for this Animation";
+        sReplacementColorsLock.clear();
         return surface;
     }
 
@@ -121,6 +130,7 @@ Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
         keepAspectRatio);
     mRenderer->render(surface);
     mRenderInProgress.store(false);
+    sReplacementColorsLock.clear();
 
     return surface;
 }
@@ -130,6 +140,30 @@ void AnimationImpl::init(std::shared_ptr<model::Composition> composition)
     mModel = composition.get();
     mRenderer = std::make_unique<renderer::Composition>(composition);
     mRenderInProgress = false;
+}
+
+std::vector<Color> AnimationImpl::colorPalette() const
+{
+    std::vector<Color> result;
+    for (const auto &color : mModel->mColorPalette)
+    {
+        result.emplace_back(Color(color.r, color.g, color.b));
+    }
+    return result;
+}
+
+void AnimationImpl::setReplacementColors( const std::vector<Color> &replacementColors )
+{
+  std::vector<model::Color> updatedReplacementColors;
+  for (const auto &color : replacementColors)
+  {
+      updatedReplacementColors.emplace_back( model::Color(color.r(), color.g(), color.b()) );
+  }
+  if (updatedReplacementColors != mReplacementColors)
+  {
+     mReplacementColors = updatedReplacementColors;
+     mRenderer->setDirty();
+  }
 }
 
 #ifdef LOTTIE_THREAD_SUPPORT
@@ -445,6 +479,16 @@ Surface::Surface(uint32_t *buffer, size_t width, size_t height,
 {
     mDrawArea.w = mWidth;
     mDrawArea.h = mHeight;
+}
+
+std::vector<Color> Animation::colorPalette() const
+{
+    return d->colorPalette();
+}
+
+void Animation::setReplacementColors( const std::vector<Color> &replacementColors )
+{
+    d->setReplacementColors(replacementColors);
 }
 
 void Surface::setDrawRegion(size_t x, size_t y, size_t width, size_t height)

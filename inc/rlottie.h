@@ -487,6 +487,9 @@ public:
      */
     ~Animation();
 
+    std::vector<Color> colorPalette() const;
+    void setReplacementColors(const std::vector<Color>& replacementColors);
+   
 private:
     void setValue(Color_Type, Property, const std::string &, Color);
     void setValue(Float_Type, Property, const std::string &, float);

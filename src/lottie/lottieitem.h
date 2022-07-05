@@ -196,6 +196,7 @@ public:
     const LOTLayerNode *renderTree() const;
     bool                render(const rlottie::Surface &surface);
     void                setValue(const std::string &keypath, LOTVariant &value);
+    void                setDirty();
 
 private:
     SurfaceCache                        mSurfaceCache;
@@ -241,6 +242,7 @@ public:
     const char *                 name() const { return mLayerData->name(); }
     virtual bool resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                 LOTVariant &value);
+    virtual void setDirty() { mDirtyFlag = DirtyFlagBit::All; }
 
 protected:
     virtual void   preprocessStage(const VRect &clip) = 0;
@@ -281,7 +283,13 @@ public:
 protected:
     void preprocessStage(const VRect &clip) final;
     void updateContent() final;
-
+    void setDirty() override
+    {
+       Layer::setDirty();
+       for ( auto layer : mLayers )
+          layer->setDirty();
+    }
+   
 private:
     void renderHelper(VPainter *painter, const VRle &mask, const VRle &matteRle,
                       SurfaceCache &cache);

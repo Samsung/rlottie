@@ -77,11 +77,17 @@ public:
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
-
+    bool operator==(const Color color) const
+    {
+       return r == color.r && g == color.g && b == color.b;
+    }
+   
 public:
     float r{1};
     float g{1};
     float b{1};
+    int paletteNumber{-1};
+    static std::vector<Color> s_ReplacementColors;
 };
 
 inline Color operator-(const Color &c1, const Color &c2)
@@ -328,7 +334,15 @@ public:
 
     T value(int frameNo) const
     {
-        return isStatic() ? value() : animation().value(frameNo);
+       auto result = isStatic() ? value() : animation().value(frameNo);
+       if constexpr (std::is_same<T, Color>::value)
+       {
+          if (result.paletteNumber >= 0 && result.paletteNumber < Color::s_ReplacementColors.size())
+          {
+             return Color::s_ReplacementColors[result.paletteNumber];
+          }
+       }
+       return result;
     }
 
     // special function only for type T=PathData
@@ -570,6 +584,7 @@ public:
     std::vector<Marker> mMarkers;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
+    std::vector<Color>  mColorPalette;
 };
 
 class Transform : public Object {

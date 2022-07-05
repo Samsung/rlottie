@@ -217,6 +217,8 @@ public:
 
     std::shared_ptr<model::Composition> composition() const
     {
+        if (mComposition)
+           mComposition->mColorPalette = mPalette;
         return mComposition;
     }
     void             parseComposition();
@@ -362,6 +364,20 @@ private:
         }
     } mPathInfo;
 
+    void addColorToPalette(model::Color & color)
+    {
+       auto it = std::find(mPalette.begin(), mPalette.end(), color);
+       if ( it  == mPalette.end() )
+       {
+          color.paletteNumber = mPalette.size();
+          mPalette.emplace_back(color);
+       }
+       else
+       {
+          color.paletteNumber = it - mPalette.begin();
+       }
+    }
+   
 protected:
     std::unordered_map<std::string, VInterpolator *> mInterpolatorCache;
     std::shared_ptr<model::Composition>              mComposition;
@@ -370,6 +386,7 @@ protected:
     std::vector<model::Layer *>                      mLayersToUpdate;
     std::string                                      mDirPath;
     void                                             SkipOut(int depth);
+    std::vector<model::Color>                        mPalette;
 };
 
 LookaheadParserHandler::LookaheadParserHandler(char *str)
@@ -1886,6 +1903,7 @@ void LottieParserImpl::getValue(model::Color &color)
     color.r = val[0];
     color.g = val[1];
     color.b = val[2];
+    addColorToPalette(color);
 }
 
 void LottieParserImpl::getValue(model::Gradient::Data &grad)
