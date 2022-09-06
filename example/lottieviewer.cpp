@@ -62,12 +62,13 @@ _layout_del_cb(void *data, Evas *, Evas_Object *, void *)
 }
 
 static void
-_update_frame_info(AppInfo *info, double pos)
+_update_frame_info(AppInfo *info)
 {
-   int frameNo = pos * info->view->getTotalFrame();
-   char buf[64];
+   long currFrameNo = info->view->mCurFrame;
+   long totalFrameNo = info->view->getTotalFrame();
 
-   sprintf(buf, "%d / %ld", frameNo, info->view->getTotalFrame());
+   char buf[64];
+   sprintf(buf, "%ld (total: %ld)", currFrameNo, totalFrameNo);
    elm_object_part_text_set(info->layout, "text", buf);
 }
 
@@ -96,7 +97,7 @@ _animator_cb(void *data)
     if (info && info->autoPlaying && info->view)
       {
          float pos = info->view->getPos();
-         _update_frame_info(info, pos);
+         _update_frame_info(info);
          elm_slider_value_set(info->slider, (double)pos);
          evas_object_image_pixels_dirty_set(info->view->getImage(), EINA_TRUE);
          if (pos >= 1.0)
@@ -111,20 +112,20 @@ _slider_cb(void *data, Evas_Object *obj, void *event_info EINA_UNUSED)
    double val = elm_slider_value_get(obj);
    AppInfo *info = (AppInfo *)data;
 
-   _update_frame_info(info, val);
-
    if (!info->autoPlaying)
      {
         info->view->seek(val);
         evas_object_image_pixels_dirty_set(info->view->getImage(), EINA_TRUE);
      }
+
+   _update_frame_info(info);
 }
 
 static void
 _button_clicked_cb(void *data, Evas_Object */*obj*/, void */*event_info*/)
 {
    AppInfo *info = (AppInfo *)data;
-
+   if (info->view->getPos() >= 1.0f) info->view->mPos = 0.0f;
    _toggle_start_button(info);
 }
 
@@ -133,7 +134,6 @@ create_layout(Evas_Object *parent, const char *file)
 {
    Evas_Object *layout, *slider, *image, *button;
    Ecore_Animator *animator;
-   char buf[64];
    AppInfo *info = (AppInfo *)calloc(sizeof(AppInfo), 1);
 
    //LAYOUT
@@ -176,10 +176,9 @@ create_layout(Evas_Object *parent, const char *file)
    info->animator = animator;
    evas_object_event_callback_add(layout, EVAS_CALLBACK_DEL, _layout_del_cb, (void *)info);
 
-   sprintf(buf, "%d / %ld", 0, view->getTotalFrame());
-   elm_object_part_text_set(layout, "text", buf);
-
    view->seek(0.0);
+   _update_frame_info(info);
+
    return layout;
 }
 
