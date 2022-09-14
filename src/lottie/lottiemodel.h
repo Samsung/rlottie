@@ -539,8 +539,8 @@ public:
     {
         return long(frameAtPos(timeInSec / duration()));
     }
-    size_t totalFrame() const { return mEndFrame - mStartFrame; }
-    long   frameDuration() const { return mEndFrame - mStartFrame - 1; }
+    size_t totalFrame() const { return mEndFrame - mStartFrame + 1; }
+    long   frameDuration() const { return mEndFrame - mStartFrame; }
     float  frameRate() const { return mFrameRate; }
     size_t startFrame() const { return mStartFrame; }
     size_t endFrame() const { return mEndFrame; }
