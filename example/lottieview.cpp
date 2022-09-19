@@ -109,7 +109,6 @@ void LottieView::seek(float pos)
 {
     if (!mRenderDelegate) return;
 
-
     mPos = mapProgress(pos);
 
     // check if the pos maps to the current frame
