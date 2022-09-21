@@ -1,1 +1,0 @@
-git diff -U0 --no-color HEAD^ | clang-format-diff -i -p1
