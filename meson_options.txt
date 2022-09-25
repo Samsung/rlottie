@@ -42,5 +42,12 @@ option('cmake',
   value: false,
   description: 'Enable Generating  CMake config files')
 
+option('json',
+   type: 'boolean',
+   value: false,
+   description: 'Use readonly JSON parser instead of RapidJSON')
 
-
+option('memshrink',
+   type: 'boolean',
+   value: false,
+   description: 'Minimize memory usage but increase parsing time')

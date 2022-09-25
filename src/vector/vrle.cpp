@@ -28,7 +28,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include <vector>
+#include "vvector.h"
 #include "vdebug.h"
 #include "vglobal.h"
 
@@ -47,11 +47,11 @@ static inline uint8_t divBy255(int x)
 }
 
 inline static void copy(const VRle::Span *span, size_t count,
-                        std::vector<VRle::Span> &v)
+                        VVector<VRle::Span> &v)
 {
     // make sure enough memory available
     if (v.capacity() < v.size() + count) v.reserve(v.size() + count);
-    std::copy(span, span + count, back_inserter(v));
+    std::copy(span, span + count, std::back_inserter(v));
 }
 
 void VRle::Data::addSpan(const VRle::Span *span, size_t count)

@@ -104,8 +104,8 @@ void FTOutline::grow(size_t points, size_t segments)
 
 void FTOutline::convert(const VPath &path)
 {
-    const std::vector<VPath::Element> &elements = path.elements();
-    const std::vector<VPointF> &       points = path.points();
+    const VVector<VPath::Element> &elements = path.elements();
+    const VVector<VPointF> &       points = path.points();
 
     grow(points.size(), path.segments());
 
@@ -422,8 +422,8 @@ using VTask = std::shared_ptr<VRleTask>;
 
 class RleTaskScheduler {
     const unsigned                _count{std::thread::hardware_concurrency()};
-    std::vector<std::thread>      _threads;
-    std::vector<TaskQueue<VTask>> _q{_count};
+    VVector<std::thread>      _threads;
+    VVector<TaskQueue<VTask>> _q{_count};
     std::atomic<unsigned>         _index{0};
 
     void run(unsigned i)

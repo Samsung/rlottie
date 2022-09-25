@@ -147,6 +147,35 @@ bool renderer::Composition::update(int frameNo, const VSize &size,
     return true;
 }
 
+bool renderer::Composition::updatePartial(int frameNo, const VSize &size, 
+                                          unsigned int offset)
+{
+    // check if cached frame is same as requested frame.
+    if ((mViewSize.width() == size.width()) && (mCurFrameNo == frameNo) && 
+        (mOffset == offset))
+        return false;
+
+    mViewSize = size;
+    mCurFrameNo = frameNo;
+    mKeepAspectRatio = false;
+    mOffset = offset;
+
+    /*
+     * if viewbox dosen't scale exactly to the viewport
+     * we scale the viewbox keeping AspectRatioPreserved and then align the
+     * viewbox to the viewport using AlignCenter rule.
+     */
+    VMatrix m;
+    VSize   viewPort = mViewSize;
+    VSize   viewBox = mModel->size();
+    float   sx = float(viewPort.width()) / viewBox.width();
+    float   ty = offset;
+    m.translate(0, -ty).scale(sx, sx);
+
+    mRootLayer->update(frameNo, m, 1.0);
+    return true;
+}
+
 bool renderer::Composition::render(const rlottie::Surface &surface)
 {
     mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
@@ -169,6 +198,30 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
     painter.end();
     return true;
 }
+
+bool renderer::Composition::renderPartial(const rlottie::Surface &surface)
+{
+    mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
+                   uint32_t(surface.width()), uint32_t(surface.drawRegionHeight()),
+                   uint32_t(surface.bytesPerLine()),
+                   VBitmap::Format::ARGB32_Premultiplied);
+
+    /* schedule all preprocess task for this frame at once.
+     */
+    VRect clip(0, 0, int(surface.drawRegionWidth()),
+               int(surface.drawRegionHeight()));
+    mRootLayer->preprocess(clip);
+
+    VPainter painter(&mSurface);
+    // set sub surface area for drawing.
+    painter.setDrawRegion(
+        VRect(int(surface.drawRegionPosX()), 0,
+              int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+    mRootLayer->render(&painter, {}, {}, mSurfaceCache);
+    painter.end();
+    return true;
+}
+
 
 void renderer::Mask::update(int frameNo, const VMatrix &parentMatrix,
                             float /*parentAlpha*/, const DirtyFlag &flag)
@@ -825,7 +878,7 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 {
     mRoot->addChildren(layerData, allocator);
 
-    std::vector<renderer::Shape *> list;
+    VVector<renderer::Shape *> list;
     mRoot->processPaintItems(list);
 
     if (layerData->hasPathOperator()) {
@@ -991,14 +1044,14 @@ void renderer::Group::applyTrim()
     }
 }
 
-void renderer::Group::renderList(std::vector<VDrawable *> &list)
+void renderer::Group::renderList(VVector<VDrawable *> &list)
 {
     for (const auto &content : mContents) {
         content->renderList(list);
     }
 }
 
-void renderer::Group::processPaintItems(std::vector<renderer::Shape *> &list)
+void renderer::Group::processPaintItems(VVector<renderer::Shape *> &list)
 {
     size_t curOpCount = list.size();
     for (auto i = mContents.rbegin(); i != mContents.rend(); ++i) {
@@ -1025,7 +1078,7 @@ void renderer::Group::processPaintItems(std::vector<renderer::Shape *> &list)
     }
 }
 
-void renderer::Group::processTrimItems(std::vector<renderer::Shape *> &list)
+void renderer::Group::processTrimItems(VVector<renderer::Shape *> &list)
 {
     size_t curOpCount = list.size();
     for (auto i = mContents.rbegin(); i != mContents.rend(); ++i) {
@@ -1207,7 +1260,7 @@ void renderer::Paint::updateRenderNode()
     }
 }
 
-void renderer::Paint::renderList(std::vector<VDrawable *> &list)
+void renderer::Paint::renderList(VVector<VDrawable *> &list)
 {
     if (mRenderNodeUpdate) {
         updateRenderNode();
@@ -1225,11 +1278,11 @@ void renderer::Paint::renderList(std::vector<VDrawable *> &list)
     if (mContentToRender) list.push_back(&mDrawable);
 }
 
-void renderer::Paint::addPathItems(std::vector<renderer::Shape *> &list,
+void renderer::Paint::addPathItems(VVector<renderer::Shape *> &list,
                                    size_t                          startOffset)
 {
-    std::copy(list.begin() + startOffset, list.end(),
-              back_inserter(mPathItems));
+    mPathItems.reserve(mPathItems.size() + list.end() - list.begin() - startOffset);
+    std::copy(list.begin() + startOffset, list.end(), std::back_inserter(mPathItems));
 }
 
 renderer::Fill::Fill(model::Fill *data)
@@ -1281,7 +1334,7 @@ renderer::Stroke::Stroke(model::Stroke *data)
     }
 }
 
-static vthread_local std::vector<float> Dash_Vector;
+static vthread_local VVector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
                                      float alpha)
@@ -1426,11 +1479,11 @@ void renderer::Trim::update()
     }
 }
 
-void renderer::Trim::addPathItems(std::vector<renderer::Shape *> &list,
+void renderer::Trim::addPathItems(VVector<renderer::Shape *> &list,
                                   size_t                          startOffset)
 {
-    std::copy(list.begin() + startOffset, list.end(),
-              back_inserter(mPathItems));
+    mPathItems.reserve(mPathItems.size() + list.end() - list.begin() - startOffset);
+    std::copy(list.begin() + startOffset, list.end(), std::back_inserter(mPathItems));
 }
 
 renderer::Repeater::Repeater(model::Repeater *data, VArenaAlloc *allocator)
@@ -1484,7 +1537,7 @@ void renderer::Repeater::update(int frameNo, const VMatrix &parentMatrix,
     }
 }
 
-void renderer::Repeater::renderList(std::vector<VDrawable *> &list)
+void renderer::Repeater::renderList(VVector<VDrawable *> &list)
 {
     if (mHidden) return;
     return renderer::Group::renderList(list);

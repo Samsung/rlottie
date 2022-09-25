@@ -28,6 +28,7 @@
 #include "vpath.h"
 #include "vrle.h"
 #include "vraster.h"
+#include "vvector.h"
 
 class VDrawable {
 public:
@@ -55,7 +56,7 @@ public:
     void setBrush(const VBrush &brush) { mBrush = brush; }
     void setStrokeInfo(CapStyle cap, JoinStyle join, float miterLimit,
                        float strokeWidth);
-    void setDashInfo(std::vector<float> &dashInfo);
+    void setDashInfo(VVector<float> &dashInfo);
     void preprocess(const VRect &clip);
     void applyDashOp();
     VRle rle();
@@ -74,7 +75,7 @@ public:
     };
 
     struct StrokeWithDashInfo : public StrokeInfo{
-        std::vector<float> mDash;
+        VVector<float> mDash;
     };
 
 public:

@@ -128,18 +128,26 @@ std::shared_ptr<model::Composition> model::loadFromFile(const std::string &path,
         vCritical << "failed to open file = " << path.c_str();
         return {};
     } else {
-        std::string content;
+        // Not using string here since it's over allocating up to 2x the input size
+        f.seekg(0, std::ios_base::end);
+        std::streampos sz = f.tellg();
+        f.seekg(0, std::ios_base::beg);
 
-        std::getline(f, content, '\0');
+        if (!sz) return {};
+
+        char * buf = new char[sz + std::streampos{1}];
+        f.read(buf, sz);
         f.close();
 
-        if (content.empty()) return {};
-
-        auto obj = internal::model::parse(const_cast<char *>(content.c_str()),
-                                          dirname(path));
+#ifdef LOTTIE_JSON_SUPPORT
+        auto obj = internal::model::parse(buf, sz, dirname(path));
+#else
+        buf[sz] = 0;
+        auto obj = internal::model::parse(buf, dirname(path));
+#endif
 
         if (obj && cachePolicy) ModelCache::instance().add(path, obj);
-
+        delete[] buf;
         return obj;
     }
 }
@@ -153,17 +161,37 @@ std::shared_ptr<model::Composition> model::loadFromData(
         if (obj) return obj;
     }
 
-    auto obj = internal::model::parse(const_cast<char *>(jsonData.c_str()),
+#ifdef LOTTIE_JSON_SUPPORT
+    auto obj = internal::model::parse(jsonData.c_str(), jsonData.length(),
                                       std::move(resourcePath));
+#else
+    auto obj = internal::model::parse(const_cast<char*>(jsonData.c_str()), std::move(resourcePath));
+#endif
 
     if (obj && cachePolicy) ModelCache::instance().add(key, obj);
 
     return obj;
 }
 
+
+
 std::shared_ptr<model::Composition> model::loadFromData(
     std::string jsonData, std::string resourcePath, model::ColorFilter filter)
 {
-    return internal::model::parse(const_cast<char *>(jsonData.c_str()),
+#ifdef LOTTIE_JSON_SUPPORT
+    return internal::model::parse(jsonData.c_str(), jsonData.length(),
                                   std::move(resourcePath), std::move(filter));
+#else
+    return internal::model::parse(const_cast<char*>(jsonData.c_str()),
+                                  std::move(resourcePath), std::move(filter));
+#endif
+}
+
+std::shared_ptr<model::Composition> model::loadFromROData(const char * data, const size_t len, const char * resourcePath)
+{
+#ifdef LOTTIE_JSON_SUPPORT
+    return internal::model::parse(data, len, resourcePath);
+#else
+    return nullptr;
+#endif
 }

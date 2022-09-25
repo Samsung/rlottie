@@ -91,6 +91,17 @@ RLOTTIE_API Lottie_Animation_S *lottie_animation_from_data(const char *data, con
     }
 }
 
+RLOTTIE_API Lottie_Animation_S *lottie_animation_from_rodata(const char *data, const size_t len, const char *resourcePath)
+{
+    if (auto animation = Animation::loadFromROData(data, len, resourcePath) ) {
+        Lottie_Animation_S *handle = new Lottie_Animation_S();
+        handle->mAnimation = std::move(animation);
+        return handle;
+    } 
+    return nullptr;
+}
+
+
 RLOTTIE_API void lottie_animation_destroy(Lottie_Animation_S *animation)
 {
     if (animation) {
@@ -167,6 +178,24 @@ lottie_animation_render(Lottie_Animation_S *animation,
     rlottie::Surface surface(buffer, width, height, bytes_per_line);
     animation->mAnimation->renderSync(frame_number, surface);
 }
+
+RLOTTIE_API void
+lottie_animation_render_partial(Lottie_Animation_S *animation,
+                        size_t frame_number,
+                        uint32_t *buffer,
+                        size_t width,
+                        size_t height,
+                        size_t top,
+                        size_t bottom,
+                        size_t bytes_per_line)
+{
+    if (!animation) return;
+
+    rlottie::Surface surface(buffer, width, height, bytes_per_line);
+    surface.setDrawRegion(0, top, width, bottom - top);
+    animation->mAnimation->renderPartialSync(frame_number, surface);
+}
+
 
 RLOTTIE_API void
 lottie_animation_render_async(Lottie_Animation_S *animation,

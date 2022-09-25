@@ -107,6 +107,21 @@ RLOTTIE_API Lottie_Animation *lottie_animation_from_file(const char *path);
 RLOTTIE_API Lottie_Animation *lottie_animation_from_data(const char *data, const char *key, const char *resource_path);
 
 /**
+ *  @brief Constructs an animation object from JSON string data.
+ *
+ *  @param[in] data The JSON string data.
+ *  @param[in] len The data length in bytes
+ *  @param[in] resource_path the path that will be used to load external resource needed by the JSON data.
+ *
+ *  @return Animation object that can build the contents of the
+ *          Lottie resource represented by JSON string data.
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API Lottie_Animation *lottie_animation_from_rodata(const char *data, const size_t len, const char *resourcePath);
+
+/**
  *  @brief Free given Animation object resource.
  *
  *  @param[in] animation Animation object to free.
@@ -230,6 +245,25 @@ RLOTTIE_API size_t lottie_animation_get_frame_at_pos(const Lottie_Animation *ani
  *  @internal
  */
 RLOTTIE_API void lottie_animation_render(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
+
+/**
+ *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer.
+ *
+ *  @param[in] animation Animation object.
+ *  @param[in] frame_num the frame number needs to be rendered.
+ *  @param[in] buffer surface buffer use for rendering.
+ *  @param[in] width width of the surface
+ *  @param[in] height height of the surface
+ *  @param[in] top offset to render from
+ *  @param[in] bottom offset to render from
+ *  @param[in] bytes_per_line stride of the surface in bytes.
+ *
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_animation_render_partial(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t top, size_t bottom, size_t bytes_per_line);
+
 
 /**
  *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer asynchronously.

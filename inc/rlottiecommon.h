@@ -37,6 +37,24 @@
   #endif
 #endif
 
+#if defined LOTTIE_JSON_SUPPORT
+  #define RLOTTIE_FEATURE_RO_JSON 1
+#else 
+  #define RLOTTIE_FEATURE_RO_JSON 0
+#endif
+
+#if defined LOTTIE_THREAD_SUPPORT
+  #define RLOTTIE_FEATURE_THREAD 1
+#else 
+  #define RLOTTIE_FEATURE_THREAD 0
+#endif
+
+#if defined LOTTIE_NO_PARTIAL_RENDER
+  #define RLOTTIE_FEATURE_PARTIAL_RENDER 0
+#else 
+  #define RLOTTIE_FEATURE_PARTIAL_RENDER 1
+#endif
+
 
 /**
  * @defgroup Lottie_Animation Lottie_Animation

@@ -23,7 +23,7 @@
 #ifndef VBRUSH_H
 #define VBRUSH_H
 
-#include <vector>
+#include "vvector.h"
 #include "vglobal.h"
 #include "vmatrix.h"
 #include "vpoint.h"
@@ -32,7 +32,7 @@
 V_BEGIN_NAMESPACE
 
 using VGradientStop = std::pair<float, VColor>;
-using VGradientStops = std::vector<VGradientStop>;
+using VGradientStops = VVector<VGradientStop>;
 class VGradient {
 public:
     enum class Mode { Absolute, Relative };

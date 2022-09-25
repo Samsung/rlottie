@@ -24,8 +24,8 @@
 #define _RLOTTIE_H_
 
 #include <future>
-#include <vector>
 #include <memory>
+#include "../src/vector/vvector.h"
 
 #if defined _WIN32 || defined __CYGWIN__
   #ifdef RLOTTIE_BUILD
@@ -142,7 +142,7 @@ public:
      *  @brief Sets the Draw Area available on the Surface.
      *
      *  Lottie will use the draw region size to generate frame image
-     *  and will update only the draw rgion of the surface.
+     *  and will update only the draw region of the surface.
      *
      *  @param[in] x      region area x position.
      *  @param[in] y      region area y position.
@@ -255,7 +255,7 @@ private:
     }mDrawArea;
 };
 
-using MarkerList = std::vector<std::tuple<std::string, int , int>>;
+using MarkerList = VVector<std::tuple<std::string, int , int>>;
 /**
  *  @brief https://helpx.adobe.com/after-effects/using/layer-markers-composition-markers.html
  *  Markers exported form AE are used to describe a segmnet of an animation {comment/tag , startFrame, endFrame}
@@ -263,7 +263,7 @@ using MarkerList = std::vector<std::tuple<std::string, int , int>>;
  *  start frame and duration of that segment.
  */
 
-using LayerInfoList = std::vector<std::tuple<std::string, int , int>>;
+using LayerInfoList = VVector<std::tuple<std::string, int , int>>;
 
 
 using ColorFilter = std::function<void(float &r , float &g, float &b)>;
@@ -307,6 +307,21 @@ public:
     static std::unique_ptr<Animation>
     loadFromData(std::string jsonData, const std::string &key,
                  const std::string &resourcePath="", bool cachePolicy=true);
+
+    /**
+     *  @brief Constructs an animation object from JSON string read only data.
+     *
+     *  @param[in] data The JSON string internal data (not modified)
+     *  @param[in] len  The pointed data array length in bytes
+     *  @param[in] resourcePath the path will be used to search for external resource.
+     *
+     *  @return Animation object that can render the contents of the
+     *          Lottie resource represented by JSON string data.
+     *
+     *  @internal
+     */
+    static std::unique_ptr<Animation>
+    loadFromROData(const char * data, const size_t len, const char * resourcePath);
 
     /**
      *  @brief Constructs an animation object from JSON string data and update.
@@ -420,6 +435,18 @@ public:
      *  @internal
      */
     void              renderSync(size_t frameNo, Surface surface, bool keepAspectRatio=true);
+
+    /**
+     *  @brief Renders the content to partial surface synchronously.
+     *         for performance use the async rendering @see render
+     *
+     *  @param[in] frameNo Content corresponds to the @p frameNo needs to be drawn
+     *  @param[in] surface Surface in which content will be drawn
+     *
+     *  @internal
+     */
+    void              renderPartialSync(size_t frameNo, Surface surface);
+
 
     /**
      *  @brief Returns root layer of the composition updated with

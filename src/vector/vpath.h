@@ -22,11 +22,11 @@
 
 #ifndef VPATH_H
 #define VPATH_H
-#include <vector>
 #include "vcowptr.h"
 #include "vmatrix.h"
 #include "vpoint.h"
 #include "vrect.h"
+#include "vvector.h"
 
 V_BEGIN_NAMESPACE
 
@@ -70,8 +70,8 @@ public:
     void  addPath(const VPath &path, const VMatrix &m);
     void  transform(const VMatrix &m);
     float length() const;
-    const std::vector<VPath::Element> &elements() const;
-    const std::vector<VPointF> &       points() const;
+    const VVector<VPath::Element> &elements() const;
+    const VVector<VPointF> &       points() const;
     void  clone(const VPath &srcPath);
     bool unique() const { return d.unique();}
     size_t refCount() const { return d.refCount();}
@@ -105,13 +105,13 @@ private:
                          VPath::Direction dir = Direction::CW);
         void  addPath(const VPathData &path, const VMatrix *m = nullptr);
         void  clone(const VPath::VPathData &o) { *this = o;}
-        const std::vector<VPath::Element> &elements() const
+        const VVector<VPath::Element> &elements() const
         {
             return m_elements;
         }
-        const std::vector<VPointF> &points() const { return m_points; }
-        std::vector<VPointF>        m_points;
-        std::vector<VPath::Element> m_elements;
+        const VVector<VPointF> &points() const { return m_points; }
+        VVector<VPointF>        m_points;
+        VVector<VPath::Element> m_elements;
         size_t                      m_segments;
         VPointF                     mStartPoint;
         mutable float               mLength{0};
@@ -265,12 +265,12 @@ inline void  VPath::addPath(const VPath &path, const VMatrix &m)
     d.write().addPath(path.d.read(), &m);
 }
 
-inline const std::vector<VPath::Element> &VPath::elements() const
+inline const VVector<VPath::Element> &VPath::elements() const
 {
     return d->elements();
 }
 
-inline const std::vector<VPointF> &VPath::points() const
+inline const VVector<VPointF> &VPath::points() const
 {
     return d->points();
 }
