@@ -165,6 +165,28 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
     painter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+
+    // layer surface should be created if it is not created already or its size
+    // is changed.
+    bool isLayerSurfaceCreated = mSurfaceCache.is_layer_surface_created();
+    bool isLayerSurfaceSizeChanged =
+        isLayerSurfaceCreated &&
+        (mSurfaceCache.get_layer_surface()->width() != surface.width() ||
+         mSurfaceCache.get_layer_surface()->height() != surface.height());
+
+    if (!isLayerSurfaceCreated || isLayerSurfaceSizeChanged) {
+        if (isLayerSurfaceCreated && isLayerSurfaceSizeChanged)
+            mSurfaceCache.delete_layer_surface();
+
+        mSurfaceCache.create_layer_surface(surface.width(), surface.height(),
+                                           VBitmap::Format::ARGB32_Premultiplied);
+
+        // set layer draw region
+        mSurfaceCache.get_layer_painter()->setDrawRegion(
+            VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
+                  int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+    }
+
     mRootLayer->render(&painter, {}, {}, mSurfaceCache);
     painter.end();
     return true;
@@ -214,7 +236,7 @@ void renderer::Mask::preprocess(const VRect &clip)
 }
 
 void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
-                             const VRle &matteRle, SurfaceCache &)
+                             const VRle &matteRle, SurfaceCache &cache)
 {
     auto renderlist = renderList();
 
@@ -230,30 +252,41 @@ void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
         mask = inheritMask;
     }
 
+    VPainter *usedPainter = painter;
+
+    if (cache.get_layer_painter() != nullptr) {
+        usedPainter = cache.get_layer_painter();
+        usedPainter->begin(cache.get_layer_surface());
+    }
+
     for (auto &i : renderlist) {
-        painter->setBrush(i->mBrush);
+        usedPainter->setBrush(i->mBrush);
         VRle rle = i->rle();
         if (matteRle.empty()) {
             if (mask.empty()) {
                 // no mask no matte
-                painter->drawRle(VPoint(), rle);
+                usedPainter->drawRle(VPoint(), rle);
             } else {
                 // only mask
-                painter->drawRle(rle, mask);
+                usedPainter->drawRle(rle, mask);
             }
-
         } else {
             if (!mask.empty()) rle = rle & mask;
 
             if (rle.empty()) continue;
             if (matteType() == model::MatteType::AlphaInv) {
                 rle = rle - matteRle;
-                painter->drawRle(VPoint(), rle);
+                usedPainter->drawRle(VPoint(), rle);
             } else {
                 // render with matteRle as clip.
-                painter->drawRle(rle, matteRle);
+                usedPainter->drawRle(rle, matteRle);
             }
         }
+    }
+
+    if (cache.get_layer_painter() != nullptr) {
+        usedPainter->end();
+        painter->drawBitmap(VPoint(), *cache.get_layer_surface(), mCombinedAlpha * 255.0f);
     }
 }
 
@@ -958,7 +991,7 @@ void renderer::Group::update(int frameNo, const VMatrix &parentMatrix,
 
         mMatrix = m;
 
-        alpha = parentAlpha * mModel.transform()->opacity(frameNo);
+        alpha = mModel.transform()->opacity(frameNo);
         if (!vCompare(alpha, parentAlpha)) {
             newFlag |= DirtyFlagBit::Alpha;
         }
@@ -1238,9 +1271,9 @@ renderer::Fill::Fill(model::Fill *data)
     mDrawable.setName(mModel.name());
 }
 
-bool renderer::Fill::updateContent(int frameNo, const VMatrix &, float alpha)
+bool renderer::Fill::updateContent(int frameNo, const VMatrix &, float)
 {
-    auto combinedAlpha = alpha * mModel.opacity(frameNo);
+    auto combinedAlpha = mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
     VBrush brush(color);
@@ -1284,9 +1317,9 @@ renderer::Stroke::Stroke(model::Stroke *data)
 static vthread_local std::vector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
-                                     float alpha)
+                                     float)
 {
-    auto combinedAlpha = alpha * mModel.opacity(frameNo);
+    auto combinedAlpha = mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
     VBrush brush(color);
