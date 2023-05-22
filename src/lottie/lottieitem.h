@@ -106,9 +106,31 @@ public:
     }
 
     void release_surface(VBitmap &surface) { mCache.push_back(surface); }
+    bool is_layer_surface_created() const { return mIsLayerBitmapCreated; }
+    void create_layer_surface(size_t width, size_t height, VBitmap::Format format)
+    {
+        if (mIsLayerBitmapCreated) return;
+
+        mLayerBitmap = std::make_unique<VBitmap>(width, height, format);
+        mBitmapPainter = std::make_unique<VPainter>(mLayerBitmap.get());
+        mIsLayerBitmapCreated = true;
+    }
+    void delete_layer_surface()
+    {
+        if (!mIsLayerBitmapCreated) return;
+
+        mLayerBitmap.reset();
+        mBitmapPainter.reset();
+        mIsLayerBitmapCreated = false;
+    }
+    VPainter* get_layer_painter() const { return mBitmapPainter.get(); }
+    VBitmap* get_layer_surface() const { return mLayerBitmap.get(); }
 
 private:
     std::vector<VBitmap> mCache;
+    std::unique_ptr<VBitmap>   mLayerBitmap{nullptr};
+    std::unique_ptr<VPainter>  mBitmapPainter{nullptr};
+    bool                       mIsLayerBitmapCreated{false};
 };
 
 class Drawable final : public VDrawable {
