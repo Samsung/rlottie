@@ -1271,9 +1271,9 @@ renderer::Fill::Fill(model::Fill *data)
     mDrawable.setName(mModel.name());
 }
 
-bool renderer::Fill::updateContent(int frameNo, const VMatrix &, float)
+bool renderer::Fill::updateContent(int frameNo, const VMatrix &, float alpha)
 {
-    auto combinedAlpha = mModel.opacity(frameNo);
+    auto combinedAlpha = alpha * mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
     VBrush brush(color);
