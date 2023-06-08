@@ -57,6 +57,7 @@
 
 #include "lottiemodel.h"
 #include "rapidjson/document.h"
+#include "zip/zip.h"
 
 RAPIDJSON_DIAG_PUSH
 #ifdef __GNUC__
@@ -2365,11 +2366,54 @@ public:
 
 #endif
 
+static char* uncompressZip(const char * str, size_t length)
+{
+    const char* errMsg = "Failed to unzip dotLottie!";
+
+    auto zip = zip_stream_open(str, length, 0, 'r');
+    if (!zip) {
+        vCritical << errMsg;
+        return nullptr;
+    }
+
+    //Read a representive animation
+    if (zip_entry_openbyindex(zip, 1)) {
+        vCritical << errMsg;
+        return nullptr;
+    }
+
+    char* buf = nullptr;
+    size_t bufSize;
+    zip_entry_read(zip, (void**)&buf, &bufSize);
+
+    zip_entry_close(zip);
+    zip_stream_close(zip);
+
+    return buf;
+}
+
+static bool checkDotLottie(const char * str)
+{
+    //check the .Lottie signature.
+    if (str[0] == 0x50 && str[1] == 0x4B && str[2] == 0x03 && str[3] == 0x04) return true;
+    else return false;
+}
+
 std::shared_ptr<model::Composition> model::parse(char *             str,
+                                                 size_t             length,
                                                  std::string        dir_path,
                                                  model::ColorFilter filter)
 {
-    LottieParserImpl obj(str, std::move(dir_path), std::move(filter));
+    auto input = str;
+
+    auto dotLottie = checkDotLottie(str);
+    if (dotLottie) {
+        input = uncompressZip(str, length);
+    }
+
+    LottieParserImpl obj(input, std::move(dir_path), std::move(filter));
+
+    if (dotLottie) free(input);
 
     if (obj.VerifyType()) {
         obj.parseComposition();

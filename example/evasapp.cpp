@@ -121,10 +121,10 @@ void EvasApp::run()
     ecore_evas_shutdown();
 }
 
-static bool isJsonFile(const char *filename) {
+static bool isLottiefile(const char *filename) {
   const char *dot = strrchr(filename, '.');
   if(!dot || dot == filename) return false;
-  return !strcmp(dot + 1, "json");
+  return !strcmp(dot + 1, "json") || !strcmp(dot + 1, "lottie");
 }
 
 std::vector<std::string>
@@ -136,7 +136,7 @@ EvasApp::jsonFiles(const std::string &dirName, bool /*recurse*/)
     d = opendir(dirName.c_str());
     if (d) {
       while ((dir = readdir(d)) != NULL) {
-        if (isJsonFile(dir->d_name))
+        if (isLottiefile(dir->d_name))
           result.push_back(dirName + dir->d_name);
       }
       closedir(d);

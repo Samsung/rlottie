@@ -1,3 +1,4 @@
+subdir('zip')
 
 source_file = [
     'lottieparser.cpp',

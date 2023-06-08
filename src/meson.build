@@ -16,7 +16,7 @@ subdir('vector')
 subdir('lottie')
 subdir('binding')
 
-rlottie_lib_dep  = [ vector_dep, lottie_dep, binding_dep]
+rlottie_lib_dep  = [ vector_dep, zip_dep, lottie_dep, binding_dep]
 
 if get_option('thread') == true
     rlottie_lib_dep  += dependency('threads')
