@@ -420,6 +420,11 @@ using VTask = std::shared_ptr<VRleTask>;
 #include <thread>
 #include "vtaskqueue.h"
 
+#ifdef __linux__
+#include <pthread.h>
+#include <sstream>
+#endif
+
 class RleTaskScheduler {
     const unsigned                _count{std::thread::hardware_concurrency()};
     std::vector<std::thread>      _threads;
@@ -434,6 +439,13 @@ class RleTaskScheduler {
         FTOutline     outlineRef;
         SW_FT_Stroker stroker;
         SW_FT_Stroker_New(&stroker);
+
+        // Create Thread Name for Debugging (Linux)
+#ifdef __linux__
+        std::ostringstream nameStream;
+        nameStream << "lottie-tsk-" << i;
+        pthread_setname_np(pthread_self(), nameStream.str().c_str());
+#endif
 
         // Task Loop
         VTask task;
