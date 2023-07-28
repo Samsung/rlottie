@@ -165,28 +165,6 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
     painter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
-
-    // layer surface should be created if it is not created already or its size
-    // is changed.
-    bool isLayerSurfaceCreated = mSurfaceCache.is_layer_surface_created();
-    bool isLayerSurfaceSizeChanged =
-        isLayerSurfaceCreated &&
-        (mSurfaceCache.get_layer_surface()->width() != surface.width() ||
-         mSurfaceCache.get_layer_surface()->height() != surface.height());
-
-    if (!isLayerSurfaceCreated || isLayerSurfaceSizeChanged) {
-        if (isLayerSurfaceCreated && isLayerSurfaceSizeChanged)
-            mSurfaceCache.delete_layer_surface();
-
-        mSurfaceCache.create_layer_surface(surface.width(), surface.height(),
-                                           VBitmap::Format::ARGB32_Premultiplied);
-
-        // set layer draw region
-        mSurfaceCache.get_layer_painter()->setDrawRegion(
-            VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
-                  int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
-    }
-
     mRootLayer->render(&painter, {}, {}, mSurfaceCache);
     painter.end();
     return true;
@@ -236,7 +214,7 @@ void renderer::Mask::preprocess(const VRect &clip)
 }
 
 void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
-                             const VRle &matteRle, SurfaceCache &cache)
+                             const VRle &matteRle, SurfaceCache &)
 {
     auto renderlist = renderList();
 
@@ -252,41 +230,30 @@ void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
         mask = inheritMask;
     }
 
-    VPainter *usedPainter = painter;
-
-    if (cache.get_layer_painter() != nullptr) {
-        usedPainter = cache.get_layer_painter();
-        usedPainter->begin(cache.get_layer_surface());
-    }
-
     for (auto &i : renderlist) {
-        usedPainter->setBrush(i->mBrush);
+        painter->setBrush(i->mBrush);
         VRle rle = i->rle();
         if (matteRle.empty()) {
             if (mask.empty()) {
                 // no mask no matte
-                usedPainter->drawRle(VPoint(), rle);
+                painter->drawRle(VPoint(), rle);
             } else {
                 // only mask
-                usedPainter->drawRle(rle, mask);
+                painter->drawRle(rle, mask);
             }
+
         } else {
             if (!mask.empty()) rle = rle & mask;
 
             if (rle.empty()) continue;
             if (matteType() == model::MatteType::AlphaInv) {
                 rle = rle - matteRle;
-                usedPainter->drawRle(VPoint(), rle);
+                painter->drawRle(VPoint(), rle);
             } else {
                 // render with matteRle as clip.
-                usedPainter->drawRle(rle, matteRle);
+                painter->drawRle(rle, matteRle);
             }
         }
-    }
-
-    if (cache.get_layer_painter() != nullptr) {
-        usedPainter->end();
-        painter->drawBitmap(VPoint(), *cache.get_layer_surface(), mCombinedAlpha * 255.0f);
     }
 }
 
@@ -869,7 +836,7 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 
 void renderer::ShapeLayer::updateContent()
 {
-    mRoot->update(frameNo(), combinedMatrix(), combinedAlpha(), flag());
+    mRoot->update(frameNo(), combinedMatrix(), 1.0f , flag());
 
     if (mLayerData->hasPathOperator()) {
         mRoot->applyTrim();
@@ -894,6 +861,27 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
     if (mDrawableList.empty()) return {};
 
     return {mDrawableList.data(), mDrawableList.size()};
+}
+
+void renderer::ShapeLayer::render(VPainter *painter, const VRle &inheritMask,
+                                 const VRle &matteRle, SurfaceCache &cache)
+{
+    if (vIsZero(combinedAlpha())) return;
+
+    if (vCompare(combinedAlpha(), 1.0)) {
+        Layer::render(painter, inheritMask, matteRle, cache);
+    } else {
+        //do offscreen rendering
+        VSize    size = painter->clipBoundingRect().size();
+        VPainter srcPainter;
+        VBitmap srcBitmap = cache.make_surface(size.width(), size.height());
+        srcPainter.begin(&srcBitmap);
+        Layer::render(&srcPainter, inheritMask, matteRle, cache);
+        srcPainter.end();
+        painter->drawBitmap(VPoint(), srcBitmap,
+                            uint8_t(combinedAlpha() * 255.0f));
+        cache.release_surface(srcBitmap);
+    }
 }
 
 bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
@@ -991,7 +979,7 @@ void renderer::Group::update(int frameNo, const VMatrix &parentMatrix,
 
         mMatrix = m;
 
-        alpha = mModel.transform()->opacity(frameNo);
+        alpha = parentAlpha * mModel.transform()->opacity(frameNo);
         if (!vCompare(alpha, parentAlpha)) {
             newFlag |= DirtyFlagBit::Alpha;
         }
