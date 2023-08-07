@@ -147,6 +147,35 @@ bool renderer::Composition::update(int frameNo, const VSize &size,
     return true;
 }
 
+bool renderer::Composition::updatePartial(int frameNo, const VSize &size, 
+                                          unsigned int offset)
+{
+    // check if cached frame is same as requested frame.
+    if ((mViewSize.width() == size.width()) && (mCurFrameNo == frameNo) && 
+        (mOffset == offset))
+        return false;
+
+    mViewSize = size;
+    mCurFrameNo = frameNo;
+    mKeepAspectRatio = false;
+    mOffset = offset;
+
+    /*
+     * if viewbox dosen't scale exactly to the viewport
+     * we scale the viewbox keeping AspectRatioPreserved and then align the
+     * viewbox to the viewport using AlignCenter rule.
+     */
+    VMatrix m;
+    VSize   viewPort = mViewSize;
+    VSize   viewBox = mModel->size();
+    float   sx = float(viewPort.width()) / viewBox.width();
+    float   ty = offset;
+    m.translate(0, -ty).scale(sx, sx);
+
+    mRootLayer->update(frameNo, m, 1.0);
+    return true;
+}
+
 bool renderer::Composition::render(const rlottie::Surface &surface)
 {
     mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
@@ -169,6 +198,30 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
     painter.end();
     return true;
 }
+
+bool renderer::Composition::renderPartial(const rlottie::Surface &surface)
+{
+    mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
+                   uint32_t(surface.width()), uint32_t(surface.drawRegionHeight()),
+                   uint32_t(surface.bytesPerLine()),
+                   VBitmap::Format::ARGB32_Premultiplied);
+
+    /* schedule all preprocess task for this frame at once.
+     */
+    VRect clip(0, 0, int(surface.drawRegionWidth()),
+               int(surface.drawRegionHeight()));
+    mRootLayer->preprocess(clip);
+
+    VPainter painter(&mSurface);
+    // set sub surface area for drawing.
+    painter.setDrawRegion(
+        VRect(int(surface.drawRegionPosX()), 0,
+              int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+    mRootLayer->render(&painter, {}, {}, mSurfaceCache);
+    painter.end();
+    return true;
+}
+
 
 void renderer::Mask::update(int frameNo, const VMatrix &parentMatrix,
                             float /*parentAlpha*/, const DirtyFlag &flag)

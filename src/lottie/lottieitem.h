@@ -191,10 +191,12 @@ class Composition {
 public:
     explicit Composition(std::shared_ptr<model::Composition> composition);
     bool  update(int frameNo, const VSize &size, bool keepAspectRatio);
+    bool  updatePartial(int frameNo, const VSize &size, unsigned int offset);
     VSize size() const { return mViewSize; }
     void  buildRenderTree();
     const LOTLayerNode *renderTree() const;
     bool                render(const rlottie::Surface &surface);
+    bool                renderPartial(const rlottie::Surface &surface);
     void                setValue(const std::string &keypath, LOTVariant &value);
 
 private:
@@ -207,6 +209,7 @@ private:
     VArenaAlloc                         mAllocator{2048};
     int                                 mCurFrameNo;
     bool                                mKeepAspectRatio{true};
+    unsigned int                        mOffset{0};
 };
 
 class Layer {

@@ -142,7 +142,7 @@ public:
      *  @brief Sets the Draw Area available on the Surface.
      *
      *  Lottie will use the draw region size to generate frame image
-     *  and will update only the draw rgion of the surface.
+     *  and will update only the draw region of the surface.
      *
      *  @param[in] x      region area x position.
      *  @param[in] y      region area y position.
@@ -420,6 +420,18 @@ public:
      *  @internal
      */
     void              renderSync(size_t frameNo, Surface surface, bool keepAspectRatio=true);
+
+    /**
+     *  @brief Renders the content to partial surface synchronously.
+     *         for performance use the async rendering @see render
+     *
+     *  @param[in] frameNo Content corresponds to the @p frameNo needs to be drawn
+     *  @param[in] surface Surface in which content will be drawn
+     *
+     *  @internal
+     */
+    void              renderPartialSync(size_t frameNo, Surface surface);
+
 
     /**
      *  @brief Returns root layer of the composition updated with
