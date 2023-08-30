@@ -207,6 +207,7 @@ private:
     VArenaAlloc                         mAllocator{2048};
     int                                 mCurFrameNo;
     bool                                mKeepAspectRatio{true};
+    bool                                mHasDynamicValue{false};
 };
 
 class Layer {
