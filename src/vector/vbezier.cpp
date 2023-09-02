@@ -52,7 +52,13 @@ float VBezier::length() const
     if ((len - chord) > 0.01) {
         VBezier left, right;
         split(&left, &right);
-        return left.length() + right.length();
+
+        float sum = 0;
+        if (*this != left)
+            sum += left.length();
+        if (*this != right)
+            sum += right.length();
+        return sum;
     }
 
     return len;

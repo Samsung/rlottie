@@ -23,11 +23,26 @@
 #include "lottiemodel.h"
 #include <cassert>
 #include <iterator>
+#include <set>
 #include <stack>
 #include "vimageloader.h"
 #include "vline.h"
 
 using namespace rlottie::internal;
+
+bool model::Group::includes(model::Group *pointer) {
+    if (this == pointer) {
+        return true;
+    }
+    for (Object *child : mChildren) {
+        if ((child->type() == Type::Group || child->type() == Type::Layer)
+            && this != child
+            && static_cast<Group *>(child)->includes(pointer)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /*
  * We process the iterator objects in the children list
@@ -79,6 +94,8 @@ public:
 
     void visit(model::Object *obj)
     {
+        if (!mVisited.insert(obj).second) return;
+
         switch (obj->type()) {
         case model::Object::Type::Group:
         case model::Object::Type::Layer: {
@@ -89,6 +106,9 @@ public:
             break;
         }
     }
+
+private:
+    std::set<model::Object *> mVisited;
 };
 
 class LottieUpdateStatVisitor {
@@ -127,6 +147,8 @@ public:
     }
     void visit(model::Object *obj)
     {
+        if (!mVisited.insert(obj).second) return;
+
         switch (obj->type()) {
         case model::Object::Type::Layer: {
             visitLayer(static_cast<model::Layer *>(obj));
@@ -144,6 +166,9 @@ public:
             break;
         }
     }
+
+private:
+    std::set<model::Object *> mVisited;
 };
 
 void model::Composition::processRepeaterObjects()

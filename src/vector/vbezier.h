@@ -23,11 +23,14 @@
 #ifndef VBEZIER_H
 #define VBEZIER_H
 
+#include <tuple>
 #include <vpoint.h>
 
 V_BEGIN_NAMESPACE
 
 class VBezier {
+    friend bool operator == (const VBezier &l, const VBezier &r);
+
 public:
     VBezier() = default;
     VPointF     pointAt(float t) const;
@@ -132,6 +135,16 @@ inline void VBezier::split(VBezier *firstHalf, VBezier *secondHalf) const
     firstHalf->y3 = (firstHalf->y2 + c) * 0.5f;
     secondHalf->y2 = (secondHalf->y3 + c) * 0.5f;
     firstHalf->y4 = secondHalf->y1 = (firstHalf->y3 + secondHalf->y2) * 0.5f;
+}
+
+inline bool operator == (const VBezier &l, const VBezier &r)
+{
+    return std::tie(l.x1, l.y1, l.x2, l.y2, l.x3, l.y3, l.x4, l.y4)
+        == std::tie(r.x1, r.y1, r.x2, r.y2, r.x3, r.y3, r.x4, r.y4);
+}
+inline bool operator != (const VBezier &l, const VBezier &r)
+{
+    return !(l == r);
 }
 
 V_END_NAMESPACE
