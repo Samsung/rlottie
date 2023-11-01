@@ -131,7 +131,7 @@ if (LOTTIE_ASAN)
 endif()
 
 if (NOT LIB_INSTALL_DIR)
-    set (LIB_INSTALL_DIR "/usr/lib")
+    set (LIB_INSTALL_DIR "/usr/local/lib")
 endif (NOT LIB_INSTALL_DIR)
 
 #declare source and include files
