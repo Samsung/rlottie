@@ -88,7 +88,7 @@ target_link_libraries(rlottie
                         "${CMAKE_THREAD_LIBS_INIT}"
                      )
 
-if (NOT APPLE AND NOT WIN32)
+if (NOT APPLE AND NOT WIN32 AND BUILD_SHARED_LIBS)
     target_link_libraries(rlottie
                         PRIVATE
                             "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/rlottie.expmap"
