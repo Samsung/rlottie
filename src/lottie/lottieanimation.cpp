@@ -483,7 +483,7 @@ void lottie_shutdown_impl()
 #ifdef LOTTIE_LOGGING_SUPPORT
 void initLogging()
 {
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON__) && defined(__arm__)
     set_log_level(LogLevel::OFF);
 #else
     initialize(GuaranteedLogger(), "/tmp/", "rlottie", 1);
