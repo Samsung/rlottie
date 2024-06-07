@@ -2421,6 +2421,7 @@ void LottieParserImpl::parseKeyFrame(model::KeyFrames<T, Tag> &obj)
             outTangent = parseInperpolatorPoint();
         } else if (0 == strcmp(key, "t")) {
             keyframe.start_ = GetDouble();
+            keyframe.end_ = keyframe.start_;
         } else if (0 == strcmp(key, "s")) {
             parsed.value = true;
             getValue(keyframe.value_.start_);
