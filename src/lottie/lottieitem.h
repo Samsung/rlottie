@@ -348,12 +348,95 @@ public:
 protected:
     void preprocessStage(const VRect &clip) final;
     void updateContent() final;
-
 private:
     Drawable   mRenderNode;
     VTexture   mTexture;
     VPath      mPath;
     VDrawable *mDrawableList{nullptr};  // to work with the Span api
+};
+
+class CharPath {
+public:
+    VPath path;
+    float x_advance{0};
+};
+
+class TextLayer final : public Layer
+{
+public:
+    explicit TextLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    DrawableList renderList() final;
+    void         buildLayerNode() final;
+    bool         resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+                                LOTVariant &value) override;
+
+protected:
+    void                  preprocessStage(const VRect &clip) final;
+    void                  updateContent() final;
+    Group *               mRoot{nullptr};
+    model::TextDocument   *curTextDocument;
+    std::vector<std::unique_ptr<Drawable>> mRenderNode;
+    std::vector<VDrawable *>               mDrawableList;
+    std::vector<CharPath>                  mCharPathList;
+
+    void updateTextPath(int frameNo)
+    {
+        mCharPathList.clear();
+
+        curTextDocument =
+            &mLayerData->extra()->textLayer()->getTextDocument(frameNo);
+        auto fontDB = mLayerData->fontDB();
+        for (auto character : curTextDocument->mText) {
+            auto chars = fontDB->load(character, curTextDocument->mSize, curTextDocument->mFont);
+            if (chars) {
+                CharPath obj;
+                obj.path = chars->mOutline;
+                obj.x_advance = chars->mWidth;
+                mCharPathList.push_back(std::move(obj));
+            }
+        }
+    }
+
+    bool isStatic() { return mLayerData->extra()->textLayer()->isStatic(); }
+
+    void getTextData(model::TextData &obj, int frameNo)
+    {
+        mLayerData->extra()->textLayer()->getTextData(obj, frameNo);
+    }
+
+    void doStroke(VPath &path, model::Color &strokeColor, float opacity,
+                  float strokeWidth, float scale)
+    {
+        auto strokeDrawable = std::make_unique<Drawable>();
+        mRenderNode.push_back(std::move(strokeDrawable));
+        auto renderNode = mRenderNode.back().get();
+
+        renderNode->setType(VDrawable::Type::Stroke);
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
+
+        VBrush strokeBrush(strokeColor.r * 255, strokeColor.g * 255,
+                           strokeColor.b * 255, opacity / 100 * 255);
+        renderNode->setBrush(strokeBrush);
+
+        renderNode->setStrokeInfo(CapStyle::Flat, JoinStyle::Miter, 10.0,
+                                  strokeWidth * scale);
+        renderNode->mFlag |= VDrawable::DirtyState::Stroke;
+    }
+
+    void doFill(VPath &path, model::Color &fillColor, float opacity)
+    {
+        auto fillDrawable = std::make_unique<Drawable>();
+        mRenderNode.push_back(std::move(fillDrawable));
+        auto renderNode = mRenderNode.back().get();
+        renderNode->mFlag |= VDrawable::DirtyState::Path;
+        renderNode->mPath = path;
+
+        VBrush fillBrush(fillColor.r * 255, fillColor.g * 255,
+                         fillColor.b * 255, opacity / 100 * 255);
+        renderNode->setBrush(fillBrush);
+        renderNode->mFlag |= VDrawable::DirtyState::Brush;
+    }
 };
 
 class Object {

@@ -37,6 +37,11 @@ option('example',
    value: true,
    description: 'Enable building examples')
 
+option('ext-font',
+   type: 'boolean',
+   value: false,
+   description: 'Enable external font support')
+
 option('cmake',
   type: 'boolean',
   value: false,

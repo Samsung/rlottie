@@ -91,6 +91,9 @@ static renderer::Layer *createLayerItem(model::Layer *layerData,
     case model::Layer::Type::Image: {
         return allocator->make<renderer::ImageLayer>(layerData);
     }
+    case model::Layer::Type::Text: {
+        return allocator->make<renderer::TextLayer>(layerData, allocator);
+    }
     default:
         return nullptr;
         break;
@@ -373,20 +376,19 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
     return false;
 }
 
+
 bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
-                                         LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint32_t newDepth = keyPath.nextDepth(name(), depth);
-            for (const auto &layer : mLayers) {
-                layer->resolveKeyPath(keyPath, newDepth, value);
-            }
+            uint newDepth = keyPath.nextDepth(name(), depth);
+            mRoot->resolveKeyPath(keyPath, newDepth, value);
         }
         return true;
     }
     return false;
 }
+
 
 void renderer::Layer::update(int frameNumber, const VMatrix &parentMatrix,
                              float parentAlpha)
@@ -884,9 +886,88 @@ void renderer::ShapeLayer::render(VPainter *painter, const VRle &inheritMask,
         cache.release_surface(srcBitmap);
     }
 }
+                                         
+renderer::TextLayer::TextLayer(model::Layer *layerData, VArenaAlloc *allocator)
+    : renderer::Layer(layerData),
+      mRoot(allocator->make<renderer::Group>(nullptr, allocator))
+{
+    // TODO: Constructor
+}
 
-bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
-                                     LOTVariant &value)
+void renderer::TextLayer::updateContent()
+{
+    model::TextData             data;
+    float                       curX = 0., curY = 0.;
+    int                         index = 0, numOfIndex;
+
+    mRenderNode.clear();
+
+    updateTextPath(frameNo());
+    getTextData(data, frameNo());
+    numOfIndex = data.charAnimPropList.size();
+
+    for (auto &charPath : mCharPathList) {
+        VMatrix m;
+        float strokeWidthScale;
+        auto &  charAnimProp = data.charAnimPropList.at(index++);
+
+        // The animation properties could be less than actual number of
+        // characters. It is for reducing memory usage and for improving
+        // performance.
+        if (numOfIndex == index) index--;
+
+        m.translate(curX + charPath.x_advance / 2. * data.fontSize / 100. +
+                        charAnimProp.position.x(),
+                    curY + charAnimProp.position.y());
+        m.rotate(charAnimProp.rotation);
+        curX +=
+            charPath.x_advance * data.fontSize / 100. + charAnimProp.tracking;
+        m.translate(-charAnimProp.anchor -
+                    VPointF(charPath.x_advance / 2. * data.fontSize / 100., 0));
+        m.scale(charAnimProp.scale.x() / 100.,
+                charAnimProp.scale.y() / 100.);
+        m = m * combinedMatrix();
+
+        strokeWidthScale = m.scale();
+
+        m.scale(data.fontSize / 100.,
+                data.fontSize / 100.);
+
+        charPath.path.transform(m);
+
+        if (!data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+            doStroke(charPath.path, charAnimProp.strokeColor,
+                     charAnimProp.opacity, charAnimProp.strokeWidth, strokeWidthScale);
+        }
+
+        doFill(charPath.path, charAnimProp.fillColor, charAnimProp.opacity);
+
+        if (data.strokeOverFill && (charAnimProp.strokeWidth != 0)) {
+            doStroke(charPath.path, charAnimProp.strokeColor,
+                     charAnimProp.opacity, charAnimProp.strokeWidth, strokeWidthScale);
+        }
+    }
+}
+
+void renderer::TextLayer::preprocessStage(const VRect &clip)
+{
+    mDrawableList.clear();
+    auto renderlist = renderList();
+
+    for (auto &drawable : renderlist) drawable->preprocess(clip);
+}
+
+renderer::DrawableList renderer::TextLayer::renderList()
+{
+    if (skipRendering()) return {};
+
+    for (auto &renderNode : mRenderNode)
+        mDrawableList.emplace_back((VDrawable *)renderNode.get());
+
+    return {mDrawableList.data(), mDrawableList.size()};
+}
+
+bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
 {
     if (!keyPath.skip(name())) {
         if (!keyPath.matches(mModel.name(), depth)) {
@@ -909,6 +990,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
     }
     return true;
 }
+                                         
 
 bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                     LOTVariant &value)

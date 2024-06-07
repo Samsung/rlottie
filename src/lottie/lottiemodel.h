@@ -77,6 +77,7 @@ public:
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
+    friend inline bool  operator==(const Color &c1, const Color &c2);
 
 public:
     float r{1};
@@ -101,6 +102,13 @@ inline const Color operator*(const Color &c, float m)
 inline const Color operator*(float m, const Color &c)
 {
     return Color(c.r * m, c.g * m, c.b * m);
+}
+
+inline bool operator==(const Color &c1, const Color &c2)
+{
+    if (vCompare(c1.r, c2.r) && vCompare(c1.g, c2.g) && vCompare(c1.b, c2.b))
+        return true;
+    return false;
 }
 
 struct PathData {
@@ -397,6 +405,161 @@ private:
     bool isValue_{true};
 };
 
+/* *
+ * Hand written std::variant equivalent till c++17
+ */
+class PropertyText {
+public:
+    enum class Type {
+        Opacity = 0,
+        Rotation,
+        Tracking,
+        StrokeWidth,
+        Position,
+        Scale,
+        Anchor,
+        StrokeColor,
+        FillColor,
+    };
+    PropertyText(PropertyText::Type prop) : mProperty(prop)
+    {
+        switch (mProperty) {
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            construct(impl.mFloat, {});
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            construct(impl.mPoint, {});
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            construct(impl.mColor, {});
+            break;
+        }
+    }
+    ~PropertyText() { destroy(); }
+
+    PropertyText(PropertyText &&other) noexcept
+    {
+        switch (other.mProperty) {
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            construct(impl.mFloat, std::move(other.impl.mFloat));
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            construct(impl.mPoint, std::move(other.impl.mPoint));
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            construct(impl.mColor, std::move(other.impl.mColor));
+            break;
+        }
+        mProperty = other.mProperty;
+    }
+
+    // delete special member functions
+    PropertyText(const PropertyText &) = delete;
+    PropertyText &operator=(const PropertyText &) = delete;
+    PropertyText &operator=(PropertyText &&) = delete;
+
+    PropertyText::Type type() const { return mProperty; }
+
+    Property<float> &opacity()
+    {
+        assert(mProperty == Type::Opacity);
+        return impl.mFloat;
+    }
+    Property<float> &rotation()
+    {
+        assert(mProperty == Type::Rotation);
+        return impl.mFloat;
+    }
+    Property<float> &tracking()
+    {
+        assert(mProperty == Type::Tracking);
+        return impl.mFloat;
+    }
+    Property<float> &strokeWidth()
+    {
+        assert(mProperty == Type::StrokeWidth);
+        return impl.mFloat;
+    }
+    Property<VPointF> &position()
+    {
+        assert(mProperty == Type::Position);
+        return impl.mPoint;
+    }
+    Property<VPointF> &scale()
+    {
+        assert(mProperty == Type::Scale);
+        return impl.mPoint;
+    }
+    Property<VPointF> &anchor()
+    {
+        assert(mProperty == Type::Anchor);
+        return impl.mPoint;
+    }
+    Property<Color> &strokeColor()
+    {
+        assert(mProperty == Type::StrokeColor);
+        return impl.mColor;
+    }
+    Property<Color> &fillColor()
+    {
+        assert(mProperty == Type::FillColor);
+        return impl.mColor;
+    }
+
+private:
+    template <typename Tp>
+    void construct(Tp &member, Tp &&val)
+    {
+        new (&member) Tp(std::move(val));
+    }
+    void destroy()
+    {
+        switch (mProperty) {
+        case Type::Opacity:
+        case Type::Rotation:
+        case Type::Tracking:
+        case Type::StrokeWidth:
+            impl.mFloat.~Property<float>();
+            break;
+        case Type::Position:
+        case Type::Scale:
+        case Type::Anchor:
+            impl.mPoint.~Property<VPointF>();
+            break;
+        case Type::StrokeColor:
+        case Type::FillColor:
+            impl.mColor.~Property<Color>();
+            break;
+        }
+    }
+
+private:
+    PropertyText::Type mProperty;
+    union details {
+        Property<float>   mFloat;
+        Property<VPointF> mPoint;
+        Property<Color>   mColor;
+        details(){};
+        details(const details &) = delete;
+        details(details &&) = delete;
+        details &operator=(details &&) = delete;
+        details &operator=(const details &) = delete;
+        ~details(){};
+    } impl;
+};
+
 class Path;
 struct PathData;
 struct Dash {
@@ -501,6 +664,206 @@ private:
     };
 };
 
+class Unicode {
+private:
+    std::unique_ptr<uint32_t[]> mUnicodeText;
+    std::string                 mUtf8Text;
+    unsigned int                mUnicodeLength{0};
+    inline bool isInvalidByte(unsigned char x) {
+        return ((x == 192) || (x == 193) || (x >= 245));
+    }
+
+    inline bool isContinuationByte(unsigned char x) {
+        return ((x & 0xc0) == 0x80);
+    }
+
+public:
+    Unicode() = default;
+
+    Unicode(std::string input) {
+        setUtf8Text(std::move(input));
+    };
+
+    using iterator = uint32_t *;
+    using const_iterator = const uint32_t *;
+
+    iterator       begin() const { return mUnicodeText.get(); }
+    iterator       end() const { return mUnicodeText.get() + mUnicodeLength; }
+
+    bool convertToUnicode(const std::string &input, std::vector<uint32_t> &out) {
+        out.reserve(input.size());
+
+        for (unsigned int i = 0; i < input.size(); i++) {
+            unsigned char d = input.at(i);
+            uint32_t r = 0;
+
+            // FIXME: Need to handle error cases.
+            if ((d & 0x80) == 0) {              // 1 byte
+                out.push_back((uint32_t)d);
+            } else if ((d & 0xe0) == 0xc0) {    // 2 bytes
+                r = (d & 0x1f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x7F) return false;
+                out.push_back(r);
+            } else if ((d & 0xf0) == 0xe0) {    // 3 bytes
+                r  = (d & 0x0f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x7FF) return false;
+                out.push_back(r);
+            } else if ((d & 0xf8) == 0xf0) {    // 4 bytes
+                r  = (d & 0x07) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0xFFFF) return false;
+                out.push_back(r);
+            } else if ((d & 0xfc) == 0xf8) {    // 5 bytes
+                r  = (d & 0x03) << 24;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x1FFFFF) return false;
+                out.push_back(r);
+            } else if ((d & 0xfe) == 0xfc) {    // 6 bytes
+                r  = (d & 0x01) << 30;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 24;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 18;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 12;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f) << 6;
+
+                d = input.at(++i);
+                if ((d == 0) || isInvalidByte(d) || !isContinuationByte(d)) {
+                    return false;
+                }
+                r |= (d & 0x3f);
+
+                if (r <= 0x3FFFFFF) return false;
+                out.push_back(r);
+            } else {
+                printf("ERROR....  UTF8 Text[%s], index[%d]\n",
+                        input.c_str(), i);
+                i++;
+            }
+        }
+
+        return true;
+    }
+
+    void setUtf8Text(std::string input) {
+        std::vector<uint32_t> out;
+
+        if (convertToUnicode(input, out)) {
+            mUtf8Text = std::move(input);
+
+            mUnicodeLength = out.size();
+            mUnicodeText = std::make_unique<uint32_t[]>(mUnicodeLength);
+            memcpy(mUnicodeText.get(), out.data(), sizeof(uint32_t) * mUnicodeLength);
+        }
+    }
+
+    const std::string &getUtf8Text() const {
+        return mUtf8Text;
+    }
+
+    uint32_t *getUnicodeText() const {
+        return mUnicodeText.get();
+    }
+
+    int compare(const Unicode &input) {
+        auto t = input.getUnicodeText();
+
+        for (unsigned int i = 0; i < mUnicodeLength; i++) {
+            if (mUnicodeText[i] != t[i])
+                return 1;
+        }
+        return 0;
+    }
+
+    unsigned int size() const {
+        return mUnicodeLength;
+    }
+
+    uint32_t at(unsigned int i) const{
+        assert(i < mUnicodeLength);
+        return mUnicodeText[i];
+    }
+};
+
 struct Asset {
     enum class Type : unsigned char { Precomp, Image, Char };
     bool                  isStatic() const { return mStatic; }
@@ -517,6 +880,61 @@ struct Asset {
     int     mHeight{0};
     VBitmap mBitmap;
 };
+
+class Fonts {
+public:
+    std::string mFontName;
+    std::string mFontFamily;
+    std::string mFontStyle;
+    double      mFontAscent;
+};
+
+class Chars {
+public:
+    Unicode            mCh;            /* ch */
+    std::string        mStyle;         /* style */
+    std::string        mFontFamily;    /* fFamily */
+    double             mSize;          /* size */
+    double             mWidth;         /* w */
+    VPath              mOutline; /* data */
+};
+
+class FontDB
+{
+public:
+    const Chars* load(uint32_t charCode, int size, const std::string& fname) const
+    {
+        if (mChars.empty()) return nullptr;
+
+
+        auto family = ffamily(fname);
+        if (!family) return nullptr;
+
+        return chars(charCode, size, *family);
+    }
+private:
+    const Chars* chars(uint32_t charCode, int size, const std::string& ffamily) const
+    {
+        for (const auto & obj : mChars) {
+            if (size == (int)obj.mSize &&
+                charCode == obj.mCh.at(0) &&
+                obj.mFontFamily == ffamily ) return &obj;
+        }
+        return nullptr;
+    }
+    const std::string* ffamily(const std::string& fname) const
+    {
+        for (const auto & obj : mFonts) {
+            if (fname == obj.mFontName) return &obj.mFontFamily;
+        }
+
+        return nullptr;
+    }
+public:
+    std::vector<Fonts>  mFonts;
+    std::vector<Chars>  mChars;
+};
+
 
 class Layer;
 
@@ -568,6 +986,7 @@ public:
     std::unordered_map<std::string, Asset *> mAssets;
 
     std::vector<Marker> mMarkers;
+    FontDB              mFontDB;
     VArenaAlloc         mArenaAlloc{2048};
     Stats               mStats;
 };
@@ -665,6 +1084,214 @@ public:
     Transform *           mTransform{nullptr};
 };
 
+enum class Justification { Left, Right, Center };
+
+struct CharAnimatedProperties {
+    float   opacity{100.};
+    float   rotation{0.};
+    float   tracking{0.};
+    float   strokeWidth{0.};
+    VPointF position{0., 0.};
+    VPointF scale{100., 100.};
+    VPointF anchor{0., 0.};
+    Color   fillColor{0., 0., 0.};
+    Color   strokeColor{0., 0., 0.};
+};
+
+// This structure would have a properties snapshot of a specific frame.
+struct TextData {
+    bool          strokeOverFill{false};
+    Justification justification{Justification::Left};
+    int           fontSize{0};
+    float         ascent{0.};
+    float         lineHeight{0.};
+    float         baselineShift{0.};
+
+    // Animatable Properties per each character
+    std::vector<CharAnimatedProperties> charAnimPropList;
+};
+
+class TextDocument {
+public:
+    int           mTime;                               /* "t" */
+
+    /* The folloing values are member of a object "s". */
+    int           mSize{0};                            /* "s" */
+    std::string   mFont;                               /* "f" */
+    Unicode       mText;                               /* "t" */
+    Justification mJustification{Justification::Left}; /* "j" */
+    float         mTracking{0.0};                      /* "tr" */
+    float         mLineHeight{0.0};                    /* "lh" */
+    float         mBaselineShift{0.0};                 /* "ls" */
+    Color         mFillColor;                          /* "fc" */
+    Color         mStrokeColor;                        /* "sc" */
+    float         mStrokeWidth{0.0};                   /* "sw" */
+    bool          mStrokeOverFill{false};              /* "of" */
+
+    inline bool operator==(const TextDocument &a)
+    {
+        if ((mSize == a.mSize) && (mFont.compare(a.mFont) == 0) &&
+            (mText.compare(a.mText) == 0) &&
+            (mJustification == a.mJustification) &&
+            vCompare(mTracking, a.mTracking) &&
+            vCompare(mLineHeight, a.mLineHeight) &&
+            vCompare(mBaselineShift, a.mBaselineShift) &&
+            (mFillColor == a.mFillColor) && (mStrokeColor == a.mStrokeColor) &&
+            vCompare(mStrokeWidth, a.mStrokeWidth) &&
+            (mStrokeOverFill == a.mStrokeOverFill))
+            return true;
+        return false;
+    }
+};
+
+class TextAnimator {
+public:
+    std::string mName;
+
+    // Animated Properties
+    std::vector<PropertyText> mAnimatedProperties;
+
+    // Range Selection
+    int mRangeType{0};
+
+    // Unit: 1 = Percentage, Unit: 2 = Index
+    int             mRangeUnit{0};
+    Property<float> mRangeStart{0.};
+    Property<float> mRangeEnd{100.};
+    bool            mHasRange{false};
+};
+
+class TextLayerData {
+private:
+    TextDocument &textDocument(int frameNo)
+    {
+        for (auto &textDocument : mTextDocument) {
+            if (textDocument.mTime >= frameNo)
+                return textDocument;
+        }
+        return mTextDocument.back();
+    }
+
+public:
+    std::vector<TextDocument> mTextDocument;
+    std::vector<TextAnimator> mTextAnimator;
+
+    TextDocument &getTextDocument(int frameNo)
+    {
+        return textDocument(frameNo);
+    }
+
+    bool isStatic()
+    {
+        if (mTextAnimator.empty() && (mTextDocument.size() <= 1)) return true;
+        return false;
+    }
+
+    bool hasRange()
+    {
+        if (mTextAnimator.empty()) return false;
+        for (auto &textAnim : mTextAnimator) {
+            if (textAnim.mHasRange) return true;
+        }
+        return false;
+    }
+
+    void getTextData(TextData &obj, int frameNo)
+    {
+        auto &textDocument = getTextDocument(frameNo);
+        int  textLength = textDocument.mText.size();
+
+        // Non Animatable Properties & Common Text Properties
+        obj.fontSize = textDocument.mSize;
+        obj.justification = textDocument.mJustification;
+        obj.lineHeight = textDocument.mLineHeight;
+        obj.baselineShift = textDocument.mBaselineShift;
+        obj.strokeOverFill = textDocument.mStrokeOverFill;
+
+        // If it is static or it has no range,
+        // there is no need to create animation properties for each character.
+        if (isStatic() || !hasRange()) textLength = 1;
+
+        // Animatable Properties
+        for (int i = 0; i < textLength; i++) {
+            // Add animatable properties for each characters...
+            obj.charAnimPropList.emplace_back();
+            auto &animProp = obj.charAnimPropList.back();
+
+            animProp.strokeWidth = textDocument.mStrokeWidth;
+            animProp.fillColor = textDocument.mFillColor;
+            animProp.strokeColor = textDocument.mStrokeColor;
+
+            if (!mTextAnimator.empty()) {
+                for (auto &textAnim : mTextAnimator) {
+                    float rangeStartIndex = textAnim.mRangeStart.value(frameNo);
+                    float rangeEndIndex = textAnim.mRangeEnd.value(frameNo);
+                    float progress;  // 0.0 ~ 1.0
+
+                    // If the current unit is percentage, change it to index
+                    if (textAnim.mRangeUnit == 1) {
+                        rangeStartIndex = rangeStartIndex / 100. * textLength;
+                        rangeEndIndex = rangeEndIndex / 100. * textLength;
+                    }
+
+                    if ((rangeStartIndex <= i) && (i + 1 <= rangeEndIndex)) {
+                        // Apply values fully
+                        progress = 1.;
+                    } else if ((rangeStartIndex >= i) &&
+                               (rangeEndIndex <= i + 1)) {
+                        progress = rangeEndIndex - rangeStartIndex;
+                    } else if ((rangeStartIndex <= i) && (rangeEndIndex >= i) &&
+                               (rangeEndIndex <= i + 1)) {
+                        progress = rangeEndIndex - i;
+                    } else if ((rangeStartIndex >= i) &&
+                               (rangeStartIndex <= i + 1) &&
+                               (rangeEndIndex >= i + 1)) {
+                        progress = i + 1 - rangeStartIndex;
+                    } else {
+                        progress = 0.;
+                    }
+
+                    if (progress > 0.) {
+                        for (auto &property : textAnim.mAnimatedProperties) {
+                            switch (property.type()) {
+                            case PropertyText::Type::Opacity:
+                                animProp.opacity = lerp(animProp.opacity, property.opacity().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::Rotation:
+                                animProp.rotation = lerp(animProp.rotation, property.rotation().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::Tracking:
+                                animProp.tracking = lerp(animProp.tracking, property.tracking().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::StrokeWidth:
+                                animProp.strokeWidth = lerp(animProp.strokeWidth, property.strokeWidth().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::Position:
+                                animProp.position = lerp(animProp.position, property.position().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::Scale:
+                                animProp.scale = lerp(animProp.scale, property.scale().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::Anchor:
+                                animProp.anchor = lerp(animProp.anchor, property.anchor().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::FillColor:
+                                animProp.fillColor = lerp(animProp.fillColor, property.fillColor().value(frameNo), progress);
+                                break;
+                            case PropertyText::Type::StrokeColor:
+                                animProp.strokeColor = lerp(animProp.strokeColor, property.strokeColor().value(frameNo), progress);
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
+
 class Layer : public Group {
 public:
     enum class Type : uint8_t {
@@ -706,18 +1333,30 @@ public:
     }
     Asset *asset() const { return mExtra ? mExtra->mAsset : nullptr; }
     struct Extra {
-        Color               mSolidColor;
-        std::string         mPreCompRefId;
-        Property<float>     mTimeRemap; /* "tm" */
-        Composition *       mCompRef{nullptr};
-        Asset *             mAsset{nullptr};
-        std::vector<Mask *> mMasks;
+        Color                          mSolidColor;
+        std::string                    mPreCompRefId;
+        Property<float>                mTimeRemap; /* "tm" */
+        Composition *                  mCompRef{nullptr};
+        Asset *                        mAsset{nullptr};
+        std::vector<Mask *>            mMasks;
+        std::unique_ptr<TextLayerData> mTextLayerData{nullptr};
+
+        TextLayerData *textLayer()
+        {
+            if (!mTextLayerData)
+                mTextLayerData = std::make_unique<TextLayerData>();
+            return mTextLayerData.get();
+        }
     };
 
     Layer::Extra *extra()
     {
         if (!mExtra) mExtra = std::make_unique<Layer::Extra>();
         return mExtra.get();
+    }
+
+    const FontDB* fontDB() const {
+        return mExtra ? &mExtra->mCompRef->mFontDB : nullptr;
     }
 
 public:

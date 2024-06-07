@@ -82,6 +82,22 @@ void renderer::ShapeLayer::buildLayerNode()
     clayer().mNodeList.size = cnodes().size();
 }
 
+void renderer::TextLayer::buildLayerNode()
+{
+    renderer::Layer::buildLayerNode();
+
+    auto renderlist = renderList();
+
+    cnodes().clear();
+    for (auto &i : renderlist) {
+        auto lotDrawable = static_cast<renderer::Drawable *>(i);
+        lotDrawable->sync();
+        cnodes().push_back(lotDrawable->mCNode.get());
+    }
+    clayer().mNodeList.ptr = cnodes().data();
+    clayer().mNodeList.size = cnodes().size();
+}
+
 void renderer::Layer::buildLayerNode()
 {
     if (!mCApiData) {
