@@ -379,6 +379,7 @@ protected:
     std::vector<VDrawable *>               mDrawableList;
     std::vector<CharPath>                  mCharPathList;
 
+
     void updateTextPath(int frameNo)
     {
         mCharPathList.clear();

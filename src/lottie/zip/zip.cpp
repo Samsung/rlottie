@@ -27,7 +27,7 @@
 #else
 
 #include <unistd.h> // needed for symlink()
-#define STRCLONE(STR) ((STR) ? strdup(STR) : NULL)
+#define STRCLONE(STR) ((STR) ? _strdup(STR) : NULL)
 
 #endif
 

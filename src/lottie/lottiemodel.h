@@ -638,10 +638,10 @@ public:
             auto len = strlen(name);
             if (len < maxShortStringLength) {
                 setShortString(true);
-                strncpy(mData._buffer, name, len + 1);
+                strncpy_s(mData._buffer, name, len + 1);
             } else {
                 setShortString(false);
-                mPtr = strdup(name);
+                mPtr = _strdup(name);
             }
         }
     }

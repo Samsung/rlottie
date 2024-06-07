@@ -199,7 +199,7 @@ _gl_text_get(void *data, Evas_Object */*obj*/, const char */*part*/)
    ItemData *id = (ItemData *) data;
    const char *ptr = strrchr(jsonFiles[id->index].c_str(), '/');
    int len = int(ptr + 1 - jsonFiles[id->index].c_str()); // +1 to include '/'
-   return strdup(jsonFiles[id->index].substr(len).c_str());
+   return _strdup(jsonFiles[id->index].substr(len).c_str());
 }
 
 static void

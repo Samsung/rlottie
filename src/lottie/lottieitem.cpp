@@ -377,12 +377,14 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
 }
 
 
-bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
+bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,  LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
             uint32_t newDepth = keyPath.nextDepth(name(), depth);
-            mRoot->resolveKeyPath(keyPath, newDepth, value);
+            for (const auto &layer : mLayers) {
+                layer->resolveKeyPath(keyPath, newDepth, value);
+            }
         }
         return true;
     }
@@ -957,6 +959,20 @@ void renderer::TextLayer::preprocessStage(const VRect &clip)
     for (auto &drawable : renderlist) drawable->preprocess(clip);
 }
 
+bool renderer::TextLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
+{
+    if (!keyPath.matches(name(), depth)) {
+        return false;
+    }
+
+    if (!keyPath.skip(name())) {
+        if (keyPath.fullyResolvesTo(name(), depth) &&
+            transformProp(value.property())) {
+            // Handle property update
+            }
+    }
+    return true;
+}
 renderer::DrawableList renderer::TextLayer::renderList()
 {
     if (skipRendering()) return {};
@@ -966,31 +982,6 @@ renderer::DrawableList renderer::TextLayer::renderList()
 
     return {mDrawableList.data(), mDrawableList.size()};
 }
-
-bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
-{
-    if (!keyPath.skip(name())) {
-        if (!keyPath.matches(mModel.name(), depth)) {
-            return false;
-        }
-
-        if (!keyPath.skip(mModel.name())) {
-            if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
-                transformProp(value.property())) {
-                mModel.filter()->addValue(value);
-            }
-        }
-    }
-
-    if (keyPath.propagate(name(), depth)) {
-        uint32_t newDepth = keyPath.nextDepth(name(), depth);
-        for (auto &child : mContents) {
-            child->resolveKeyPath(keyPath, newDepth, value);
-        }
-    }
-    return true;
-}
-                                         
 
 bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                     LOTVariant &value)
@@ -1074,6 +1065,30 @@ void renderer::Group::update(int frameNo, const VMatrix &parentMatrix,
     for (const auto &content : mContents) {
         content->update(frameNo, matrix(), alpha, newFlag);
     }
+}
+
+bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
+{
+    if (!keyPath.skip(name())) {
+        if (!keyPath.matches(mModel.name(), depth)) {
+            return false;
+        }
+
+        if (!keyPath.skip(mModel.name())) {
+            if (keyPath.fullyResolvesTo(mModel.name(), depth) &&
+                transformProp(value.property())) {
+                mModel.filter()->addValue(value);
+            }
+        }
+    }
+
+    if (keyPath.propagate(name(), depth)) {
+        uint32_t newDepth = keyPath.nextDepth(name(), depth);
+        for (auto &child : mContents) {
+            child->resolveKeyPath(keyPath, newDepth, value);
+        }
+    }
+    return true;
 }
 
 void renderer::Group::applyTrim()
