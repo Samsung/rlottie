@@ -377,11 +377,11 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
 }
 
 
-bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
+bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth, LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint newDepth = keyPath.nextDepth(name(), depth);
+            uint32_t newDepth = keyPath.nextDepth(name(), depth);
             mRoot->resolveKeyPath(keyPath, newDepth, value);
         }
         return true;

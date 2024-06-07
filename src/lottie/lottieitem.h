@@ -367,7 +367,7 @@ public:
     explicit TextLayer(model::Layer *layerData, VArenaAlloc *allocator);
     DrawableList renderList() final;
     void         buildLayerNode() final;
-    bool         resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+    bool         resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                 LOTVariant &value) override;
 
 protected:
