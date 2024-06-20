@@ -1306,9 +1306,9 @@ renderer::Stroke::Stroke(model::Stroke *data)
 static vthread_local std::vector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
-                                     float)
+                                     float alpha)
 {
-    auto combinedAlpha = mModel.opacity(frameNo);
+    auto combinedAlpha = alpha * mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
     VBrush brush(color);
