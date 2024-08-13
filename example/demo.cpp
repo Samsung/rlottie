@@ -207,6 +207,10 @@ public:
                          return rlottie::Color(1, 0, 0);
                      }
                  });
+            view8->player()->setValue<rlottie::Property::TrimEnd>("Shape Layer 2.Trim Paths 1",
+                [](const rlottie::FrameInfo& info) {
+                     return rlottie::Point(0, 30);
+                 });
         }
         view8->setPos(2100, 0);
         view8->setSize(300, 300);
