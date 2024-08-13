@@ -212,9 +212,11 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
                               case LOTTIE_ANIMATION_PROPERTY_STROKEOPACITY:
                               case LOTTIE_ANIMATION_PROPERTY_STROKEWIDTH:
                               case LOTTIE_ANIMATION_PROPERTY_TR_ROTATION:
+                              case LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_START:
                                 return 1;
                               case LOTTIE_ANIMATION_PROPERTY_TR_POSITION:
                               case LOTTIE_ANIMATION_PROPERTY_TR_SCALE:
+                              case LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_END:
                                 return 2;
                               default:
                                 return 0;
@@ -276,6 +278,19 @@ lottie_animation_property_override(Lottie_Animation_S *animation,
     case LOTTIE_ANIMATION_PROPERTY_TR_ROTATION: {
         double r = v[0];
         animation->mAnimation->setValue<rlottie::Property::TrRotation>(keypath, (float)r);
+        break;
+    }
+    case LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_START: {
+        double start = v[0];
+        if (start < 0 || start > 100) break;
+        animation->mAnimation->setValue<rlottie::Property::TrimStart>(keypath, (float)start);
+        break;
+    }
+    case LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_END: {
+        double start = v[0];
+        double end = v[1];
+        if (start < 0 || start > 100 || end < 0 || end > 100) break;
+        animation->mAnimation->setValue<rlottie::Property::TrimEnd>(keypath, rlottie::Point((float)start, (float)end));
         break;
     }
     case LOTTIE_ANIMATION_PROPERTY_TR_ANCHOR:

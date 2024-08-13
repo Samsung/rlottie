@@ -425,6 +425,25 @@ public:
     }
 };
 
+template <>
+class Filter<model::Trim>: public FilterBase<model::Trim>
+{
+public:
+    Filter(model::Trim* model) : FilterBase<model::Trim>(model) {}
+
+    model::Trim::Segment segment(int frameNo) const
+    {
+        if (this->hasFilter(rlottie::Property::TrimStart)) {
+            this->model_->updateTrimStartValue(this->filter()->value(rlottie::Property::TrimStart, frameNo));
+        }
+        if (this->hasFilter(rlottie::Property::TrimEnd)) {
+            this->model_->updateTrimEndValue(this->filter()->point(rlottie::Property::TrimEnd, frameNo));
+        }
+        model::Trim::Segment segment = this->model()->segment(frameNo);
+        return segment;
+    }
+};
+
 
 }  // namespace model
 

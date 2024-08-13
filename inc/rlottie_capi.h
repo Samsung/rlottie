@@ -41,7 +41,9 @@ typedef enum {
     LOTTIE_ANIMATION_PROPERTY_TR_POSITION,    /*!< Transform Position property of Layer and Group object , value type is int */
     LOTTIE_ANIMATION_PROPERTY_TR_SCALE,       /*!< Transform Scale property of Layer and Group object , value type is float range[0 ..100] */
     LOTTIE_ANIMATION_PROPERTY_TR_ROTATION,    /*!< Transform Scale property of Layer and Group object , value type is float. range[0 .. 360] in degrees*/
-    LOTTIE_ANIMATION_PROPERTY_TR_OPACITY      /*!< Transform Opacity property of Layer and Group object , value type is float [ 0 .. 100] */
+    LOTTIE_ANIMATION_PROPERTY_TR_OPACITY,      /*!< Transform Opacity property of Layer and Group object , value type is float [ 0 .. 100] */
+    LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_START, /*!< Trim Path Start property of Shape object , value type is float [0 .. 100] */
+    LOTTIE_ANIMATION_PROPERTY_TRIM_PATH_END    /*!< Trim Path End property of Shape object , value type is float [0 .. 100] */
 }Lottie_Animation_Property;
 
 typedef struct Lottie_Animation_S Lottie_Animation;

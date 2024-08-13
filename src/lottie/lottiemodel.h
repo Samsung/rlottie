@@ -1009,6 +1009,20 @@ public:
     };
     enum class TrimType { Simultaneously, Individually };
     Trim() : Object(Object::Type::Trim) {}
+
+    void updateTrimStartValue(float start)
+    {
+        mStart.value() = start;
+    }
+
+    void updateTrimEndValue(VPointF pos)
+    {
+        for (auto &keyFrame : mEnd.animation().frames_) {
+            keyFrame.value_.start_ = pos.x();
+            keyFrame.value_.end_ = pos.y();
+        }
+    }
+
     /*
      * if start > end vector trims the path as a loop ( 2 segment)
      * if start < end vector trims the path without loop ( 1 segment).

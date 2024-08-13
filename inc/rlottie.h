@@ -113,7 +113,9 @@ enum class Property {
     TrPosition,    /*!< Transform Position property of Layer and Group object , value type is rlottie::Point */
     TrScale,       /*!< Transform Scale property of Layer and Group object , value type is rlottie::Size. range[0 ..100] */
     TrRotation,    /*!< Transform Rotation property of Layer and Group object , value type is float. range[0 .. 360] in degrees*/
-    TrOpacity      /*!< Transform Opacity property of Layer and Group object , value type is float [ 0 .. 100] */
+    TrOpacity,     /*!< Transform Opacity property of Layer and Group object , value type is float [ 0 .. 100] */
+    TrimStart,     /*!< Trim Start property of Shape object , value type is float [ 0 .. 100] */
+    TrimEnd        /*!< Trim End property of Shape object , value type is rlottie::Point [ 0 .. 100] */
 };
 
 struct Color_Type{};
@@ -518,8 +520,8 @@ template<> struct MapType<std::integral_constant<Property, Property::TrOpacity>>
 template<> struct MapType<std::integral_constant<Property, Property::TrAnchor>>: Point_Type{};
 template<> struct MapType<std::integral_constant<Property, Property::TrPosition>>: Point_Type{};
 template<> struct MapType<std::integral_constant<Property, Property::TrScale>>: Size_Type{};
-
-
+template<> struct MapType<std::integral_constant<Property, Property::TrimStart>>: Float_Type{};
+template<> struct MapType<std::integral_constant<Property, Property::TrimEnd>>: Point_Type{};
 }  // namespace lotplayer
 
 #endif  // _RLOTTIE_H_
