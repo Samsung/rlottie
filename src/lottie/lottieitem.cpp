@@ -479,6 +479,7 @@ renderer::CompLayer::CompLayer(model::Layer *layerModel, VArenaAlloc *allocator)
     // as lottie model keeps the data in front-toback-order.
     for (auto it = mLayerData->mChildren.crbegin();
          it != mLayerData->mChildren.rend(); ++it) {
+        if ((*it)->type() != model::Object::Type::Layer) continue;
         auto model = static_cast<model::Layer *>(*it);
         auto item = createLayerItem(model, allocator);
         if (item) mLayers.push_back(item);
