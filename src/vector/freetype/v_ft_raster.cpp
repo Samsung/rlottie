@@ -537,6 +537,10 @@ static void gray_render_line(RAS_ARG_ TPos to_x, TPos to_y)
     dx = to_x - ras.x;
     dy = to_y - ras.y;
 
+    if (SW_FT_ABS(dx) > 10000000 || SW_FT_ABS(dy) > 10000000) {
+         goto End;
+    }
+
     fx1 = ras.x - SUBPIXELS(ex1);
     fy1 = ras.y - SUBPIXELS(ey1);
 
@@ -707,6 +711,7 @@ static void gray_render_conic(RAS_ARG_ const SW_FT_Vector* control,
             gray_split_conic(arc);
             arc += 2;
             top++;
+            if (top >= 32) return; // levels size is 32
             levels[top] = levels[top - 1] = level - 1;
             continue;
         }
