@@ -2368,17 +2368,16 @@ public:
 
 static char* uncompressZip(const char * str, size_t length)
 {
-    const char* errMsg = "Failed to unzip dotLottie!";
-
     auto zip = zip_stream_open(str, length, 0, 'r');
     if (!zip) {
-        vCritical << errMsg;
+        vCritical << "Failed to unzip dotLottie: read fail!";
         return nullptr;
     }
 
-    //Read a representive animation
+    // Read a representative animation
     if (zip_entry_openbyindex(zip, 1)) {
-        vCritical << errMsg;
+        vCritical << "Failed to unzip dotLottie: open by index fail!";
+        zip_stream_close(zip);
         return nullptr;
     }
 
@@ -2389,7 +2388,20 @@ static char* uncompressZip(const char * str, size_t length)
     zip_entry_close(zip);
     zip_stream_close(zip);
 
-    return buf;
+    if (buf == nullptr || bufSize == 0) {
+        vCritical << "Failed to unzip dotLottie: buffer is empty!";
+        return nullptr;
+    }
+
+    char* terminatedBuf = static_cast<char*>(realloc(buf, bufSize + 1));
+    if (!terminatedBuf) {
+        free(buf);
+        vCritical << "Failed to unzip dotLottie: failed to allocate!";
+        return nullptr;
+    }
+
+    terminatedBuf[bufSize] = '\0';
+    return terminatedBuf;
 }
 
 static bool checkDotLottie(const char * str)
@@ -2397,6 +2409,32 @@ static bool checkDotLottie(const char * str)
     //check the .Lottie signature.
     if (str[0] == 0x50 && str[1] == 0x4B && str[2] == 0x03 && str[3] == 0x04) return true;
     else return false;
+}
+
+std::shared_ptr<model::Composition> parseImpl(char* input,
+                                              std::string dir_path,
+                                              model::ColorFilter filter)
+{
+    LottieParserImpl obj(input, std::move(dir_path), std::move(filter));
+
+    if (!obj.VerifyType()) {
+        vWarning << "Input data is not Lottie format!";
+        return {};
+    }
+
+    obj.parseComposition();
+    auto composition = obj.composition();
+    if (composition) {
+        composition->processRepeaterObjects();
+        composition->updateStats();
+
+#ifdef LOTTIE_DUMP_TREE_SUPPORT
+        ObjectInspector inspector;
+        inspector.visit(composition.get(), "");
+#endif
+    }
+
+    return composition;
 }
 
 std::shared_ptr<model::Composition> model::parse(char *             str,
@@ -2409,30 +2447,16 @@ std::shared_ptr<model::Composition> model::parse(char *             str,
     auto dotLottie = checkDotLottie(str);
     if (dotLottie) {
         input = uncompressZip(str, length);
-    }
-
-    LottieParserImpl obj(input, std::move(dir_path), std::move(filter));
-
-    if (dotLottie) free(input);
-
-    if (obj.VerifyType()) {
-        obj.parseComposition();
-        auto composition = obj.composition();
-        if (composition) {
-            composition->processRepeaterObjects();
-            composition->updateStats();
-
-#ifdef LOTTIE_DUMP_TREE_SUPPORT
-            ObjectInspector inspector;
-            inspector.visit(composition.get(), "");
-#endif
-
-            return composition;
+        if (!input) {
+            vWarning << "Failed to decompress .lottie archive.";
+            return {};
         }
     }
 
-    vWarning << "Input data is not Lottie format!";
-    return {};
+    auto result = parseImpl(input, std::move(dir_path), std::move(filter));
+
+    if (dotLottie) free(input);
+    return result;
 }
 
 RAPIDJSON_DIAG_POP
