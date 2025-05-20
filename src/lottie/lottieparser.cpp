@@ -797,6 +797,46 @@ static std::string convertFromBase64(const std::string &str)
     return b64decode(b64Data, length);
 }
 
+static bool isResourcePathSafe(const std::string& baseDir, const std::string& userPath)
+{
+    char resolvedBase[PATH_MAX] = {};
+    char resolvedTarget[PATH_MAX] = {};
+
+    // Resolve base directory
+    if (!realpath(baseDir.c_str(), resolvedBase)) {
+#ifdef DEBUG_PARSER
+        vWarning << "Error: Cannot resolve base path: " << baseDir.c_str();
+#endif
+        return false;
+    }
+
+    // Resolve target path
+    std::string fullPath = baseDir;
+    if (!baseDir.empty() && baseDir.back() != '/') fullPath += "/";
+    fullPath += userPath;
+
+    if (!realpath(fullPath.c_str(), resolvedTarget)) {
+#ifdef DEBUG_PARSER
+        vWarning << "Error: Cannot resolve target path: " << fullPath.c_str();
+#endif
+        return false;
+    }
+
+    std::string base(resolvedBase);
+    std::string target(resolvedTarget);
+
+    // Ensure target starts with base
+    bool result = target.compare(0, base.length(), base) == 0 &&
+         (target.length() == base.length() || target[base.length()] == '/');
+
+    if (!result) {
+#ifdef DEBUG_PARSER
+        vWarning << "Error: Dangerous path blocked: " << fullPath.c_str();
+#endif
+    }
+    return result;
+}
+
 /*
  *  std::to_string() function is missing in VS2017
  *  so this is workaround for windows build
@@ -819,7 +859,7 @@ model::Asset *LottieParserImpl::parseAsset()
     auto        asset = allocator().make<model::Asset>();
     std::string filename;
     std::string relativePath;
-    bool        embededResource = false;
+    bool        embeddedResource = false;
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "w")) {
@@ -832,7 +872,7 @@ model::Asset *LottieParserImpl::parseAsset()
         } else if (0 == strcmp(key, "u")) { /* relative image path */
             relativePath = GetStringObject();
         } else if (0 == strcmp(key, "e")) { /* relative image path */
-            embededResource = GetInt();
+            embeddedResource = GetInt();
         } else if (0 == strcmp(key, "id")) { /* reference id*/
             if (PeekType() == kStringType) {
                 asset->mRefId = GetStringObject();
@@ -859,14 +899,18 @@ model::Asset *LottieParserImpl::parseAsset()
         }
     }
 
-    if (asset->mAssetType == model::Asset::Type::Image) {
-        if (embededResource) {
-            // embeder resource should start with "data:"
-            if (filename.compare(0, 5, "data:") == 0) {
+    if (asset->mAssetType == model::Asset::Type::Image && !filename.empty()) {
+        if (embeddedResource) {
+            // embedded resource should start with "data:"
+            // URL Scheme: "data:[<mediatype>][;base64],<data>"
+            if (filename.compare(0, 5, "data:") == 0 && filename.find(',') != std::string::npos) {
                 asset->loadImageData(convertFromBase64(filename));
             }
         } else {
-            asset->loadImagePath(mDirPath + relativePath + filename);
+            // reject dangerous paths
+            if (isResourcePathSafe(mDirPath, relativePath + filename)) {
+                asset->loadImagePath(mDirPath + relativePath + filename);
+            }
         }
     }
 
