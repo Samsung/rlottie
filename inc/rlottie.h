@@ -23,6 +23,7 @@
 #ifndef _RLOTTIE_H_
 #define _RLOTTIE_H_
 
+#include <functional>
 #include <future>
 #include <vector>
 #include <memory>
