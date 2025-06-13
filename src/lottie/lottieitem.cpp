@@ -88,6 +88,10 @@ static renderer::Layer *createLayerItem(model::Layer *layerData,
 {
     switch (layerData->mLayerType) {
     case model::Layer::Type::Precomp: {
+        model::Composition *comp = layerData->extra()->mCompRef;
+        if (comp && comp->mRootLayer->includes(layerData)) {
+            return nullptr;
+        }
         return allocator->make<renderer::CompLayer>(layerData, allocator);
     }
     case model::Layer::Type::Solid: {
@@ -1192,6 +1196,11 @@ void renderer::Polystar::updatePath(VPath &path, int frameNo)
 
     path.reset();
     VMatrix m;
+
+    if (!(points > 0)) {
+        vWarning << "The number of path points is below zero or NaN at all";
+        return;
+    }
 
     if (mData->mPolyType == model::Polystar::PolyType::Star) {
         path.addPolystar(points, innerRadius, outerRadius, innerRoundness,

@@ -157,8 +157,8 @@ struct PathData {
 
 template <typename T, typename Tag = void>
 struct Value {
-    T     start_;
-    T     end_;
+    T     start_{};
+    T     end_{};
     T     at(float t) const { return lerp(start_, end_, t); }
     float angle(float) const { return 0; }
     void  cache() {}
@@ -168,10 +168,10 @@ struct Position;
 
 template <typename T>
 struct Value<T, Position> {
-    T     start_;
-    T     end_;
-    T     inTangent_;
-    T     outTangent_;
+    T     start_{};
+    T     end_{};
+    T     inTangent_{};
+    T     outTangent_{};
     float length_{0};
     bool  hasTangent_{false};
 
@@ -345,6 +345,7 @@ public:
             value().toPath(path);
         } else {
             const auto &vec = animation().frames_;
+            if (vec.empty()) return;
             if (vec.front().start_ >= frameNo)
                 return vec.front().value_.start_.toPath(path);
             if (vec.back().end_ <= frameNo)
@@ -664,6 +665,7 @@ class Group : public Object {
 public:
     Group() : Object(Object::Type::Group) {}
     explicit Group(Object::Type type) : Object(type) {}
+    bool includes(Group *);
 
 public:
     std::vector<Object *> mChildren;
@@ -1072,8 +1074,8 @@ public:
 private:
     Segment noloop(float start, float end) const
     {
-        assert(start >= 0);
-        assert(end >= 0);
+        if (!(start >= 0)) start = 0;
+        if (!(end >= 0)) end = 0;
         Segment s;
         s.start = std::min(start, end);
         s.end = std::max(start, end);
@@ -1081,8 +1083,8 @@ private:
     }
     Segment loop(float start, float end) const
     {
-        assert(start >= 0);
-        assert(end >= 0);
+        if (!(start >= 0)) start = 0;
+        if (!(end >= 0)) end = 0;
         Segment s;
         s.start = std::max(start, end);
         s.end = std::min(start, end);
