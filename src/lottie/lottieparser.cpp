@@ -64,6 +64,15 @@ RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(effc++)
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#include <shlwapi.h>
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX MAX_PATH
+#endif
+
 using namespace rapidjson;
 
 using namespace rlottie::internal;
@@ -797,13 +806,27 @@ static std::string convertFromBase64(const std::string &str)
     return b64decode(b64Data, length);
 }
 
+namespace
+{
+   bool Canonicalize(const char *path, char *resolved_path)
+   {
+#ifdef _WIN32
+       return !!PathCanonicalizeA(resolved_path, path);
+#else
+       return realpath(path, resolved_path);
+#endif
+   }
+}
+
 static bool isResourcePathSafe(const std::string& baseDir, const std::string& userPath)
 {
     char resolvedBase[PATH_MAX] = {};
     char resolvedTarget[PATH_MAX] = {};
 
     // Resolve base directory
-    if (!realpath(baseDir.c_str(), resolvedBase)) {
+    if (!Canonicalize(baseDir.c_str(), resolvedBase))
+    {
+
 #ifdef DEBUG_PARSER
         vWarning << "Error: Cannot resolve base path: " << baseDir.c_str();
 #endif
@@ -815,7 +838,7 @@ static bool isResourcePathSafe(const std::string& baseDir, const std::string& us
     if (!baseDir.empty() && baseDir.back() != '/') fullPath += "/";
     fullPath += userPath;
 
-    if (!realpath(fullPath.c_str(), resolvedTarget)) {
+    if (!Canonicalize(fullPath.c_str(), resolvedTarget)) {
 #ifdef DEBUG_PARSER
         vWarning << "Error: Cannot resolve target path: " << fullPath.c_str();
 #endif
