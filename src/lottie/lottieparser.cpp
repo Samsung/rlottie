@@ -67,6 +67,8 @@ RAPIDJSON_DIAG_OFF(effc++)
 #ifdef _WIN32
 #include <windows.h>
 #include <shlwapi.h>
+
+#include <string_view>
 #endif
 
 #ifndef PATH_MAX
@@ -808,10 +810,52 @@ static std::string convertFromBase64(const std::string &str)
 
 namespace
 {
+   #ifdef _WIN32
+   std::wstring ToStdWString( std::string_view str )
+   {
+      std::wstring wstr;
+      int          nchars = ::MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.length(), 0, 0);
+      if ( nchars > 0 )
+      {
+        wstr.resize( nchars );
+        ::MultiByteToWideChar( CP_UTF8, 0, str.data(), (int)str.length(),
+                               const_cast<wchar_t *>( wstr.c_str() ),
+                                nchars );
+      }
+
+      return wstr;
+   }
+
+   std::string ToStdString( std::wstring_view wstr )
+   {
+       std::string str;
+       int         nchars = ::WideCharToMultiByte( CP_UTF8, 0, wstr.data(), (int)wstr.length(), NULL, NULL, NULL, NULL );
+       if ( nchars > 0 )
+       {
+           str.resize(nchars);
+           ::WideCharToMultiByte( CP_UTF8, 0, wstr.data(), (int)wstr.length(),
+                                  const_cast<char *>(str.c_str()), nchars, NULL, NULL );
+       }
+
+       return str;
+   }
+   #endif
+
    bool Canonicalize(const char *path, char *resolved_path)
    {
 #ifdef _WIN32
-       return !!PathCanonicalizeA(resolved_path, path);
+       std::wstring wpath = ToStdWString( path );
+       std::wstring wresolved_path;
+       wresolved_path.resize( PATH_MAX );
+       if ( PathCanonicalizeW( wresolved_path.data(), wpath.c_str() ) )
+       {
+           std::string path = ToStdString(wresolved_path);
+           strcpy_s( resolved_path, path.length() * sizeof( char ), path.c_str() );
+
+           return true;
+       }
+
+       return false;
 #else
        return realpath(path, resolved_path);
 #endif
