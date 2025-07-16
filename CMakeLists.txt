@@ -83,9 +83,14 @@ endif()
 set( CMAKE_THREAD_PREFER_PTHREAD TRUE )
 find_package( Threads )
 
+if(WIN32)
+   set( OSSPEC_LIBS Shlwapi.lib )
+endif()
+
 target_link_libraries(rlottie
                     PUBLIC
                         "${CMAKE_THREAD_LIBS_INIT}"
+                        ${OSSPEC_LIBS}
                      )
 
 if (NOT APPLE AND NOT WIN32)
