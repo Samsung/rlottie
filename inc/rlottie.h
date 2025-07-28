@@ -307,8 +307,8 @@ public:
      *  @internal
      */
     static std::unique_ptr<Animation>
-    loadFromData(std::string jsonData, const std::string &key,
-                 const std::string &resourcePath="", bool cachePolicy=true);
+    loadFromData(std::string jsonData, const std::string &key = std::string(),
+                 const std::string &resourcePath = std::string(), bool cachePolicy=true);
 
     /**
      *  @brief Constructs an animation object from JSON string data and update.
