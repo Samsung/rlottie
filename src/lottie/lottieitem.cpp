@@ -384,6 +384,40 @@ static VRect tightenClipToBounds(const VRect &clip, const VRect &bounds)
     return tight.empty() ? clip : tight;
 }
 
+struct InlineLayerAlphaInfo {
+    int  paintCount{0};
+    bool solidFillOnly{true};
+};
+
+static void collectInlineLayerAlphaInfo(model::Object *object,
+                                        InlineLayerAlphaInfo &info)
+{
+    if (!object) return;
+
+    switch (object->type()) {
+    case model::Object::Type::Group: {
+        auto group = static_cast<model::Group *>(object);
+        for (auto child : group->mChildren) {
+            collectInlineLayerAlphaInfo(child, info);
+        }
+        break;
+    }
+    case model::Object::Type::Fill: {
+        ++info.paintCount;
+        break;
+    }
+    case model::Object::Type::GFill:
+    case model::Object::Type::Stroke:
+    case model::Object::Type::GStroke: {
+        ++info.paintCount;
+        info.solidFillOnly = false;
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
                                    renderer::DrawableList drawables)
 {
@@ -1273,6 +1307,14 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 
     std::vector<renderer::Shape *> list;
     mRoot->processPaintItems(list);
+    InlineLayerAlphaInfo alphaInfo;
+    for (auto child : layerData->mChildren) {
+        collectInlineLayerAlphaInfo(child, alphaInfo);
+    }
+    mInlineLayerAlpha =
+        (alphaInfo.paintCount == 1 && alphaInfo.solidFillOnly &&
+         !layerData->hasBitmapEffect() &&
+         layerData->mBlendMode == model::BlendMode::Normal);
 
     if (layerData->hasPathOperator()) {
         list.clear();
@@ -1284,7 +1326,8 @@ void renderer::ShapeLayer::updateContent()
 {
     ScopedProfileEvent profile(ProfileEvent::ShapeLayerUpdateContent);
 
-    mRoot->update(frameNo(), combinedMatrix(), 1.0f , flag());
+    mRoot->update(frameNo(), combinedMatrix(),
+                  mInlineLayerAlpha ? combinedAlpha() : 1.0f, flag());
     mDrawableListValid = false;
 
     if (mLayerData->hasPathOperator()) {
@@ -1321,7 +1364,7 @@ void renderer::ShapeLayer::render(VPainter *painter, const VRle &inheritMask,
 {
     if (vIsZero(combinedAlpha())) return;
 
-    if (vCompare(combinedAlpha(), 1.0)) {
+    if (vCompare(combinedAlpha(), 1.0) || mInlineLayerAlpha) {
         Layer::render(painter, inheritMask, matteRle, cache);
     } else {
         //do offscreen rendering

@@ -359,6 +359,7 @@ protected:
     void                     updateContent() final;
     std::vector<VDrawable *> mDrawableList;
     bool                     mDrawableListValid{false};
+    bool                     mInlineLayerAlpha{false};
     Group *                  mRoot{nullptr};
 };
 
