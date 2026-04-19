@@ -190,12 +190,13 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.483 ms` vs `0.224 ms`
-- `11555.json`: `1.481 ms` vs `1.299 ms`
-- `confetti.json`: `0.169 ms` vs `0.102 ms`
-- `threads.json`: `1.979 ms` vs `1.913 ms`
-- `text_anim.json`: `0.125 ms` vs `0.084 ms`
-- `stroke_dash.json`: `0.164 ms` vs `0.135 ms`
+- `expressions/world_locations.json`: `0.499 ms` vs `0.235 ms`
+- `11555.json`: `1.472 ms` vs `1.328 ms`
+- `confetti.json`: `0.175 ms` vs `0.111 ms`
+- `threads.json`: `2.088 ms` vs `1.963 ms`
+- `stroke_dash.json`: `0.160 ms` vs `0.131 ms`
+- `textrange.json` is already faster in `rlottie`, so it remains a correctness
+  target rather than a steady-state target
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -230,12 +231,17 @@ Recent matte work:
   tighter positive-matte preprocessing clips and a direct alpha-matte path
   that skips the extra source offscreen when the source layer has no
   blend/effect work.
-- On the current median-of-5 comparison, that moves the asset from roughly
-  `0.490 ms` down to `0.483 ms` steady-state. The win is modest in the
-  hardened median, but the single-run profile is materially cleaner.
+- That direct path now also accepts opaque solid strokes, which matches the
+  actual source content inside `world_locations.json`.
+- On the current median-of-5 comparison, the asset sits around `0.499 ms`
+  steady-state against ThorVG's `0.235 ms`. The gap is still large, but the
+  stroke-aware direct path survived correctness checks and remains the current
+  best matte-specific optimization on this branch.
 - The same path cuts `render_matte_ms` in the steady 30-frame profile from
-  about `25.88 ms` to `15.04 ms` without changing the first-frame adjudication
-  result (`0.999722` exact-match ratio).
+  the older high-20ms range down into the mid-teens on the cleaner runs
+  without changing the first-frame adjudication result (`0.999722` exact-match
+  ratio). Profile runs remain noisy enough that they should be used only as
+  hotspot guides, not as ranking inputs.
 
 Recent correctness fix:
 

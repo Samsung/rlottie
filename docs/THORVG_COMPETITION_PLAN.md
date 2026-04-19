@@ -122,12 +122,13 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.483 ms` vs `0.224 ms`
-2. `11555.json`: `1.481 ms` vs `1.299 ms`
-3. `confetti.json`: `0.169 ms` vs `0.102 ms`
-4. `threads.json`: `1.979 ms` vs `1.913 ms`
-5. `text_anim.json`: `0.125 ms` vs `0.084 ms`
-6. `stroke_dash.json`: `0.164 ms` vs `0.135 ms`
+1. `expressions/world_locations.json`: `0.499 ms` vs `0.235 ms`
+2. `11555.json`: `1.472 ms` vs `1.328 ms`
+3. `confetti.json`: `0.175 ms` vs `0.111 ms`
+4. `threads.json`: `2.088 ms` vs `1.963 ms`
+5. `stroke_dash.json`: `0.160 ms` vs `0.131 ms`
+6. `textrange.json` is no longer a performance priority; it remains a text
+   correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a
    steady-state target
 
@@ -232,9 +233,11 @@ Current `lottiebench --profile` run shows:
 
 The latest alpha-matte pass now skips the extra source offscreen for
 `Alpha` / `AlphaInv` mattes when the source layer has no blend/effect work.
-That only nudges the hardened median from about `0.490 ms` to `0.483 ms`, but
-it materially reduces matte cost in the single-run profile and keeps the
-first-frame adjudication unchanged.
+That path now also accepts opaque solid strokes, which matches the actual
+`world_locations.json` precomp source better than the older fill-only check.
+The hardened median now sits around `0.499 ms` against ThorVG's `0.235 ms`,
+which is still not good enough, but it is directionally better than the older
+fill-only path and it keeps the first-frame adjudication unchanged.
 
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the
@@ -246,6 +249,20 @@ vector content under transform-only motion, while `text_anim.json` is dominated
 by coarse non-opaque precomp/offscreen composition. Generic keyframe lookup
 work should stay behind matte reuse and transform-cache work.
 
+Targeted review of the lagging shape-correctness assets further changes the
+priority framing:
+
+- `R_QPKIVi.json` is no longer a parser-blank case. The current frame-0 output
+  is close in aggregate color but drifts across the full frame, which points
+  more toward non-opaque shape-layer composition than toward another obvious
+  parser omission.
+- `43391.json` did not close with a cold-review ellipse fallback experiment.
+  The remaining gap is more plausibly chained `Merge Paths` semantics than
+  missing `el` objects.
+- `confetti.json` was useful as a cold-review trap: a speculative parser
+  broadening changed both output and timing, but did not produce a convincing
+  image-level win. That change was rejected rather than kept on faith.
+
 The current median-of-5 priority comparison on the main lagging assets gives
 this practical order:
 
@@ -253,8 +270,8 @@ this practical order:
 2. `11555.json`
 3. `confetti.json`
 4. `threads.json`
-5. `text_anim.json`
-6. `stroke_dash.json`
+5. `stroke_dash.json`
+6. `textrange.json` as correctness, not performance
 7. `32266.json` as correctness and parse triage rather than steady-state alone
 
 ## Bug Triage
