@@ -1244,6 +1244,52 @@ static bool allowNarrowEffectSibling(const std::string &matchName)
            matchName == "ADBE Layer Control";
 }
 
+static bool skipStaticZeroEffectValue(LottieParserImpl *parser)
+{
+    switch (parser->PeekType()) {
+    case kNumberType:
+        return vIsZero(parser->GetDouble());
+    case kArrayType: {
+        bool zeroValue = true;
+        parser->EnterArray();
+        while (parser->NextArrayValue()) {
+            if (parser->PeekType() == kNumberType) {
+                zeroValue &= vIsZero(parser->GetDouble());
+            } else {
+                zeroValue = false;
+                parser->Skip(nullptr);
+            }
+        }
+        return zeroValue;
+    }
+    case kObjectType: {
+        bool staticValue = true;
+        bool zeroValue = true;
+        bool sawValue = false;
+        parser->EnterObject();
+        while (const char *key = parser->NextObjectKey()) {
+            if (0 == strcmp(key, "a")) {
+                if (parser->PeekType() == kNumberType) {
+                    staticValue &= (parser->GetInt() == 0);
+                } else {
+                    staticValue = false;
+                    parser->Skip(key);
+                }
+            } else if (0 == strcmp(key, "k")) {
+                sawValue = true;
+                zeroValue &= skipStaticZeroEffectValue(parser);
+            } else {
+                parser->Skip(key);
+            }
+        }
+        return staticValue && (!sawValue || zeroValue);
+    }
+    default:
+        parser->Skip(nullptr);
+        return false;
+    }
+}
+
 static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
                                          model::Layer::FillEffect &fillEffect,
                                          bool &fillSupported,
@@ -1283,9 +1329,7 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
                     parser->parseProperty(tintEffect.mAmount);
                     fillSupported = false;
                 } else {
-                    model::Property<float> property{0.0f};
-                    parser->parseProperty(property);
-                    if (!property.isStatic() || !vIsZero(property.value())) {
+                    if (!skipStaticZeroEffectValue(parser)) {
                         fillSupported = false;
                     }
                     tintSupported = false;
