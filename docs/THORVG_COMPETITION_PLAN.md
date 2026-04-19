@@ -44,6 +44,9 @@ The project is complete only when all of the following are true:
   group-transform, repeater, and 3D layer fixtures.
 - `Merge Paths` now has fixture-backed boolean support for fill and gradient-fill
   cases, including `Intersect`, `Subtract`, and `Exclude`.
+- `Merge Paths::Mode::Merge` now rasterizes the compound path directly instead
+  of collapsing it through boolean union, which materially improves chained
+  merge-path assets such as `43391.json`.
 - Layer `Blend Modes` now have fixture-backed software-render support for
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
   `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, `Exclusion`,
@@ -126,11 +129,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.508 ms` vs `0.223 ms`
-2. `11555.json`: `1.505 ms` vs `1.376 ms`
-3. `confetti.json`: `0.200 ms` vs `0.105 ms`
-4. `threads.json`: `2.116 ms` vs `1.986 ms`
-5. `stroke_dash.json`: `0.176 ms` vs `0.136 ms`
+1. `expressions/world_locations.json`: `0.480 ms` vs `0.231 ms`
+2. `11555.json`: `1.429 ms` vs `1.290 ms`
+3. `confetti.json`: `0.178 ms` vs `0.103 ms`
+4. `threads.json`: `1.989 ms` vs `1.892 ms`
+5. `stroke_dash.json`: `0.157 ms` vs `0.129 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a
@@ -261,9 +264,10 @@ priority framing:
   is close in aggregate color but drifts across the full frame, which points
   more toward non-opaque shape-layer composition than toward another obvious
   parser omission.
-- `43391.json` did not close with a cold-review ellipse fallback experiment.
-  The remaining gap is more plausibly chained `Merge Paths` semantics than
-  missing `el` objects.
+- `43391.json` did not close with a cold-review ellipse fallback experiment,
+  but a later `Merge Paths::Mode::Merge` semantics fix materially improved it.
+  Frame-0 exact match is now about `0.779`, so the asset remains open but is
+  no longer the same class of catastrophic miss.
 - `confetti.json` was useful as a cold-review trap: a speculative parser
   broadening changed both output and timing, but did not produce a convincing
   image-level win. That change was rejected rather than kept on faith.
