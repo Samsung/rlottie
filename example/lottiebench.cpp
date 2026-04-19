@@ -6,6 +6,7 @@
 #include <future>
 #include <iostream>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -31,6 +32,7 @@ struct Options {
     bool async{false};
     bool csv{false};
     bool profile{false};
+    std::string dumpFirstFrame;
 };
 
 bool startsWith(const std::string &value, const std::string &prefix)
@@ -109,6 +111,7 @@ int help()
         << "  --async                    use async render path\n"
         << "  --csv                      emit CSV output\n"
         << "  --profile                  emit rlottie internal timing to stderr\n"
+        << "  --dump-first-frame <ppm>   write first-frame RGB dump\n"
         << "  --help\n\n"
         << "Example:\n"
         << "  lottiebench --asset mask.json --size 240x240 --size 360x360\n"
@@ -147,6 +150,8 @@ bool parseOptions(int argc, char **argv, Options &options)
             options.csv = true;
         } else if (arg == "--profile") {
             options.profile = true;
+        } else if (arg == "--dump-first-frame" && index + 1 < argc) {
+            options.dumpFirstFrame = argv[++index];
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             return false;
@@ -160,6 +165,11 @@ bool parseOptions(int argc, char **argv, Options &options)
     if (options.sizes.empty()) {
         options.sizes.push_back({240, 240});
         options.sizes.push_back({360, 360});
+    }
+    if (!options.dumpFirstFrame.empty() &&
+        (options.assets.size() != 1 || options.sizes.size() != 1)) {
+        std::cerr << "--dump-first-frame requires exactly one asset and one size\n";
+        return false;
     }
     return true;
 }
@@ -256,6 +266,24 @@ void captureSignature(const uint32_t *buffer, size_t pixelCount, Metrics &metric
     }
 }
 
+bool writePpm(const std::string &path, const uint32_t *buffer, Size size)
+{
+    std::ofstream stream(path, std::ios::binary);
+    if (!stream.is_open()) return false;
+
+    stream << "P6\n" << size.width << " " << size.height << "\n255\n";
+    for (size_t i = 0; i < size.width * size.height; ++i) {
+        const auto px = buffer[i];
+        const unsigned char rgb[3] = {
+            static_cast<unsigned char>((px >> 16) & 0xff),
+            static_cast<unsigned char>((px >> 8) & 0xff),
+            static_cast<unsigned char>(px & 0xff),
+        };
+        stream.write(reinterpret_cast<const char *>(rgb), sizeof(rgb));
+    }
+    return stream.good();
+}
+
 Metrics runCase(const std::string &asset, Size size, const Options &options)
 {
     Metrics metrics;
@@ -301,6 +329,11 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
         std::chrono::duration<double, std::milli>(firstEnd - firstStart).count();
     metrics.rssFirstFrameKb = currentRssKb();
     captureSignature(buffer.data(), size.width * size.height, metrics);
+    if (!options.dumpFirstFrame.empty() &&
+        !writePpm(options.dumpFirstFrame, buffer.data(), size)) {
+        std::cerr << "Failed to dump first frame: " << options.dumpFirstFrame
+                  << "\n";
+    }
     if (options.profile) {
         printProfileStats(asset, size, options.async, "first_frame",
                           rlottie::performanceStats());

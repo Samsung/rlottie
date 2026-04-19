@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -31,6 +32,7 @@ struct Options {
     size_t warmup{10};
     uint32_t threads{std::max(1u, std::thread::hardware_concurrency())};
     bool csv{false};
+    std::string dumpFirstFrame;
 };
 
 struct Metrics {
@@ -151,6 +153,7 @@ int help()
         << "  --warmup <count>\n"
         << "  --threads <count>\n"
         << "  --csv                      emit CSV output\n"
+        << "  --dump-first-frame <ppm>   write first-frame RGB dump\n"
         << "  --help\n\n"
         << "Example:\n"
         << "  thorvgbench --asset /abs/path/file.json --size 240x240\n";
@@ -186,6 +189,8 @@ bool parseOptions(int argc, char **argv, Options &options)
             options.threads = static_cast<uint32_t>(std::stoul(argv[++index]));
         } else if (arg == "--csv") {
             options.csv = true;
+        } else if (arg == "--dump-first-frame" && index + 1 < argc) {
+            options.dumpFirstFrame = argv[++index];
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             return false;
@@ -199,6 +204,11 @@ bool parseOptions(int argc, char **argv, Options &options)
     if (options.sizes.empty()) {
         options.sizes.push_back({240, 240});
         options.sizes.push_back({360, 360});
+    }
+    if (!options.dumpFirstFrame.empty() &&
+        (options.assets.size() != 1 || options.sizes.size() != 1)) {
+        std::cerr << "--dump-first-frame requires exactly one asset and one size\n";
+        return false;
     }
     return true;
 }
@@ -223,6 +233,24 @@ void captureSignature(const uint32_t *buffer, size_t pixelCount, Metrics &metric
         metrics.greenSum += g;
         metrics.blueSum += b;
     }
+}
+
+bool writePpm(const std::string &path, const uint32_t *buffer, Size size)
+{
+    std::ofstream stream(path, std::ios::binary);
+    if (!stream.is_open()) return false;
+
+    stream << "P6\n" << size.width << " " << size.height << "\n255\n";
+    for (size_t i = 0; i < size.width * size.height; ++i) {
+        const auto px = buffer[i];
+        const unsigned char rgb[3] = {
+            static_cast<unsigned char>((px >> 16) & 0xff),
+            static_cast<unsigned char>((px >> 8) & 0xff),
+            static_cast<unsigned char>(px & 0xff),
+        };
+        stream.write(reinterpret_cast<const char *>(rgb), sizeof(rgb));
+    }
+    return stream.good();
 }
 
 void fitPicture(tvg::Picture *picture, Size size)
@@ -296,6 +324,11 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
         std::chrono::duration<double, std::milli>(firstEnd - firstStart).count();
     metrics.rssFirstFrameKb = currentRssKb();
     captureSignature(buffer.data(), buffer.size(), metrics);
+    if (!options.dumpFirstFrame.empty() &&
+        !writePpm(options.dumpFirstFrame, buffer.data(), size)) {
+        std::cerr << "Failed to dump first frame: " << options.dumpFirstFrame
+                  << "\n";
+    }
 
     for (size_t i = 0; i < options.warmup; ++i) {
         renderFrame(i);
