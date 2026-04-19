@@ -200,6 +200,57 @@ static VRect drawableBounds(renderer::DrawableList drawables)
     return hasBounds ? bounds : VRect();
 }
 
+static VRect drawableCoverageBounds(renderer::DrawableList drawables)
+{
+    VRect bounds;
+    bool hasBounds = false;
+
+    for (auto *drawable : drawables) {
+        VRect currentBounds;
+
+        if (drawable->mUseCustomRle) {
+            currentBounds = drawable->rle().boundingRect();
+        } else if (!drawable->mPath.empty()) {
+            const auto &points = drawable->mPath.points();
+            if (!points.empty()) {
+                float left = points.front().x();
+                float top = points.front().y();
+                float right = left;
+                float bottom = top;
+
+                for (const auto &point : points) {
+                    left = std::min(left, point.x());
+                    top = std::min(top, point.y());
+                    right = std::max(right, point.x());
+                    bottom = std::max(bottom, point.y());
+                }
+
+                const int x = int(std::floor(left));
+                const int y = int(std::floor(top));
+                currentBounds = VRect(x, y, int(std::ceil(right)) - x,
+                                      int(std::ceil(bottom)) - y);
+            }
+        } else {
+            currentBounds = drawable->rle().boundingRect();
+        }
+
+        if (currentBounds.empty()) continue;
+
+        if (!hasBounds) {
+            bounds = currentBounds;
+            hasBounds = true;
+            continue;
+        }
+
+        bounds.setLeft(std::min(bounds.left(), currentBounds.left()));
+        bounds.setTop(std::min(bounds.top(), currentBounds.top()));
+        bounds.setRight(std::max(bounds.right(), currentBounds.right()));
+        bounds.setBottom(std::max(bounds.bottom(), currentBounds.bottom()));
+    }
+
+    return hasBounds ? bounds : VRect();
+}
+
 static BlendMode toPainterBlendMode(model::BlendMode mode)
 {
     switch (mode) {
@@ -303,6 +354,20 @@ static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
     if (drawable->mType != VDrawable::Type::Fill) return false;
     if (drawable->mBrush.type() != VBrush::Type::Solid) return false;
     return drawable->mBrush.mColor.isOpaque();
+}
+
+static bool isPositiveMatte(model::MatteType type)
+{
+    return type == model::MatteType::Alpha ||
+           type == model::MatteType::Luma;
+}
+
+static VRect tightenClipToBounds(const VRect &clip, const VRect &bounds)
+{
+    if (bounds.empty()) return clip;
+
+    auto tight = clip & bounds;
+    return tight.empty() ? clip : tight;
 }
 
 static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
@@ -992,22 +1057,42 @@ void renderer::CompLayer::preprocessStage(const VRect &clip)
     // if layer has clipper
     if (mClipper) mClipper->preprocess(clip);
 
-    renderer::Layer *matte = nullptr;
+    renderer::Layer *content = nullptr;
     for (const auto &layer : mLayers) {
         if (layer->hasMatte()) {
-            matte = layer;
+            content = layer;
         } else {
             if (layer->visible()) {
-                if (matte) {
-                    if (matte->visible()) {
-                        layer->preprocess(clip);
-                        matte->preprocess(clip);
+                if (content) {
+                    if (content->visible()) {
+                        auto matteClip = clip;
+                        if (!layer->hasLayerMask()) {
+                            matteClip = tightenClipToBounds(
+                                clip,
+                                drawableCoverageBounds(layer->renderList()));
+                        }
+
+                        auto contentClip = clip;
+                        if (!content->hasLayerMask()) {
+                            contentClip = tightenClipToBounds(
+                                clip,
+                                drawableCoverageBounds(content->renderList()));
+                        }
+                        if (isPositiveMatte(content->matteType()) &&
+                            !content->hasLayerMask()) {
+                            contentClip = tightenClipToBounds(
+                                contentClip,
+                                drawableCoverageBounds(layer->renderList()));
+                        }
+
+                        layer->preprocess(matteClip);
+                        content->preprocess(contentClip);
                     }
                 } else {
                     layer->preprocess(clip);
                 }
             }
-            matte = nullptr;
+            content = nullptr;
         }
     }
 }
