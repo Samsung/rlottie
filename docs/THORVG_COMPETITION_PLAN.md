@@ -150,11 +150,11 @@ This broad audit changes the interpretation of the current gap:
 - `rlottie` is not broadly failing to load the corpus. The current problem is
   output correctness drift and steady-state speed on a concentrated set of
   heavier assets.
-- The worst current zero-output mismatches, such as `32266.json` and
-  `R_QPKIVi.json`, are both expression-heavy. That does not make expressions a
-  short-term project, but it does confirm that some of the broadest visible
-  correctness holes now sit behind expression payloads rather than parser load
-  failures.
+- Hard visible correctness holes, such as the zero-pixel `R_QPKIVi.json` case
+  and the previously blank `32266.json` asset, are expression-heavy or
+  controller-heavy. That does not make expressions a short-term project, but
+  it does confirm that some of the broadest visible correctness holes sit
+  behind expression-style payloads rather than plain parser load failures.
 - The biggest full-corpus steady-state losses extend beyond the smoke subset
   and now include `balloons_with_string.json`, `expressions/11272.json`,
   `threads.json`, and `43391.json` in addition to `11555.json`.
@@ -168,14 +168,12 @@ This broad audit changes the interpretation of the current gap:
   shape: `0` load failures and `119` coarse signature mismatches. Opening
   layer `ef` parsing for the narrow fill subset did not create a broad
   regression outside the new effect fixtures.
-- A later direct full-corpus rerun after narrow `ADBE Tint` support still
-  showed `118` coarse signature mismatches and `7` rlottie zero-output vs
-  ThorVG-output gaps: `27746-joypixels-partying-face-emoji-animation.json`,
-  `expressions/10456.json`, `expressions/16447.json`,
-  `expressions/layereffect.json`, `expressions/traveling.json`, `shutup.json`,
-  and `stroke_dash.json`. The current `thorvg.example` corpus does not contain
-  a direct `ADBE Tint` asset, so this landing expands supported spec surface
-  but does not close one of the current competition gaps by itself.
+- A later parser-hardening rerun for unsupported layer-effect parameters
+  reduced the coarse signature mismatches to `117` and cleared the explicit
+  `frames=0 / ThorVG frames>0` gaps for `stroke_dash.json` and
+  `expressions/layereffect.json`. Those assets now load and render, so they
+  move from zero-output triage to the partial-support backlog covering real
+  text, expression controls, `ADBE 4ColorGradient`, and broader effect stacks.
 
 ### Hotspot Review
 
@@ -428,8 +426,9 @@ turning into one-off asset hacks.
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
   `stroke_dash.json`
 - Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
-  subsets are supported today, while real assets still fail on expression
-  controls, text/effect mixtures, and broader effect stacks.
+  subsets are supported today, while real assets still diverge on expression
+  controls, text/effect mixtures, `ADBE 4ColorGradient`, and broader effect
+  stacks.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front

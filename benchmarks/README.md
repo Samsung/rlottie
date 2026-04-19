@@ -36,7 +36,8 @@ Current blend-mode fixtures include `blendmode_multiply.json`,
 `blendmode_exclusion.json`, `blendmode_hue.json`,
 `blendmode_saturation.json`, `blendmode_color.json`, and
 `blendmode_luminosity.json`. Current layer-effect fixtures include
-`layer_effect_fill_solid.json` and `layer_effect_fill_precomp.json`.
+`layer_effect_fill_solid.json`, `layer_effect_fill_precomp.json`,
+`layer_effect_tint_solid.json`, and `layer_effect_tint_precomp.json`.
 
 ## Example Usage
 
@@ -150,6 +151,10 @@ as one flat ranking:
 
 This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
+`stroke_dash.json` and `expressions/layereffect.json` now render again after
+parser hardening, but they still belong in the layer-effects bucket because
+the remaining gap is real text, expression controls, and broader effect
+coverage rather than pure zero-output failure.
 
 Recent correctness fix:
 

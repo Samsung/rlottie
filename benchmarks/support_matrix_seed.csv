@@ -10,7 +10,7 @@ mask_matte,matte_two_item_with_lowerlayer.json,matte,supported,pending,benchmark
 mask_alpha,starts_transparent.json,alpha and transparency,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 dynamic,dynamic_property.json,dynamic property,pending,pending,fixture-needed,starter corpus
 stroke_dash,static_dynamic_dash.json,dash,pending,pending,fixture-needed,starter corpus
-stroke_dash,stroke_dash.json,dash plus text/effect mix,unsupported,supported,full-corpus-audit,asset currently yields zero frames in rlottie while ThorVG renders it so it should stay on the explicit text/effect backlog instead of being counted as a dash-only gap
+stroke_dash,stroke_dash.json,dash plus text/effect mix,partial,supported,benchmark-verified,parser hardening now keeps unsupported 4-Color Gradient params from collapsing the asset to zero output but real text-layer rendering and the effect itself still diverge from ThorVG
 repeater,windmill.json,repeater,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 repeater,skew_repeater_x.json,repeater skew,supported,pending,render-bounds-verified,baseline ignored repeater skew and current bbox expands on x
 compositing,blendmode_multiply.json,layer blend multiply,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 77200/109400/87800 from 201200/183600/89200
@@ -55,7 +55,7 @@ mixed,world_locations.json,mixed animation,supported,supported,benchmark-verifie
 mixed,27746-joypixels-partying-face-emoji-animation.json,pseudo-controller emoji rig,unsupported,supported,full-corpus-audit,real asset still renders zero frames in rlottie and points to unsupported pseudo-controls or expression-style rig payloads rather than a simple raster bug
 expressions,balloons_with_string.json,expressions,partial,supported,full-corpus-audit,asset loads but remains one of the largest steady-state losses and still sits behind the unsupported-expression backlog
 expressions,expressions/16447.json,expressions,unsupported,supported,full-corpus-audit,asset still renders zero frames in rlottie and also remains one of the heaviest parse-throughput losses
-effects,expressions/layereffect.json,expression-driven layer effects,unsupported,supported,full-corpus-audit,real asset still renders zero frames in rlottie and remains blocked on expression controls plus broader layer-effect coverage
+effects,expressions/layereffect.json,expression-driven layer effects,partial,supported,benchmark-verified,controller Color and Slider effects no longer collapse the asset to zero output but expression-driven stroke semantics and broader layer-effect coverage still diverge from ThorVG
 expressions,expressions/11272.json,expressions,partial,supported,full-corpus-audit,real asset remains a top steady-state loss and should stay in the explicit longer-term expression bucket rather than being misclassified as a generic raster bug
 ux,UXSample_1920x1080/A Shapes_All_01_1920x1080.json,shape coverage,pending,pending,fixture-needed,ux sample
 ux,UXSample_1920x1080/F Masks_All_01_1920x1080.json,mask coverage,pending,pending,fixture-needed,ux sample
