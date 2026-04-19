@@ -54,6 +54,7 @@
 // the parse.
 
 #include <array>
+#include <limits>
 
 #include "lottiemodel.h"
 #include "rapidjson/document.h"
@@ -233,10 +234,13 @@ public:
     void             parseComposition();
     void             parseMarkers();
     void             parseMarker();
+    void             parseFonts();
+    void             parseChars();
     void             parseAssets(model::Composition *comp);
     model::Asset *   parseAsset();
     void             parseLayers(model::Composition *comp);
     model::Layer *   parseLayer();
+    bool             parseText(model::Layer *layer);
     void             parseLayerEffects(model::Layer *layer);
     bool             parseFillEffect(model::Layer::FillEffect &effect);
     bool             parseTintEffect(model::Layer::TintEffect &effect);
@@ -300,9 +304,33 @@ public:
     model::Color toColor(const char *str);
 
     void resolveLayerRefs();
+    void resolveTextLayers();
     void parsePathInfo();
 
 private:
+    struct ParsedFont {
+        std::string family;
+        std::string style;
+        float       ascent{0.0f};
+    };
+    struct ParsedGlyph {
+        std::string               ch;
+        std::string               family;
+        std::string               style;
+        float                     size{0.0f};
+        float                     advance{0.0f};
+        std::vector<model::Object *> shapes;
+    };
+    struct ParsedTextDocument {
+        std::string  text;
+        std::string  fontName;
+        model::Color fillColor{1.0f, 1.0f, 1.0f};
+        float        size{0.0f};
+        float        lineHeight{0.0f};
+        float        tracking{0.0f};
+        int          justify{0};
+        bool         valid{false};
+    };
     model::ColorFilter mColorFilter;
     struct {
         std::vector<VPointF> mInPoint;  /* "i" */
@@ -383,9 +411,64 @@ protected:
     model::Composition *                             compRef{nullptr};
     model::Layer *                                   curLayerRef{nullptr};
     std::vector<model::Layer *>                      mLayersToUpdate;
+    std::unordered_map<std::string, ParsedFont>      mFonts;
+    std::vector<ParsedGlyph>                         mTextGlyphs;
+    std::unordered_map<model::Layer *, ParsedTextDocument>
+        mTextLayers;
     std::string                                      mDirPath;
     void                                             SkipOut(int depth);
 };
+
+namespace {
+
+size_t utf8CodepointLength(unsigned char ch)
+{
+    if ((ch & 0x80) == 0) return 1;
+    if ((ch & 0xE0) == 0xC0) return 2;
+    if ((ch & 0xF0) == 0xE0) return 3;
+    if ((ch & 0xF8) == 0xF0) return 4;
+    return 1;
+}
+
+std::vector<std::string> splitUtf8Codepoints(const std::string &text)
+{
+    std::vector<std::string> codepoints;
+    codepoints.reserve(text.size());
+
+    for (size_t offset = 0; offset < text.size();) {
+        auto length = utf8CodepointLength(
+            static_cast<unsigned char>(text[offset]));
+        length = std::min(length, text.size() - offset);
+        codepoints.emplace_back(text.substr(offset, length));
+        offset += length;
+    }
+
+    return codepoints;
+}
+
+std::vector<std::string> splitLines(const std::string &text)
+{
+    std::vector<std::string> lines;
+    size_t                   start = 0;
+
+    while (start <= text.size()) {
+        auto end = text.find_first_of("\r\n", start);
+        if (end == std::string::npos) {
+            lines.emplace_back(text.substr(start));
+            break;
+        }
+
+        lines.emplace_back(text.substr(start, end - start));
+        if (text[end] == '\r' && end + 1 < text.size() && text[end + 1] == '\n')
+            end += 1;
+        start = end + 1;
+    }
+
+    if (lines.empty()) lines.emplace_back();
+    return lines;
+}
+
+}  // namespace
 
 LookaheadParserHandler::LookaheadParserHandler(char *str)
     : v_(), st_(kInit), ss_(str)
@@ -701,6 +784,166 @@ void LottieParserImpl::resolveLayerRefs()
     }
 }
 
+void LottieParserImpl::resolveTextLayers()
+{
+    for (const auto &entry : mTextLayers) {
+        auto *layer = entry.first;
+        const auto &doc = entry.second;
+
+        std::string family = doc.fontName;
+        std::string style;
+        auto fontIt = mFonts.find(doc.fontName);
+        if (fontIt != mFonts.end()) {
+            if (!fontIt->second.family.empty()) family = fontIt->second.family;
+            style = fontIt->second.style;
+        }
+
+        auto findGlyph = [&](const std::string &codepoint,
+                             float &scale) -> const ParsedGlyph * {
+            const ParsedGlyph *best = nullptr;
+            int                bestRank = std::numeric_limits<int>::max();
+            float              bestDelta = std::numeric_limits<float>::max();
+
+            for (const auto &glyph : mTextGlyphs) {
+                if (glyph.ch != codepoint) continue;
+
+                int rank = 0;
+                if (glyph.family != family && glyph.family != doc.fontName)
+                    rank += 4;
+                if (!style.empty() && !glyph.style.empty() &&
+                    glyph.style != style)
+                    rank += 1;
+
+                auto delta = std::fabs(glyph.size - doc.size);
+                if (!best || rank < bestRank ||
+                    (rank == bestRank && delta < bestDelta)) {
+                    best = &glyph;
+                    bestRank = rank;
+                    bestDelta = delta;
+                }
+            }
+
+            if (!best || vIsZero(best->size)) return nullptr;
+            scale = doc.size / best->size;
+            return best;
+        };
+
+        auto glyphAdvance = [&](const std::string &codepoint,
+                                float &advance,
+                                const ParsedGlyph **glyph,
+                                float &scale) -> bool {
+            *glyph = nullptr;
+            scale = 1.0f;
+
+            if (codepoint == " ") {
+                advance = doc.size * 0.3f;
+                return true;
+            }
+
+            *glyph = findGlyph(codepoint, scale);
+            if (!*glyph) return false;
+
+            advance = (*glyph)->advance * scale;
+            return true;
+        };
+
+        auto *textGroup = allocator().make<model::Group>();
+        textGroup->setName("__text");
+        bool staticFlag = true;
+        auto trackingAdvance = doc.tracking * doc.size / 1000.0f;
+        auto lines = splitLines(doc.text);
+
+        for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+            auto codepoints = splitUtf8Codepoints(lines[lineIndex]);
+            float lineWidth = 0.0f;
+
+            for (size_t i = 0; i < codepoints.size(); ++i) {
+                float              advance = 0.0f;
+                const ParsedGlyph *glyph = nullptr;
+                float              scale = 1.0f;
+                if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
+                    staticFlag = false;
+                    lineWidth = -1.0f;
+                    break;
+                }
+                lineWidth += advance;
+                if (i + 1 < codepoints.size()) lineWidth += trackingAdvance;
+            }
+
+            if (lineWidth < 0.0f) {
+                textGroup = nullptr;
+                break;
+            }
+
+            float cursorX = 0.0f;
+            if (doc.justify == 1) {
+                cursorX = -lineWidth;
+            } else if (doc.justify == 2) {
+                cursorX = -lineWidth * 0.5f;
+            }
+
+            auto baselineY = static_cast<float>(lineIndex) * doc.lineHeight;
+            for (size_t i = 0; i < codepoints.size(); ++i) {
+                float              advance = 0.0f;
+                const ParsedGlyph *glyph = nullptr;
+                float              scale = 1.0f;
+                if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
+                    staticFlag = false;
+                    textGroup = nullptr;
+                    break;
+                }
+
+                if (glyph) {
+                    auto *wrapper = allocator().make<model::Group>();
+                    wrapper->setName("__glyph");
+                    wrapper->mChildren = glyph->shapes;
+
+                    auto *transformData =
+                        allocator().make<model::Transform::Data>();
+                    transformData->mPosition.value() =
+                        VPointF(cursorX, baselineY);
+                    if (!vCompare(scale, 1.0f)) {
+                        transformData->mScale.value() =
+                            VPointF(scale * 100.0f, scale * 100.0f);
+                    }
+
+                    auto *transform = allocator().make<model::Transform>();
+                    transform->set(transformData, true);
+                    wrapper->mTransform = transform;
+                    wrapper->setStatic(true);
+
+                    for (const auto *shape : wrapper->mChildren) {
+                        wrapper->setStatic(wrapper->isStatic() &&
+                                           shape->isStatic());
+                    }
+                    textGroup->mChildren.push_back(wrapper);
+                    staticFlag = staticFlag && wrapper->isStatic();
+                }
+
+                cursorX += advance;
+                if (i + 1 < codepoints.size()) cursorX += trackingAdvance;
+            }
+
+            if (!textGroup) break;
+        }
+
+        if (!textGroup || textGroup->mChildren.empty()) continue;
+
+        auto *fill = allocator().make<model::Fill>();
+        fill->setName("__fill");
+        fill->mColor.value() = doc.fillColor;
+        fill->mOpacity.value() = 100.0f;
+        fill->setStatic(true);
+        textGroup->mChildren.push_back(fill);
+        textGroup->setStatic(staticFlag && fill->isStatic());
+
+        layer->mLayerType = model::Layer::Type::Shape;
+        layer->mChildren.clear();
+        layer->mChildren.push_back(textGroup);
+    }
+    mTextLayers.clear();
+}
+
 void LottieParserImpl::parseComposition()
 {
     EnterObject();
@@ -723,6 +966,10 @@ void LottieParserImpl::parseComposition()
             comp->mFrameRate = GetDouble();
         } else if (0 == strcmp(key, "assets")) {
             parseAssets(comp);
+        } else if (0 == strcmp(key, "fonts")) {
+            parseFonts();
+        } else if (0 == strcmp(key, "chars")) {
+            parseChars();
         } else if (0 == strcmp(key, "layers")) {
             parseLayers(comp);
         } else if (0 == strcmp(key, "markers")) {
@@ -748,6 +995,7 @@ void LottieParserImpl::parseComposition()
     }
 
     resolveLayerRefs();
+    resolveTextLayers();
     comp->setStatic(comp->mRootLayer->isStatic());
     comp->mRootLayer->mInFrame = comp->mStartFrame;
     comp->mRootLayer->mOutFrame = comp->mEndFrame;
@@ -787,6 +1035,183 @@ void LottieParserImpl::parseMarkers()
         parseMarker();
     }
     // update the precomp layers with the actual layer object
+}
+
+void LottieParserImpl::parseFonts()
+{
+    EnterObject();
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "list")) {
+            EnterArray();
+            while (NextArrayValue()) {
+                ParsedFont font;
+                std::string fontName;
+
+                EnterObject();
+                while (const char *fontKey = NextObjectKey()) {
+                    if (0 == strcmp(fontKey, "fName")) {
+                        fontName = GetStringObject();
+                    } else if (0 == strcmp(fontKey, "fFamily")) {
+                        font.family = GetStringObject();
+                    } else if (0 == strcmp(fontKey, "fStyle")) {
+                        font.style = GetStringObject();
+                    } else if (0 == strcmp(fontKey, "ascent")) {
+                        font.ascent = GetDouble();
+                    } else {
+                        Skip(fontKey);
+                    }
+                }
+
+                if (!fontName.empty()) {
+                    if (font.family.empty()) font.family = fontName;
+                    mFonts[fontName] = std::move(font);
+                }
+            }
+        } else {
+            Skip(key);
+        }
+    }
+}
+
+void LottieParserImpl::parseChars()
+{
+    EnterArray();
+    while (NextArrayValue()) {
+        ParsedGlyph glyph;
+        auto        glyphGroup = allocator().make<model::Group>();
+
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "ch")) {
+                glyph.ch = GetStringObject();
+            } else if (0 == strcmp(key, "size")) {
+                glyph.size = GetDouble();
+            } else if (0 == strcmp(key, "style")) {
+                glyph.style = GetStringObject();
+            } else if (0 == strcmp(key, "w")) {
+                glyph.advance = GetDouble();
+            } else if (0 == strcmp(key, "fFamily")) {
+                glyph.family = GetStringObject();
+            } else if (0 == strcmp(key, "data")) {
+                EnterObject();
+                while (const char *dataKey = NextObjectKey()) {
+                    if (0 == strcmp(dataKey, "shapes")) {
+                        model::Layer glyphLayer;
+                        auto *savedLayer = curLayerRef;
+                        curLayerRef = &glyphLayer;
+
+                        EnterArray();
+                        while (NextArrayValue()) {
+                            parseObject(glyphGroup);
+                        }
+                        curLayerRef = savedLayer;
+                    } else {
+                        Skip(dataKey);
+                    }
+                }
+            } else {
+                Skip(key);
+            }
+        }
+
+        if (!glyph.ch.empty() && !glyph.family.empty() &&
+            !glyphGroup->mChildren.empty()) {
+            glyph.shapes = std::move(glyphGroup->mChildren);
+            mTextGlyphs.emplace_back(std::move(glyph));
+        }
+    }
+}
+
+bool LottieParserImpl::parseText(model::Layer *layer)
+{
+    ParsedTextDocument doc;
+    bool               supported = true;
+
+    EnterObject();
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "d")) {
+            EnterObject();
+            while (const char *docKey = NextObjectKey()) {
+                if (0 == strcmp(docKey, "k")) {
+                    size_t entryCount = 0;
+                    EnterArray();
+                    while (NextArrayValue()) {
+                        ParsedTextDocument candidate;
+                        bool               hasState = false;
+                        double             time = 0.0;
+
+                        EnterObject();
+                        while (const char *entryKey = NextObjectKey()) {
+                            if (0 == strcmp(entryKey, "s")) {
+                                hasState = true;
+                                EnterObject();
+                                while (const char *stateKey = NextObjectKey()) {
+                                    if (0 == strcmp(stateKey, "t")) {
+                                        candidate.text = GetStringObject();
+                                    } else if (0 == strcmp(stateKey, "f")) {
+                                        candidate.fontName = GetStringObject();
+                                    } else if (0 == strcmp(stateKey, "s")) {
+                                        candidate.size = GetDouble();
+                                    } else if (0 == strcmp(stateKey, "fc")) {
+                                        getValue(candidate.fillColor);
+                                    } else if (0 == strcmp(stateKey, "j")) {
+                                        candidate.justify = GetInt();
+                                    } else if (0 == strcmp(stateKey, "lh")) {
+                                        candidate.lineHeight = GetDouble();
+                                    } else if (0 == strcmp(stateKey, "tr")) {
+                                        candidate.tracking = GetDouble();
+                                    } else {
+                                        Skip(stateKey);
+                                    }
+                                }
+                            } else if (0 == strcmp(entryKey, "t")) {
+                                time = GetDouble();
+                            } else {
+                                Skip(entryKey);
+                            }
+                        }
+
+                        if (entryCount == 0 && time <= 0.0 && hasState &&
+                            !candidate.text.empty() &&
+                            !candidate.fontName.empty()) {
+                            candidate.valid = true;
+                            doc = std::move(candidate);
+                        } else {
+                            supported = false;
+                        }
+                        entryCount++;
+                    }
+                } else {
+                    Skip(docKey);
+                }
+            }
+        } else if (0 == strcmp(key, "a")) {
+            EnterArray();
+            if (NextArrayValue()) {
+                supported = false;
+                do {
+                    Skip(nullptr);
+                } while (NextArrayValue());
+            }
+        } else if (0 == strcmp(key, "p")) {
+            EnterObject();
+            while (const char *pathKey = NextObjectKey()) {
+                supported = false;
+                Skip(pathKey);
+            }
+        } else if (0 == strcmp(key, "m")) {
+            Skip(key);
+        } else {
+            Skip(key);
+        }
+    }
+
+    if (!supported || !doc.valid) return false;
+    if (vIsZero(doc.size)) return false;
+    if (vIsZero(doc.lineHeight)) doc.lineHeight = doc.size;
+
+    mTextLayers[layer] = std::move(doc);
+    return true;
 }
 
 void LottieParserImpl::parseAssets(model::Composition *composition)
@@ -1178,6 +1603,8 @@ model::Layer *LottieParserImpl::parseLayer()
             parseMaskProperty(layer);
         } else if (0 == strcmp(key, "ef")) {
             parseLayerEffects(layer);
+        } else if (0 == strcmp(key, "t")) {
+            parseText(layer);
         } else if (0 == strcmp(key, "ao")) {
             layer->mAutoOrient = GetInt();
         } else if (0 == strcmp(key, "hd")) {
