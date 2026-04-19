@@ -697,9 +697,9 @@ void LottieParserImpl::parseComposition()
         if (0 == strcmp(key, "v")) {
             comp->mVersion = GetStringObject();
         } else if (0 == strcmp(key, "w")) {
-            comp->mSize.setWidth(GetInt());
+            comp->mSize.setWidth(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "h")) {
-            comp->mSize.setHeight(GetInt());
+            comp->mSize.setHeight(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "ip")) {
             comp->mStartFrame = std::lround(GetDouble());
         } else if (0 == strcmp(key, "op")) {
@@ -954,9 +954,9 @@ model::Asset *LottieParserImpl::parseAsset()
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "w")) {
-            asset->mWidth = GetInt();
+            asset->mWidth = std::lround(GetDouble());
         } else if (0 == strcmp(key, "h")) {
-            asset->mHeight = GetInt();
+            asset->mHeight = std::lround(GetDouble());
         } else if (0 == strcmp(key, "p")) { /* image name */
             asset->mAssetType = model::Asset::Type::Image;
             filename = GetStringObject();
@@ -1146,13 +1146,13 @@ model::Layer *LottieParserImpl::parseLayer()
         } else if (0 == strcmp(key, "shapes")) {
             parseShapesAttr(layer);
         } else if (0 == strcmp(key, "w")) {
-            layer->mLayerSize.setWidth(GetInt());
+            layer->mLayerSize.setWidth(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "h")) {
-            layer->mLayerSize.setHeight(GetInt());
+            layer->mLayerSize.setHeight(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "sw")) {
-            layer->mLayerSize.setWidth(GetInt());
+            layer->mLayerSize.setWidth(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "sh")) {
-            layer->mLayerSize.setHeight(GetInt());
+            layer->mLayerSize.setHeight(std::lround(GetDouble()));
         } else if (0 == strcmp(key, "sc")) {
             layer->extra()->mSolidColor = toColor(GetString());
         } else if (0 == strcmp(key, "tt")) {
