@@ -47,6 +47,9 @@ The project is complete only when all of the following are true:
 - `Merge Paths::Mode::Merge` now rasterizes the compound path directly instead
   of collapsing it through boolean union, which materially improves chained
   merge-path assets such as `43391.json`.
+- Single solid-fill `ShapeLayer` instances can now fold layer alpha directly
+  into the drawable brush and skip the extra offscreen round-trip. This narrows
+  the full-frame compositing drift on assets such as `R_QPKIVi.json`.
 - Layer `Blend Modes` now have fixture-backed software-render support for
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
   `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, `Exclusion`,
@@ -129,11 +132,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.480 ms` vs `0.231 ms`
-2. `11555.json`: `1.429 ms` vs `1.290 ms`
-3. `confetti.json`: `0.178 ms` vs `0.103 ms`
-4. `threads.json`: `1.989 ms` vs `1.892 ms`
-5. `stroke_dash.json`: `0.157 ms` vs `0.129 ms`
+1. `expressions/world_locations.json`: `0.488 ms` vs `0.236 ms`
+2. `11555.json`: `1.461 ms` vs `1.307 ms`
+3. `confetti.json`: `0.182 ms` vs `0.106 ms`
+4. `threads.json`: `1.999 ms` vs `1.902 ms`
+5. `stroke_dash.json`: `0.159 ms` vs `0.127 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a
@@ -264,6 +267,10 @@ priority framing:
   is close in aggregate color but drifts across the full frame, which points
   more toward non-opaque shape-layer composition than toward another obvious
   parser omission.
+- A later narrow `ShapeLayer` alpha-folding change reduced that `R_QPKIVi`
+  drift again. Exact pixel match is still `0`, but mean absolute RGB drift now
+  drops from roughly `[0.154, 1.112, 0.154]` to `[0.096, 0.982, 0.050]`, which
+  confirms the issue is compositing behavior rather than a missing parser node.
 - `43391.json` did not close with a cold-review ellipse fallback experiment,
   but a later `Merge Paths::Mode::Merge` semantics fix materially improved it.
   Frame-0 exact match is now about `0.779`, so the asset remains open but is
