@@ -121,33 +121,26 @@ std::shared_ptr<model::Composition> model::loadFromFile(const std::string &path,
         if (obj) return obj;
     }
 
-    std::ifstream f;
-    f.open(path);
+    std::ifstream f(path, std::ios::binary | std::ios::ate);
 
     if (!f.is_open()) {
         vCritical << "failed to open file = " << path.c_str();
         return {};
-    } else {
-        std::string content;
-        f.seekg(0, std::ios::end);
-        auto fsize = f.tellg();
-
-        //read the given file
-        content.reserve(fsize);
-        f.seekg(0, std::ios::beg);
-        content.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-
-        f.close();
-
-        if (fsize == 0) return {};
-
-        auto obj = internal::model::parse(const_cast<char *>(content.c_str()), fsize,
-                                          dirname(path));
-
-        if (obj && cachePolicy) ModelCache::instance().add(path, obj);
-
-        return obj;
     }
+
+    auto fsize = f.tellg();
+    if (fsize <= 0) return {};
+
+    std::string content(static_cast<size_t>(fsize), '\0');
+    f.seekg(0, std::ios::beg);
+    if (!f.read(&content[0], fsize)) return {};
+
+    auto obj = internal::model::parse(const_cast<char *>(content.data()),
+                                      content.size(), dirname(path));
+
+    if (obj && cachePolicy) ModelCache::instance().add(path, obj);
+
+    return obj;
 }
 
 std::shared_ptr<model::Composition> model::loadFromData(
