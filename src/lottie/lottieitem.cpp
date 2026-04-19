@@ -824,9 +824,19 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
 
     auto drawRegion = painter->clipBoundingRect();
     auto layerDrawables = layer->renderList();
-
-    auto clip = drawableBounds(layerDrawables) & drawRegion;
-    if (clip.empty()) clip = drawRegion;
+    auto layerBounds = drawableBounds(layerDrawables);
+    auto srcBounds = drawableBounds(srcDrawables);
+    auto clip = layerBounds.empty() ? drawRegion : (layerBounds & drawRegion);
+    const bool positiveMatte =
+        (layer->matteType() == model::MatteType::Alpha ||
+         layer->matteType() == model::MatteType::Luma);
+    if (positiveMatte && !srcBounds.empty()) clip = clip & srcBounds;
+    if (!mask.empty()) clip = clip & mask.boundingRect();
+    if (!matteRle.empty()) clip = clip & matteRle.boundingRect();
+    if (clip.empty()) {
+        if (positiveMatte && !srcBounds.empty()) return;
+        clip = drawRegion;
+    }
     VSize size = clip.size();
     // Decide if we can use fast matte.
     // 1. draw src layer to matte buffer
