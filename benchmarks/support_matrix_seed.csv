@@ -38,14 +38,19 @@ transform,skew_rect_x.json,skew on x axis,supported,pending,render-bounds-verifi
 transform,skew_rect_y.json,skew on y axis,supported,pending,render-bounds-verified,baseline ignored skew and current bbox expands on y
 transform,skew_rect_3d_y.json,3d layer skew on y axis,supported,pending,render-bounds-verified,baseline ignored 3d skew and current bbox expands on y
 image,image_test.json,image asset,pending,pending,fixture-needed,starter corpus
-image,image_embedded.json,embedded image,pending,pending,fixture-needed,starter corpus
+image,image_embedded.json,embedded image,incorrect,supported,benchmark-verified,asset currently loads but renders zero pixels in rlottie while ThorVG renders content; image decode or image-layer binding remains broken
 text,text_anim.json,text animation,partial,supported,benchmark-verified,parser compatibility now works and asset renders but this is still the real text-performance regression target and text feature breadth remains incomplete
 text,textblock.json,text block animation,partial,supported,benchmark-verified,asset renders but it is outlined shape content rather than proof of real runtime text-layer support
 text,textrange.json,text range animation,partial,supported,benchmark-verified,asset renders and rlottie currently leads ThorVG on steady-state but broader text correctness coverage is still missing
 mixed,11555.json,mixed large asset,supported,supported,benchmark-verified,real asset loads and renders but remains a top steady-state loss and now points to transform-cache work rather than matte-only work
+mixed,32266.json,embedded image plus precomp handoff,incorrect,supported,full-corpus-audit,full-corpus audit shows a zero-output mismatch in rlottie and the likely short-term seam is the embedded image plus precomp handoff path
+mixed,43391.json,shape transform correctness,incorrect,supported,full-corpus-audit,real asset still diverges and sits on the full-corpus steady-state loss list so correctness and transform-path review should happen before deeper tuning
 mixed,confetti.json,mixed shapes,supported,supported,benchmark-verified,real asset loads and renders but remains on the active performance backlog and shares the transform-only rerasterization problem
+mixed,R_QPKIVi.json,shape pipeline correctness,incorrect,supported,full-corpus-audit,real asset still reaches a zero-output mismatch and likely points to shape-layer transform or drawable-list generation bugs rather than a load failure
 mixed,jolly_walker.json,mixed animation,pending,pending,fixture-needed,starter corpus
 mixed,loader_animation.json,mixed animation,pending,pending,fixture-needed,starter corpus
 mixed,world_locations.json,mixed animation,supported,supported,benchmark-verified,real asset loads and renders and is the current highest-priority performance hotspot because matte work dominates steady-state time
+expressions,balloons_with_string.json,expressions,partial,supported,full-corpus-audit,asset loads but remains one of the largest steady-state losses and still sits behind the unsupported-expression backlog
+expressions,expressions/11272.json,expressions,partial,supported,full-corpus-audit,real asset remains a top steady-state loss and should stay in the explicit longer-term expression bucket rather than being misclassified as a generic raster bug
 ux,UXSample_1920x1080/A Shapes_All_01_1920x1080.json,shape coverage,pending,pending,fixture-needed,ux sample
 ux,UXSample_1920x1080/F Masks_All_01_1920x1080.json,mask coverage,pending,pending,fixture-needed,ux sample

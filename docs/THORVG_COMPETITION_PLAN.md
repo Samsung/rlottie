@@ -45,6 +45,9 @@ The project is complete only when all of the following are true:
   `Hue`, `Saturation`, `Color`, and `Luminosity`.
 - Layer `Effects` now have a narrow first-pass `ADBE Fill` implementation for
   whole-layer solid and precomp output, with targeted fixtures for both cases.
+- Narrow `ADBE Fill` parsing is now hardened against JSON key-order variance,
+  disabled-effect ordering, unsupported enabled sibling effects, and missing
+  explicit opacity parameters.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
@@ -133,10 +136,10 @@ Current full-corpus triage on the local comparison host:
 - `rlottie` load failures: `0`
 - ThorVG load failures: `0`
 - Common-case coarse signature mismatches: `119`
-- Parse latency: `rlottie 42` wins, `thorvg 104` wins
+- Parse latency: `rlottie 87` wins, `thorvg 59` wins
 - First-frame latency: `rlottie 115` wins, `thorvg 31` wins
 - Steady-state frame time: `rlottie 50` wins, `thorvg 96` wins
-- Steady RSS: `rlottie 126` wins, `thorvg 20` wins
+- Steady RSS: `rlottie 127` wins, `thorvg 19` wins
 
 This broad audit changes the interpretation of the current gap:
 
@@ -182,6 +185,33 @@ The broader backlog is no longer matte-only. Follow-up hotspot review shows
 vector content under transform-only motion, while `text_anim.json` is dominated
 by coarse non-opaque precomp/offscreen composition. Generic keyframe lookup
 work should stay behind matte reuse and transform-cache work.
+
+## Bug Triage
+
+These are the most important correctness bugs that should be treated as
+active engineering work rather than vague backlog items:
+
+1. Embedded image output can still collapse to zero pixels.
+   - Repro assets: `image_embedded.json`, `32266.json`
+   - Current diagnosis: the broad parser path succeeds, but the image asset
+     decode/binding/draw handoff is still suspect, especially when images sit
+     behind precomp indirection.
+   - Short-term action: trace `Asset::loadImageData()` through image-layer
+     draw submission and build a minimal precomp-contained `ty:2` regression
+     fixture.
+2. Some real assets still diverge for non-expression reasons even after load
+   succeeds.
+   - Repro assets: `R_QPKIVi.json`, `43391.json`
+   - Current diagnosis: likely shape-layer transform or drawable-list
+     generation bugs rather than a broad parser failure.
+   - Short-term action: reduce them into minimal fixtures and compare bounds,
+     update, and raster stages separately.
+3. Narrow `ADBE Fill` support had parser correctness bugs and is now only
+   narrowly trusted.
+   - Fixed now: key-order dependency, disabled-effect ordering, mixed enabled
+     sibling-effect acceptance, and implicit-opacity default.
+   - Remaining gap: broaden only after mixed real-asset adjudication proves
+     the narrow bitmap-postprocess model is sound.
 
 ## Critical Review Summary
 
@@ -331,6 +361,124 @@ smoke subset:
 `masking.json`, `windmill.json`, `glow_loading.json`, and
 `gradient_sleepy_loader.json` are no longer top priority performance targets
 because they are already competitive or faster than ThorVG in the current smoke run.
+
+## Lagging Feature Buckets And Strategies
+
+This is the current working map of where `rlottie` still trails ThorVG in
+spec coverage, correctness, or steady-state performance. The grouping is by
+feature family, not by file path, so the work stays extensible instead of
+turning into one-off asset hacks.
+
+### Mattes, Masks, And Offscreen Compositing
+
+- Representative assets: `expressions/world_locations.json`, `masking.json`,
+  `confetti.json`
+- Current failure mode: repeated alpha-matte and matte-layer composition still
+  dominates frame time when translucent shape content misses the narrow
+  direct-alpha path.
+- Improvement strategy:
+  1. propagate inherited mask/matte bounds into every offscreen entry point
+  2. widen direct-alpha matte coverage
+  3. reuse matte-source RLE where the source stack is static
+  4. formalize opaque vs non-opaque layer-stack fast paths instead of keeping
+     them implicit
+
+### Static Geometry With Animated Transforms
+
+- Representative assets: `11555.json`, `confetti.json`, `threads.json`,
+  `textblock.json`
+- Current failure mode: static vector content is still re-rasterized under
+  transform-only motion instead of taking a transform-cache path.
+- Improvement strategy:
+  1. split content dirtiness from transform dirtiness
+  2. add a retained local-space snapshot/cache for mask-free, repeater-free
+     shape layers
+  3. teach repeaters and grouped transforms to consume cached geometry before
+     re-entering the full path/raster pipeline
+
+### Embedded Images And Image/Precomp Handoff
+
+- Representative assets: `image_embedded.json`, `32266.json`
+- Current failure mode: image-bearing assets can still load successfully and
+  then render zero pixels.
+- Improvement strategy:
+  1. trace decode -> asset registration -> layer reference resolution ->
+     image drawable submission end to end
+  2. add a minimal embedded-image-precomp regression fixture
+  3. fix precomp-contained `ty:2` execution before widening to broader image
+     asset coverage
+
+### Text Layers, Fonts, And Chars
+
+- Representative assets: `text_anim.json`, `textrange.json`
+- Current failure mode: some outlined-shape text assets render, but real text
+  payload coverage is still structurally incomplete and the current outlined
+  text path still trails ThorVG on steady-state.
+- Improvement strategy:
+  1. parse `fonts`, `chars`, and layer `t` payloads for a real
+     `Layer::Type::Text` path
+  2. build a glyph-first renderer with a text glyph cache
+  3. shrink text/precomp offscreen bounds so outlined text scenes stop paying
+     broad non-opaque surface costs
+
+### Layer Effects
+
+- Representative assets: `expressions/layereffect.json`, `shutup.json`,
+  `bell.json`, `pumped_up.json`
+- Current failure mode: only a narrow whole-layer `ADBE Fill` subset is
+  supported today.
+- Improvement strategy:
+  1. keep using bitmap postprocess effects first instead of designing a generic
+     effect graph up front
+  2. land `Tint` and `Stroke` next
+  3. only after single-effect fixtures are stable, handle mixed enabled stacks
+     with an explicit allowlist and adjudicated output
+
+### Merge Paths Stroke Semantics
+
+- Representative assets: `merging_shapes.json`
+- Current failure mode: fill and gradient-fill boolean paths work, but stroke
+  semantics still fall back to concatenation instead of a real boolean result.
+- Improvement strategy:
+  1. add a real path-boolean backend
+  2. if that is too invasive short-term, outline strokes first and boolean the
+     outlined fill result
+  3. re-run real-asset merge cost checks only after semantics are correct
+
+### Shape Pipeline Correctness And Transform Edge Cases
+
+- Representative assets: `R_QPKIVi.json`, `43391.json`
+- Current failure mode: load succeeds but rendered output still diverges,
+  which points to transform/bounds/drawable-list bugs rather than parser gaps.
+- Improvement strategy:
+  1. reduce each asset to a minimal fixture
+  2. compare layer update, group transform composition, bounds propagation,
+     and drawable-list generation independently
+  3. fix correctness before optimizing performance on these assets
+
+### Expressions
+
+- Representative assets: `balloons_with_string.json`,
+  `expressions/11272.json`, `holdanimation.json`
+- Current failure mode: expression payloads still sit outside the supported
+  runtime and create large visible mismatches.
+- Improvement strategy:
+  1. do not build a general expression engine first
+  2. identify the smallest recurring expression subset on the Samsung/Tizen
+     corpus
+  3. add explicit unsupported-expression diagnostics and fallback behavior so
+     failures are explainable even before broader support lands
+
+### Parser Throughput And Precomp-Heavy Parse Cost
+
+- Representative assets: `holdanimation.json`, `page_slide.json`,
+  `expressions/16447.json`, `starburst.json`, `uk_flag.json`
+- Current failure mode: full-corpus parse latency still trails on heavy
+  precomp/property payloads even though first-frame latency is broadly strong.
+- Improvement strategy:
+  1. add common-key fast paths and reserve sizing for high-fanout arrays
+  2. skip unsupported blobs more cheaply
+  3. cut asset/layer allocation overhead before touching general evaluator code
 
 ## Workstream Structure
 

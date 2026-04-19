@@ -135,3 +135,19 @@ is the active gating signal for heartbeat work:
 
 Heartbeat-driven work should follow the active backlog in
 `docs/THORVG_COMPETITION_PLAN.md` rather than picking speculative work at random.
+
+## Current Lagging Buckets
+
+The full-corpus audit should now be interpreted by feature bucket rather than
+as one flat ranking:
+
+- mattes and offscreen compositing: `expressions/world_locations.json`
+- transform-only rerasterization: `11555.json`, `confetti.json`, `threads.json`
+- embedded images and precomp handoff: `image_embedded.json`, `32266.json`
+- text/runtime text payloads: `text_anim.json`, `textrange.json`
+- layer effects beyond narrow `ADBE Fill`: `bell.json`, `pumped_up.json`,
+  `expressions/layereffect.json`
+- expressions: `balloons_with_string.json`, `expressions/11272.json`
+
+This grouping matters because the fix strategy is different for each family.
+Do not treat all full-corpus losses as generic render slowness.
