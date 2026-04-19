@@ -86,6 +86,21 @@ The comparison tool emits per-engine CSV rows with:
 If ThorVG thread count needs to be controlled explicitly, pass `--threads <n>`
 to the comparison script and it will forward that value to `thorvgbench`.
 
+For a corpus-wide audit that summarizes load failures, coarse render
+signature mismatches, and the largest rlottie losses against ThorVG:
+
+```sh
+python3 benchmarks/audit_thorvg_corpus.py \
+  --asset-dir ../thorvg.example/res/lottie \
+  --iterations 10 \
+  --warmup 2 \
+  --size 360x360
+```
+
+This wrapper still uses `compare_lottie_engines.py` underneath, but it adds a
+direct triage summary for unsupported assets and the top parse, first-frame,
+steady-state, and RSS gaps.
+
 ## Local rlottie-vs-rlottie Comparison
 
 When a candidate optimization is noisy or too narrow to trust from a single
