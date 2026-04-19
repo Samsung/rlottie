@@ -7,11 +7,21 @@
 | 항목 | 값 |
 | --- | --- |
 | 비교 엔진 | `build/example/lottiebench` vs `build/example/thorvgbench` |
-| 코퍼스 | `benchmarks/thorvg_example_smoke.txt` + backlog 추가 자산(`threads.json`, `32266.json`) |
+| 코퍼스 | `benchmarks/thorvg_example_smoke.txt` + backlog 추가 자산(`threads.json`, `32266.json`, `R_QPKIVi.json`, `43391.json`) |
 | 해상도 | `360x360` |
 | 반복 | `30 iterations`, `3 warmup`, `5 trials` |
 | 비교 기준 | median-case, ThorVG `--threads 1` 고정 |
 | correctness 판정 | `benchmarks/adjudicate_lottie_frames.py` frame 지정 image adjudication |
+
+## 최신 반영 사항
+
+| 항목 | 현재 상태 |
+| --- | --- |
+| `ty`-last shape parser | `gr/sh/fl/tr` shape object에서 `ty`가 마지막에 와도 payload를 잃지 않도록 parser fallback 추가 |
+| 회귀 fixture | `example/resource/shape_group_ty_last.json` 추가. `100x100` 기준 `nonzero_pixels=1600`으로 정상 렌더 확인 |
+| `R_QPKIVi.json` 상태 변화 | 이전 zero-output 단계는 벗어남. 다만 frame 0 adjudication은 여전히 `exact_match_ratio = 0.000008` 수준이라 correctness 이슈는 계속 최상위 |
+| `world_locations.json` matte 경로 | 단순 `Alpha/AlphaInv` matte에서 source offscreen 1장을 생략하는 direct path 추가 |
+| `world_locations.json` 최신 판정 | first-frame adjudication은 `exact_match_ratio = 0.999722` 유지, steady profile의 `render_matte_ms`는 `15.04 ms` 수준으로 감소 |
 
 ## 스펙 지원 현황 및 backlog
 
@@ -47,7 +57,7 @@
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
 | `world_locations.json` | correctness보다 성능 문제다. first-frame은 거의 맞고, 병목은 여전히 matte/offscreen이다. |
 | `11555/confetti/threads` | matte보다 transform-only rerasterization이 본질이다. snapshot/cache 경로가 필요하다. |
-| `R_QPKIVi.json` | `ty`가 마지막인 shape object parser 버그로 인한 blank는 닫혔다. 하지만 frame 0 exact match ratio는 거의 `0`이라 구조적 correctness 이슈는 여전히 크다. |
+| `R_QPKIVi.json` | `ty`가 마지막인 shape object parser 버그로 인한 blank는 닫혔다. 하지만 frame 0 exact match ratio는 `0.000008` 수준이라 구조적 correctness 이슈는 여전히 크다. |
 
 ## 리소스별 성능 비교
 
@@ -93,7 +103,7 @@
 | 2 | `11555.json`, `confetti.json`, `threads.json` | transform-only rerasterization 때문에 static vector가 매 프레임 다시 그려짐 | content/transform dirty 분리, local-space snapshot cache |
 | 3 | `stroke_dash.json` | text 복구는 끝났고 남은 차이는 broader effect stack 쪽이다 | late-frame adjudication 정교화, effect stack 분리 |
 | 4 | `textrange.json` | 성능이 아니라 animated document + animator correctness gap이 본질이다 | `t.d.k` keyframe support, range-selector opacity subset |
-| 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큼. 특히 `R_QPKIVi`는 blank는 벗어났지만 여전히 구조적으로 틀리다 | image adjudication 기반 축소 재현, 구조 버그 분리 |
+| 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큼. 특히 `R_QPKIVi`는 blank는 벗어났지만 여전히 구조적으로 틀리다 | image adjudication 기반 축소 재현, `ty`-last 이후 남은 shape pipeline 버그 분리 |
 
 ## 주의할 점
 
@@ -101,4 +111,4 @@
 - `32266.json`은 steady-state 성능 타깃으로 보면 우선순위를 잘못 잡게 된다.
 - `world_locations.json`은 image-level로는 이미 꽤 가깝기 때문에, correctness보다 matte 성능에 집중해야 한다.
 - `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리지만, frame 0과 frame 12 판정 모두 비교적 가까워서 effect 단일 원인으로 몰아가면 우선순위를 잘못 잡을 수 있다.
-- `R_QPKIVi.json`은 이제 blank는 아니지만, frame 0 exact match ratio가 사실상 `0`이라서 shape correctness 버킷의 최상위 긴급 자산인 건 그대로다.
+- `R_QPKIVi.json`은 이제 blank는 아니지만, frame 0 exact match ratio가 `0.000008` 수준이라서 shape correctness 버킷의 최상위 긴급 자산인 건 그대로다.
