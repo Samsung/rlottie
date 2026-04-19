@@ -184,7 +184,7 @@ steady-state losses are:
 - `confetti.json`: `0.233 ms` vs `0.110 ms`
 - `threads.json`: `1.961 ms` vs `1.888 ms`
 - `text_anim.json`: `0.125 ms` vs `0.084 ms`
-- `stroke_dash.json`: `0.153 ms` vs `0.121 ms`
+- `stroke_dash.json`: `0.165 ms` vs `0.122 ms`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -207,9 +207,9 @@ as one flat ranking:
 This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
 `stroke_dash.json` and `expressions/layereffect.json` now render again after
-parser hardening, but they still belong in the layer-effects bucket because
-the remaining gap is real text, expression controls, and broader effect
-coverage rather than pure zero-output failure.
+parser hardening. `stroke_dash.json` also has a narrow chars-backed static text
+path now, so the remaining gap is no longer a missing title layer; it is
+broader effect coverage, expression controls, and image-level output drift.
 
 Recent matte work:
 

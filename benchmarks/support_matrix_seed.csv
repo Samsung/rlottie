@@ -10,7 +10,7 @@ mask_matte,matte_two_item_with_lowerlayer.json,matte,supported,pending,benchmark
 mask_alpha,starts_transparent.json,alpha and transparency,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 dynamic,dynamic_property.json,dynamic property,pending,pending,fixture-needed,starter corpus
 stroke_dash,static_dynamic_dash.json,dash,pending,pending,fixture-needed,starter corpus
-stroke_dash,stroke_dash.json,dash plus text/effect mix,partial,supported,benchmark-verified,parser hardening now keeps unsupported 4-Color Gradient params from collapsing the asset to zero output but real text-layer rendering and the effect itself still diverge from ThorVG
+stroke_dash,stroke_dash.json,dash plus text/effect mix,partial,supported,benchmark-verified,static chars-backed text layers now convert into shape content so the asset no longer misses its title text, but 4-Color Gradient/effect semantics and overall output still diverge from ThorVG
 repeater,windmill.json,repeater,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 repeater,skew_repeater_x.json,repeater skew,supported,pending,render-bounds-verified,baseline ignored repeater skew and current bbox expands on x
 compositing,blendmode_multiply.json,layer blend multiply,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 77200/109400/87800 from 201200/183600/89200

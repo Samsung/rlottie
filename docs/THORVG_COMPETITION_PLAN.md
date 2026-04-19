@@ -54,6 +54,9 @@ The project is complete only when all of the following are true:
 - Narrow whole-layer `ADBE Fill` / `ADBE Tint` parsing is now hardened against
   JSON key-order variance, disabled-effect ordering, unsupported enabled
   sibling effects, and missing explicit opacity parameters.
+- Narrow static `chars`-backed text layers now convert into ordinary shape
+  content at parse time, which restores assets such as `stroke_dash.json`
+  without adding a separate renderer-side text layer implementation.
 - Module-mode image loading now builds the image-loader plugin with `rlottie`
   and probes build-tree and library-relative plugin locations at runtime,
   which restores embedded and file-backed image assets in local builds.
@@ -124,7 +127,7 @@ Largest current `rlottie` steady-state losses:
 3. `confetti.json`: `0.233 ms` vs `0.110 ms`
 4. `threads.json`: `1.961 ms` vs `1.888 ms`
 5. `text_anim.json`: `0.125 ms` vs `0.084 ms`
-6. `stroke_dash.json`: `0.153 ms` vs `0.121 ms`
+6. `stroke_dash.json`: `0.165 ms` vs `0.122 ms`
 7. `32266.json` remains a correctness and parse target rather than a
    steady-state target
 
@@ -204,6 +207,10 @@ This broad audit changes the interpretation of the current gap:
   `expressions/layereffect.json`. Those assets now load and render, so they
   move from zero-output triage to the partial-support backlog covering real
   text, expression controls, `ADBE 4ColorGradient`, and broader effect stacks.
+- A later narrow text pass converts static `chars`-backed text layers into
+  shape content. `stroke_dash.json` now carries its title text again and first-
+  frame image adjudication improves, but animated text, text animators, and
+  broader effect-stack semantics are still open.
 - Image-level first-frame adjudication is now available for concentrated
   mismatches. Initial runs show `expressions/world_locations.json` is already
   visually close on frame 0, while `32266.json` still has a material image
@@ -282,9 +289,10 @@ active engineering work rather than vague backlog items:
 - `Text` support is still structurally incomplete. Some assets such as
   `text_anim.json`, `textblock.json`, and `textrange.json` render today, but
   `textblock.json` is outlined shape content rather than proof of a real
-  runtime text pipeline. The parser still does not consume full text payloads
-  such as `fonts`, `chars`, and layer `t` data, and the renderer still has no
-  dedicated `Layer::Type::Text` execution path.
+  runtime text pipeline. A narrow static `chars`-backed conversion path now
+  consumes some `fonts`, `chars`, and layer `t` payloads, but the renderer
+  still has no dedicated `Layer::Type::Text` execution path and broad text
+  features such as animators and animated documents remain unsupported.
 - `Merge Paths` now has fixture-backed fill/gradient-fill support for boolean
   modes, and static merge RLE no longer gets recomputed every frame, but stroke
   semantics still fall back to path concatenation and need a real path-boolean
@@ -296,9 +304,10 @@ active engineering work rather than vague backlog items:
   from `Multiply` through `Luminosity` on targeted fixtures, but mixed-asset
   coverage and image-level adjudication against ThorVG are still open.
 - `Layer Effects` are still mostly missing. Narrow whole-layer `ADBE Fill` and
-  `ADBE Tint` subsets now work on targeted fixtures, but `Stroke`, effect
-  stacks, masked fill, feathered fill, and mixed real-asset adjudication are
-  still open.
+  `ADBE Tint` subsets now work on targeted fixtures, and static `chars`-backed
+  text can now survive mixed text/effect assets, but `Stroke`, effect stacks,
+  masked fill, feathered fill, and mixed real-asset adjudication are still
+  open.
 - Soft-mask features such as `Feather` and `Expansion` are missing, while hard
   mask path modes remain the only fully wired mask family today.
 - Expressions remain unsupported engine-wide and should not drive near-term
@@ -458,9 +467,10 @@ turning into one-off asset hacks.
 ### Text Layers, Fonts, And Chars
 
 - Representative assets: `text_anim.json`, `textrange.json`
-- Current failure mode: some outlined-shape text assets render, but real text
-  payload coverage is still structurally incomplete and the current outlined
-  text path still trails ThorVG on steady-state.
+- Current failure mode: some outlined-shape text assets render, and static
+  `chars`-backed text layers now convert into shape content, but real text
+  payload coverage is still structurally incomplete and the current text path
+  still trails ThorVG on steady-state.
 - Improvement strategy:
   1. parse `fonts`, `chars`, and layer `t` payloads for a real
      `Layer::Type::Text` path
@@ -473,9 +483,9 @@ turning into one-off asset hacks.
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
   `stroke_dash.json`
 - Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
-  subsets are supported today, while real assets still diverge on expression
-  controls, text/effect mixtures, `ADBE 4ColorGradient`, and broader effect
-  stacks.
+  subsets are supported today. `stroke_dash.json` now includes its static title
+  text again, but real assets still diverge on expression controls,
+  `ADBE 4ColorGradient`, and broader effect stacks.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front
