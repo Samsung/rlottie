@@ -362,6 +362,16 @@ static bool isPositiveMatte(model::MatteType type)
            type == model::MatteType::Luma;
 }
 
+static bool canRenderMatteDirectly(renderer::Layer *src, model::MatteType type)
+{
+    if (type != model::MatteType::Alpha &&
+        type != model::MatteType::AlphaInv) {
+        return false;
+    }
+
+    return !src->hasBlendMode() && !src->hasBitmapEffect();
+}
+
 static VRect tightenClipToBounds(const VRect &clip, const VRect &bounds)
 {
     if (bounds.empty()) return clip;
@@ -964,18 +974,23 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
         clip = drawRegion;
     }
     VSize size = clip.size();
-    // Decide if we can use fast matte.
-    // 1. draw src layer to matte buffer
-    VBitmap  srcBitmap = cache.make_surface(size.width(), size.height());
-    renderLayerBitmap(src, clip, mask, matteRle, cache, srcBitmap);
+    const bool directMatte =
+        canRenderMatteDirectly(src, layer->matteType());
 
-    // 2. draw layer to layer buffer
+    // 1. draw layer to layer buffer
     VBitmap  layerBitmap = cache.make_surface(size.width(), size.height());
     VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
     applyBitmapEffects(layerBitmap, layer);
-    // 2.1update composition mode
+
+    VBitmap srcBitmap;
+    if (!directMatte) {
+        srcBitmap = cache.make_surface(size.width(), size.height());
+        renderLayerBitmap(src, clip, mask, matteRle, cache, srcBitmap);
+    }
+
+    // 2. update composition mode
     switch (layer->matteType()) {
     case model::MatteType::Alpha:
     case model::MatteType::Luma: {
@@ -991,14 +1006,19 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
         break;
     }
 
-    // 2.2 update srcBuffer if the matte is luma type
-    if (layer->matteType() == model::MatteType::Luma ||
-        layer->matteType() == model::MatteType::LumaInv) {
+    // 2.1 update srcBuffer if the matte is luma type
+    if (!directMatte &&
+        (layer->matteType() == model::MatteType::Luma ||
+         layer->matteType() == model::MatteType::LumaInv)) {
         srcBitmap.updateLuma(srcBitmap.rect());
     }
 
-    // 2.3 draw src buffer as mask
-    layerPainter.drawBitmap(clip, srcBitmap, srcBitmap.rect());
+    // 2.2 apply source alpha/luma as mask
+    if (directMatte) {
+        src->render(&layerPainter, mask, matteRle, cache);
+    } else {
+        layerPainter.drawBitmap(clip, srcBitmap, srcBitmap.rect());
+    }
     layerPainter.end();
     // 3. draw the result buffer into painter
     if (src->hasBlendMode()) {
@@ -1009,7 +1029,7 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
         painter->setBlendMode(BlendMode::SrcOver);
     }
 
-    cache.release_surface(srcBitmap);
+    if (!directMatte) cache.release_surface(srcBitmap);
     cache.release_surface(layerBitmap);
 }
 
