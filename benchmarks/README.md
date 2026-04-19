@@ -74,7 +74,9 @@ python3 benchmarks/compare_lottie_engines.py \
   --asset-list benchmarks/thorvg_example_smoke.txt \
   --size 360x360 \
   --iterations 30 \
-  --warmup 3
+  --warmup 3 \
+  --trials 5 \
+  --threads 1
 ```
 
 The comparison tool emits per-engine CSV rows with:
@@ -84,9 +86,19 @@ The comparison tool emits per-engine CSV rows with:
 - steady-state average frame time
 - resident RSS after parse, first frame, and steady-state loop
 - first-frame pixel signature for coarse validation
+- trial count
+- median, min, and max for the main timing and RSS metrics
 
-If ThorVG thread count needs to be controlled explicitly, pass `--threads <n>`
-to the comparison script and it will forward that value to `thorvgbench`.
+The benchmark validity rules are now:
+
+- always pin ThorVG thread count explicitly instead of relying on host-core defaults
+- use multiple trials instead of a single run
+- alternate engine execution order between trials to reduce warm-cache and thermal bias
+- use median-case results for ranking, not one noisy sample
+- use image-level adjudication for top mismatches instead of coarse signatures alone
+
+The comparison script now defaults to `--threads 1` and `--trials 3` so CPU
+comparisons do not silently depend on the workstation's hardware concurrency.
 
 For a corpus-wide audit that summarizes load failures, coarse render
 signature mismatches, and the largest rlottie losses against ThorVG:
@@ -96,6 +108,8 @@ python3 benchmarks/audit_thorvg_corpus.py \
   --asset-dir ../thorvg.example/res/lottie \
   --iterations 10 \
   --warmup 2 \
+  --trials 3 \
+  --threads 1 \
   --size 360x360
 ```
 
@@ -158,6 +172,25 @@ is the active gating signal for heartbeat work:
 
 Heartbeat-driven work should follow the active backlog in
 `docs/THORVG_COMPETITION_PLAN.md` rather than picking speculative work at random.
+
+## Current Priority Snapshot
+
+On the current median-of-5 comparison for the main lagging assets at
+`360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
+steady-state losses are:
+
+- `expressions/world_locations.json`: `0.592 ms` vs `0.226 ms`
+- `11555.json`: `1.539 ms` vs `1.312 ms`
+- `confetti.json`: `0.248 ms` vs `0.101 ms`
+- `threads.json`: `1.989 ms` vs `1.927 ms`
+- `text_anim.json`: `0.123 ms` vs `0.098 ms`
+- `stroke_dash.json`: `0.155 ms` vs `0.130 ms`
+
+The same run confirms that `32266.json` is not a performance problem first.
+It is parse-heavy and still needs correctness adjudication:
+
+- parse: `15.883 ms` vs `0.789 ms`
+- steady-state: `0.167 ms` vs `0.406 ms`
 
 ## Current Lagging Buckets
 

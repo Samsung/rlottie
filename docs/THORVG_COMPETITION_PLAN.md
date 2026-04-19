@@ -32,6 +32,9 @@ The project is complete only when all of the following are true:
   `rlottie` vs `thorvg` comparison on shared JSON corpora.
 - `adjudicate_lottie_frames.py` now provides image-level first-frame dumps and
   diff metrics for targeted correctness review.
+- The comparison workflow now uses multi-trial median results with alternating
+  engine order and explicit ThorVG thread control instead of trusting single
+  noisy runs or host-core defaults.
 - `.lottie` loading improved to select animation JSON from manifest-aware archive paths.
 - Fractional `w/h/sw/sh` values now parse correctly on compositions, assets, and
   layers, which unblocks real text-heavy assets such as `text_anim.json`.
@@ -123,6 +126,27 @@ Largest current `rlottie` steady-state losses:
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
+### Critical Benchmark Review
+
+The older comparison workflow was not strong enough to drive optimization work
+by itself. The main flaws were:
+
+1. single-run measurements were too noisy for sub-millisecond gaps
+2. engine execution order was fixed, which biased warm-cache and thermal state
+3. ThorVG thread count silently depended on workstation hardware concurrency
+4. coarse render signatures were useful for triage but not enough to judge
+   visual correctness on top mismatches
+
+The current benchmark workflow closes those gaps by:
+
+1. running multiple trials and ranking by median case
+2. alternating engine order across trials
+3. defaulting comparison runs to explicit `--threads 1`
+4. using image-level adjudication for concentrated mismatch assets
+
+This does not make desktop results equal to Tizen hardware. It does make the
+local comparison materially more trustworthy than the previous single-run flow.
+
 ### ThorVG Full-Corpus Audit Snapshot
 
 Reference audit flow:
@@ -202,6 +226,17 @@ The broader backlog is no longer matte-only. Follow-up hotspot review shows
 vector content under transform-only motion, while `text_anim.json` is dominated
 by coarse non-opaque precomp/offscreen composition. Generic keyframe lookup
 work should stay behind matte reuse and transform-cache work.
+
+The current median-of-5 priority comparison on the main lagging assets gives
+this practical order:
+
+1. `expressions/world_locations.json`
+2. `confetti.json`
+3. `11555.json`
+4. `threads.json`
+5. `text_anim.json`
+6. `stroke_dash.json`
+7. `32266.json` as correctness and parse triage rather than steady-state alone
 
 ## Bug Triage
 

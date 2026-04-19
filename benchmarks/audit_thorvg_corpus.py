@@ -25,7 +25,8 @@ def parse_args():
     parser.add_argument("--size", action="append")
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--warmup", type=int, default=2)
-    parser.add_argument("--threads", type=int)
+    parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument("--trials", type=int, default=3)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--top", type=int, default=10)
     parser.add_argument("--output-csv", type=Path)
@@ -56,6 +57,8 @@ def run_compare(args, output_csv):
         cmd.extend(["--asset-list", str(args.asset_list.resolve())])
     if args.threads is not None:
         cmd.extend(["--threads", str(args.threads)])
+    if args.trials is not None:
+        cmd.extend(["--trials", str(args.trials)])
     if args.limit is not None:
         cmd.extend(["--limit", str(args.limit)])
     for size in args.size:
