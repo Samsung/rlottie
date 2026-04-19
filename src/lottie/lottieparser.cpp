@@ -2040,18 +2040,193 @@ model::Object *LottieParserImpl::parseObjectTypeAttr()
 void LottieParserImpl::parseObject(model::Group *parent)
 {
     EnterObject();
-    while (const char *key = NextObjectKey()) {
-        if (0 == strcmp(key, "ty")) {
-            auto child = parseObjectTypeAttr();
-            if (child && !child->hidden()) {
-                if (child->type() == model::Object::Type::RoundedCorner) {
-                    updateRoundedCorner(parent, static_cast<model::RoundedCorner *>(child));
-                }
-                parent->mChildren.push_back(child);
+    const char *key = NextObjectKey();
+    if (!key) return;
+
+    if (0 == strcmp(key, "ty")) {
+        auto child = parseObjectTypeAttr();
+        if (child && !child->hidden()) {
+            if (child->type() == model::Object::Type::RoundedCorner) {
+                updateRoundedCorner(
+                    parent, static_cast<model::RoundedCorner *>(child));
             }
-        } else {
-            Skip(key);
+            parent->mChildren.push_back(child);
         }
+        while (NextObjectKey()) {
+        }
+        return;
+    }
+
+    auto finalizeBufferedGroup = [&](model::Group *group) -> model::Object * {
+        if (!group) return nullptr;
+
+        if (!group->mChildren.empty() &&
+            group->mChildren.back()->type() == model::Object::Type::Transform) {
+            group->mTransform =
+                static_cast<model::Transform *>(group->mChildren.back());
+            group->mChildren.pop_back();
+        }
+
+        bool staticFlag = true;
+        for (const auto &child : group->mChildren) {
+            staticFlag &= child->isStatic();
+        }
+
+        if (group->mTransform) {
+            group->setStatic(staticFlag && group->mTransform->isStatic());
+        } else {
+            group->setStatic(staticFlag);
+        }
+
+        return group;
+    };
+
+    auto finalizeBufferedPath = [&](model::Path *obj) -> model::Object * {
+        if (!obj) return nullptr;
+        obj->setStatic(obj->mShape.isStatic());
+        return obj;
+    };
+
+    auto finalizeBufferedFill = [&](model::Fill *obj) -> model::Object * {
+        if (!obj) return nullptr;
+        obj->setStatic(obj->mColor.isStatic() && obj->mOpacity.isStatic());
+        return obj;
+    };
+
+    auto finalizeBufferedTransform = [&](model::Transform *objT,
+                                         model::Transform::Data *data)
+        -> model::Object * {
+        if (!objT || !data) return nullptr;
+
+        bool isStatic = data->mAnchor.isStatic() && data->mPosition.isStatic() &&
+                        data->mRotation.isStatic() && data->mSkew.isStatic() &&
+                        data->mSkewAxis.isStatic() && data->mScale.isStatic() &&
+                        data->mOpacity.isStatic();
+        if (data->mExtra) {
+            isStatic = isStatic && data->mExtra->m3DRx.isStatic() &&
+                       data->mExtra->m3DRy.isStatic() &&
+                       data->mExtra->m3DRz.isStatic() &&
+                       data->mExtra->mSeparateX.isStatic() &&
+                       data->mExtra->mSeparateY.isStatic();
+        }
+
+        objT->set(data, isStatic);
+        return objT;
+    };
+
+    std::string objectType;
+    auto *bufferedGroup = allocator().make<model::Group>();
+    auto *bufferedPath = allocator().make<model::Path>();
+    auto *bufferedFill = allocator().make<model::Fill>();
+    auto *bufferedTransform = allocator().make<model::Transform>();
+    auto *bufferedTransformData =
+        allocator().make<model::Transform::Data>();
+    bool sawGroup = false;
+    bool sawPath = false;
+    bool sawFill = false;
+    bool sawTransform = false;
+
+    auto consumeBufferedKey = [&](const char *bufferedKey) {
+        if (0 == strcmp(bufferedKey, "ty")) {
+            objectType = GetStringObject();
+        } else if (0 == strcmp(bufferedKey, "nm")) {
+            auto name = GetStringObject();
+            bufferedGroup->setName(name.c_str());
+            bufferedPath->setName(name.c_str());
+            bufferedFill->setName(name.c_str());
+            bufferedTransform->setName(name.c_str());
+        } else if (0 == strcmp(bufferedKey, "hd")) {
+            bool hidden = GetBool();
+            bufferedGroup->setHidden(hidden);
+            bufferedPath->setHidden(hidden);
+            bufferedFill->setHidden(hidden);
+            bufferedTransform->setHidden(hidden);
+        } else if (0 == strcmp(bufferedKey, "it")) {
+            sawGroup = true;
+            EnterArray();
+            while (NextArrayValue()) {
+                parseObject(bufferedGroup);
+            }
+        } else if (0 == strcmp(bufferedKey, "ks")) {
+            sawPath = true;
+            parseShapeProperty(bufferedPath->mShape);
+        } else if (0 == strcmp(bufferedKey, "d")) {
+            bufferedPath->mDirection = GetInt();
+        } else if (0 == strcmp(bufferedKey, "c")) {
+            sawFill = true;
+            parseProperty(bufferedFill->mColor);
+        } else if (0 == strcmp(bufferedKey, "o")) {
+            if (sawTransform && !sawFill) {
+                parseProperty(bufferedTransformData->mOpacity);
+            } else {
+                parseProperty(bufferedFill->mOpacity);
+                sawFill = true;
+            }
+        } else if (0 == strcmp(bufferedKey, "r")) {
+            if (sawTransform) {
+                parseProperty(bufferedTransformData->mRotation);
+            } else {
+                bufferedFill->mFillRule = getFillRule();
+                sawFill = true;
+            }
+        } else if (0 == strcmp(bufferedKey, "fillEnabled")) {
+            sawFill = true;
+            bufferedFill->mEnabled = GetBool();
+        } else if (0 == strcmp(bufferedKey, "a")) {
+            sawTransform = true;
+            parseProperty(bufferedTransformData->mAnchor);
+        } else if (0 == strcmp(bufferedKey, "p")) {
+            sawTransform = true;
+            EnterObject();
+            bool separate = false;
+            while (const char *transformKey = NextObjectKey()) {
+                if (0 == strcmp(transformKey, "k")) {
+                    parsePropertyHelper(bufferedTransformData->mPosition);
+                } else if (0 == strcmp(transformKey, "s")) {
+                    bufferedTransformData->createExtraData();
+                    bufferedTransformData->mExtra->mSeparate = GetBool();
+                    separate = true;
+                } else if (separate && (0 == strcmp(transformKey, "x"))) {
+                    parseProperty(bufferedTransformData->mExtra->mSeparateX);
+                } else if (separate && (0 == strcmp(transformKey, "y"))) {
+                    parseProperty(bufferedTransformData->mExtra->mSeparateY);
+                } else {
+                    Skip(transformKey);
+                }
+            }
+        } else if (0 == strcmp(bufferedKey, "s")) {
+            sawTransform = true;
+            parseProperty(bufferedTransformData->mScale);
+        } else if (0 == strcmp(bufferedKey, "sk")) {
+            sawTransform = true;
+            parseProperty(bufferedTransformData->mSkew);
+        } else if (0 == strcmp(bufferedKey, "sa")) {
+            sawTransform = true;
+            parseProperty(bufferedTransformData->mSkewAxis);
+        } else {
+            Skip(bufferedKey);
+        }
+    };
+
+    consumeBufferedKey(key);
+    while ((key = NextObjectKey())) {
+        consumeBufferedKey(key);
+    }
+
+    model::Object *child = nullptr;
+    if (objectType == "gr" && sawGroup) {
+        child = finalizeBufferedGroup(bufferedGroup);
+    } else if (objectType == "sh" && sawPath) {
+        child = finalizeBufferedPath(bufferedPath);
+    } else if (objectType == "fl" && sawFill) {
+        child = finalizeBufferedFill(bufferedFill);
+    } else if (objectType == "tr" && sawTransform) {
+        child = finalizeBufferedTransform(bufferedTransform,
+                                          bufferedTransformData);
+    }
+
+    if (child && !child->hidden()) {
+        parent->mChildren.push_back(child);
     }
 }
 
