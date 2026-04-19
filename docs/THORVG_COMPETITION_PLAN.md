@@ -122,12 +122,12 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.476 ms` vs `0.223 ms`
-2. `11555.json`: `1.514 ms` vs `1.288 ms`
-3. `confetti.json`: `0.233 ms` vs `0.110 ms`
-4. `threads.json`: `1.961 ms` vs `1.888 ms`
+1. `expressions/world_locations.json`: `0.483 ms` vs `0.224 ms`
+2. `11555.json`: `1.481 ms` vs `1.299 ms`
+3. `confetti.json`: `0.169 ms` vs `0.102 ms`
+4. `threads.json`: `1.979 ms` vs `1.913 ms`
 5. `text_anim.json`: `0.125 ms` vs `0.084 ms`
-6. `stroke_dash.json`: `0.165 ms` vs `0.122 ms`
+6. `stroke_dash.json`: `0.164 ms` vs `0.135 ms`
 7. `32266.json` remains a correctness and parse target rather than a
    steady-state target
 
@@ -183,11 +183,12 @@ This broad audit changes the interpretation of the current gap:
 - `rlottie` is not broadly failing to load the corpus. The current problem is
   output correctness drift and steady-state speed on a concentrated set of
   heavier assets.
-- Hard visible correctness holes, such as the zero-pixel `R_QPKIVi.json` case
-  and the previously blank `32266.json` asset, are expression-heavy or
-  controller-heavy. That does not make expressions a short-term project, but
-  it does confirm that some of the broadest visible correctness holes sit
-  behind expression-style payloads rather than plain parser load failures.
+- Hard visible correctness holes such as `R_QPKIVi.json` and the previously
+  blank `32266.json` asset are parser/pipeline coverage problems rather than
+  raw raster speed problems. `R_QPKIVi.json` is no longer zero-pixel after the
+  order-independent `ty`-last shape-object parser fallback, but the frame
+  still diverges heavily from ThorVG and remains a top structural correctness
+  task.
 - The biggest full-corpus steady-state losses extend beyond the smoke subset
   and now include `balloons_with_string.json`, `expressions/11272.json`,
   `threads.json`, and `43391.json` in addition to `11555.json`.
@@ -214,8 +215,8 @@ This broad audit changes the interpretation of the current gap:
 - Image-level adjudication is now available for arbitrary frames on
   concentrated mismatches. Current runs show `expressions/world_locations.json`
   is already visually close on frame 0, `32266.json` still has a material
-  image delta, and `R_QPKIVi.json` remains fully blank against ThorVG on frame
-  0.
+  image delta, and `R_QPKIVi.json` has moved out of the old blank-output
+  state but still diverges severely from ThorVG on frame 0.
 
 ### Hotspot Review
 
@@ -223,11 +224,17 @@ This broad audit changes the interpretation of the current gap:
 
 Current `lottiebench --profile` run shows:
 
-- `render_matte_ms = 15.95 ms` across the 30-frame steady-state loop
-- `composition_render_ms = 16.90 ms` total steady render time
-- `comp_update_ms = 0.31 ms`
-- `shape_update_ms = 0.22 ms`
-- `paint_update_ms = 0.16 ms`
+- `render_matte_ms = 15.04 ms` across the 30-frame steady-state loop
+- `composition_render_ms = 15.56 ms` total steady render time
+- `comp_update_ms = 0.25 ms`
+- `shape_update_ms = 0.18 ms`
+- `paint_update_ms = 0.12 ms`
+
+The latest alpha-matte pass now skips the extra source offscreen for
+`Alpha` / `AlphaInv` mattes when the source layer has no blend/effect work.
+That only nudges the hardened median from about `0.490 ms` to `0.483 ms`, but
+it materially reduces matte cost in the single-run profile and keeps the
+first-frame adjudication unchanged.
 
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the

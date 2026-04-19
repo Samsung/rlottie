@@ -190,12 +190,12 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.476 ms` vs `0.223 ms`
-- `11555.json`: `1.514 ms` vs `1.288 ms`
-- `confetti.json`: `0.233 ms` vs `0.110 ms`
-- `threads.json`: `1.961 ms` vs `1.888 ms`
+- `expressions/world_locations.json`: `0.483 ms` vs `0.224 ms`
+- `11555.json`: `1.481 ms` vs `1.299 ms`
+- `confetti.json`: `0.169 ms` vs `0.102 ms`
+- `threads.json`: `1.979 ms` vs `1.913 ms`
 - `text_anim.json`: `0.125 ms` vs `0.084 ms`
-- `stroke_dash.json`: `0.165 ms` vs `0.122 ms`
+- `stroke_dash.json`: `0.164 ms` vs `0.135 ms`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -226,17 +226,25 @@ controls, and image-level output drift.
 
 Recent matte work:
 
-- `expressions/world_locations.json` now preprocesses positive matte pairs
-  against tighter current-frame source bounds, while skipping layers whose
-  mask semantics depend on the full clip rectangle.
-- That change moved the median steady-state cost from `0.592 ms` down to
-  `0.476 ms`.
-- The same change cut `render_matte_ms` in the steady profile from
-  `18.67 ms` to `15.95 ms` over the 30-frame loop without changing the
-  first-frame adjudication result (`0.999722` exact-match ratio).
+- `expressions/world_locations.json` now has two matte-focused optimizations:
+  tighter positive-matte preprocessing clips and a direct alpha-matte path
+  that skips the extra source offscreen when the source layer has no
+  blend/effect work.
+- On the current median-of-5 comparison, that moves the asset from roughly
+  `0.490 ms` down to `0.483 ms` steady-state. The win is modest in the
+  hardened median, but the single-run profile is materially cleaner.
+- The same path cuts `render_matte_ms` in the steady 30-frame profile from
+  about `25.88 ms` to `15.04 ms` without changing the first-frame adjudication
+  result (`0.999722` exact-match ratio).
 
 Recent correctness fix:
 
 - module-mode image loading now restores nonzero output on
   `image_embedded.json` and closes the previous zero-output regression on
   `32266.json`
+- shape-object parsing now has an order-independent fallback for the common
+  `gr` / `sh` / `fl` / `tr` case where `ty` appears last. This closes the
+  parser-side blank-output failure on the new
+  `example/resource/shape_group_ty_last.json` fixture and moves
+  `R_QPKIVi.json` out of the previous zero-pixel state, even though the frame
+  still diverges heavily from ThorVG.

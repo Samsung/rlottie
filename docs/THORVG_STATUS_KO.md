@@ -41,24 +41,25 @@
 
 | 항목 | 현재 결론 |
 | --- | --- |
-| `stroke_dash.json` | 정적 title text는 복구됐고 frame 0/12 adjudication도 꽤 가깝다. 남은 차이는 broader effect stack과 image-level drift로 보는 편이 더 안전하다. |
-| `textrange.json` | 정적 chars text가 아니라 animated `t.d.k` document와 range-selector opacity animator가 핵심 gap이다. |
+| `stroke_dash.json` | 정적 title text는 복구됐고 frame 0/12 adjudication도 꽤 가깝다. 남은 차이는 `ADBE 4ColorGradient` 하나로 단정하기보다 broader effect stack과 image-level drift로 보는 편이 더 안전하다. |
+| `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` document와 range-selector opacity animator다. |
 | `text_anim.json` | runtime text가 아니라 outlined shape scene이다. real text 완성의 근거로 쓰면 안 된다. |
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
 | `world_locations.json` | correctness보다 성능 문제다. first-frame은 거의 맞고, 병목은 여전히 matte/offscreen이다. |
 | `11555/confetti/threads` | matte보다 transform-only rerasterization이 본질이다. snapshot/cache 경로가 필요하다. |
+| `R_QPKIVi.json` | `ty`가 마지막인 shape object parser 버그로 인한 blank는 닫혔다. 하지만 frame 0 exact match ratio는 거의 `0`이라 구조적 correctness 이슈는 여전히 크다. |
 
 ## 리소스별 성능 비교
 
 | 리소스 | 기능군 | rlottie parse (ms) | ThorVG parse (ms) | rlottie frame (ms) | ThorVG frame (ms) | frame 배수 (rlottie/ThorVG) | rlottie RSS (KB) | ThorVG RSS (KB) | 판정 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| world_locations.json | matte/offscreen | 0.401 | 0.425 | 0.481 | 0.227 | 2.11x | 6000 | 4928 | ThorVG 우세 |
-| 11555.json | transform cache | 0.254 | 0.447 | 1.500 | 1.281 | 1.17x | 7792 | 3696 | ThorVG 우세 |
-| confetti.json | transform cache | 2.153 | 0.622 | 0.247 | 0.109 | 2.27x | 4832 | 4384 | ThorVG 우세 |
-| threads.json | transform cache | 0.150 | 0.426 | 1.974 | 1.885 | 1.05x | 4752 | 3664 | ThorVG 우세 |
+| world_locations.json | matte/offscreen | 0.402 | 0.437 | 0.483 | 0.224 | 2.15x | 9200 | 4912 | ThorVG 우세 |
+| 11555.json | transform cache | 0.247 | 0.424 | 1.481 | 1.299 | 1.14x | 5856 | 3664 | ThorVG 우세 |
+| confetti.json | transform cache | 2.240 | 0.626 | 0.169 | 0.102 | 1.65x | 4768 | 4352 | ThorVG 우세 |
+| threads.json | transform cache | 0.146 | 0.457 | 1.979 | 1.913 | 1.03x | 4832 | 3664 | ThorVG 우세 |
 | text_anim.json | outlined text scene | 1.644 | 0.527 | 0.123 | 0.078 | 1.57x | 4848 | 4176 | ThorVG 우세 |
-| stroke_dash.json | real text + effect | 0.166 | 0.408 | 0.152 | 0.119 | 1.27x | 4048 | 3360 | ThorVG 우세 |
-| textrange.json | real text animator | 0.174 | 0.426 | 0.007 | 0.027 | 0.27x | 2816 | 3360 | rlottie 우세 |
+| stroke_dash.json | real text + effect | 0.204 | 0.421 | 0.164 | 0.135 | 1.22x | 4000 | 3392 | ThorVG 우세 |
+| textrange.json | real text animator | 0.183 | 0.411 | 0.008 | 0.028 | 0.28x | 2848 | 3344 | rlottie 우세 |
 | textblock.json | outlined shape text | 4.496 | 1.040 | 0.849 | 0.318 | 2.67x | 8592 | 7584 | ThorVG 우세 |
 | 32266.json | correctness + parse | 15.478 | 0.802 | 0.191 | 0.399 | 0.48x | 20944 | 15952 | rlottie 우세 |
 | layereffect.json | layer effect | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
@@ -75,10 +76,10 @@
 
 | 기능 버킷 | 대표 자산 | rlottie parse 평균 (ms) | ThorVG parse 평균 (ms) | rlottie frame 평균 (ms) | ThorVG frame 평균 (ms) | frame 배수 | rlottie RSS 평균 (KB) | ThorVG RSS 평균 (KB) | 해석 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| matte/offscreen | world_locations.json, masking.json, starts_transparent.json | 0.619 | 0.457 | 0.245 | 0.202 | 1.22x | 5104 | 4426 | ThorVG 우세 |
-| transform cache | 11555.json, confetti.json, threads.json | 0.852 | 0.498 | 1.240 | 1.092 | 1.14x | 5792 | 3914 | ThorVG 우세 |
+| matte/offscreen | world_locations.json, masking.json, starts_transparent.json | 0.619 | 0.461 | 0.246 | 0.201 | 1.22x | 6170 | 4421 | ThorVG 우세 |
+| transform cache | 11555.json, confetti.json, threads.json | 0.878 | 0.502 | 1.210 | 1.105 | 1.10x | 5152 | 3893 | ThorVG 우세 |
 | outlined text scene | text_anim.json, textblock.json | 3.070 | 0.784 | 0.486 | 0.198 | 2.45x | 6720 | 5880 | ThorVG 우세 |
-| real text / text animator | stroke_dash.json, textrange.json | 0.170 | 0.417 | 0.080 | 0.073 | 1.09x | 3432 | 3360 | ThorVG 우세 |
+| real text / text animator | stroke_dash.json, textrange.json | 0.194 | 0.416 | 0.086 | 0.081 | 1.06x | 3424 | 3368 | ThorVG 우세 |
 | layer effect | layereffect.json | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
 | merge paths | merging_shapes.json | 0.126 | 0.403 | 0.064 | 0.050 | 1.28x | 3104 | 3328 | ThorVG 우세 |
 | basic vector | abstract_circle.json, windmill.json, glow_loading.json, gradient_sleepy_loader.json, polystar_anim.json | 0.107 | 0.403 | 0.099 | 0.151 | 0.66x | 3689 | 3484 | rlottie 우세 |
@@ -88,11 +89,11 @@
 
 | 우선순위 | 대상 | 이유 | 바로 할 작업 |
 | --- | --- | --- | --- |
-| 1 | `expressions/world_locations.json` | `render_matte_ms`가 여전히 지배적이고 steady-state 격차가 가장 큼 | inherited bounds 전파, matte 재사용, direct-alpha 확대 |
+| 1 | `expressions/world_locations.json` | first-frame은 그대로 맞고, direct alpha matte 최적화 후에도 steady-state 격차가 가장 큼 | inherited bounds 전파 마무리, matte 재사용, direct-alpha 적용 범위 확대 |
 | 2 | `11555.json`, `confetti.json`, `threads.json` | transform-only rerasterization 때문에 static vector가 매 프레임 다시 그려짐 | content/transform dirty 분리, local-space snapshot cache |
-| 3 | `stroke_dash.json` | text는 복구됐지만 남은 차이를 `4ColorGradient` 단독으로 단정할 근거가 약함 | frame 지정 adjudication으로 late-frame drift를 먼저 분리 |
-| 4 | `textrange.json` | static text가 아니라 animated document + animator gap | `t.d.k` keyframe support, range-selector opacity subset |
-| 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큼 | image adjudication 기반 축소 재현, 구조 버그 분리 |
+| 3 | `stroke_dash.json` | text 복구는 끝났고 남은 차이는 broader effect stack 쪽이다 | late-frame adjudication 정교화, effect stack 분리 |
+| 4 | `textrange.json` | 성능이 아니라 animated document + animator correctness gap이 본질이다 | `t.d.k` keyframe support, range-selector opacity subset |
+| 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큼. 특히 `R_QPKIVi`는 blank는 벗어났지만 여전히 구조적으로 틀리다 | image adjudication 기반 축소 재현, 구조 버그 분리 |
 
 ## 주의할 점
 
@@ -100,4 +101,4 @@
 - `32266.json`은 steady-state 성능 타깃으로 보면 우선순위를 잘못 잡게 된다.
 - `world_locations.json`은 image-level로는 이미 꽤 가깝기 때문에, correctness보다 matte 성능에 집중해야 한다.
 - `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리지만, frame 0과 frame 12 판정 모두 비교적 가까워서 effect 단일 원인으로 몰아가면 우선순위를 잘못 잡을 수 있다.
-- `R_QPKIVi.json`은 frame 0 지정 adjudication에서도 rlottie가 완전 blank라서, shape correctness 버킷의 최상위 긴급 자산으로 봐야 한다.
+- `R_QPKIVi.json`은 이제 blank는 아니지만, frame 0 exact match ratio가 사실상 `0`이라서 shape correctness 버킷의 최상위 긴급 자산인 건 그대로다.
