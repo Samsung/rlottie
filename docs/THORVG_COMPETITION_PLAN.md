@@ -41,7 +41,8 @@ The project is complete only when all of the following are true:
   cases, including `Intersect`, `Subtract`, and `Exclude`.
 - Layer `Blend Modes` now have fixture-backed software-render support for
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
-  `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, and `Exclusion`.
+  `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, `Exclusion`,
+  `Hue`, `Saturation`, `Color`, and `Luminosity`.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
@@ -101,13 +102,13 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.597 ms` vs `0.213 ms`
-2. `11555.json`: `1.652 ms` vs `1.243 ms`
-3. `textblock.json`: `0.934 ms` vs `0.529 ms`
-4. `confetti.json`: `0.278 ms` vs `0.214 ms`
-5. `polystar_anim.json`: `0.154 ms` vs `0.121 ms`
-6. `stroke_dash.json`: `0.157 ms` vs `0.143 ms`
-7. `text_anim.json`: `0.125 ms` vs `0.086 ms`
+1. `expressions/world_locations.json`: `0.572 ms` vs `0.197 ms`
+2. `11555.json`: `1.548 ms` vs `1.173 ms`
+3. `confetti.json`: `0.230 ms` vs `0.177 ms`
+4. `text_anim.json`: `0.129 ms` vs `0.081 ms`
+5. `polystar_anim.json`: `0.157 ms` vs `0.121 ms`
+6. `stroke_dash.json`: `0.160 ms` vs `0.140 ms`
+7. `merging_shapes.json`: `0.061 ms` vs `0.053 ms`
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
@@ -126,6 +127,12 @@ Current `lottiebench --profile` run shows:
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the
 same asset.
+
+The broader backlog is no longer matte-only. Follow-up hotspot review shows
+`11555.json` and `confetti.json` are now dominated by rerasterization of static
+vector content under transform-only motion, while `text_anim.json` is dominated
+by coarse non-opaque precomp/offscreen composition. Generic keyframe lookup
+work should stay behind matte reuse and transform-cache work.
 
 ## Critical Review Summary
 
@@ -150,12 +157,15 @@ same asset.
 - `Skew` and `Skew Axis` now have fixture-backed coverage on base transforms,
   repeaters, and 3D layers, but they still need broader mixed-asset regression
   coverage before the gap is fully closed.
-- Layer `Blend Modes` now cover `Multiply`, `Screen`, `Overlay`, `Darken`,
-  `Lighten`, `Color Dodge`, `Color Burn`, `Hard Light`, `Soft Light`,
-  `Difference`, and `Exclusion` on targeted fixtures, but hue/saturation/color
-  family modes and mixed-asset coverage remain open.
-- `Layer Effects` are missing.
-- Soft-mask features such as `Feather` and `Expansion` are missing.
+- Layer `Blend Modes` now cover the full standard Lottie layer-blend family
+  from `Multiply` through `Luminosity` on targeted fixtures, but mixed-asset
+  coverage and image-level adjudication against ThorVG are still open.
+- `Layer Effects` are missing, and simple `Fill` / `Tint` / `Stroke` remain
+  the best near-term entry point.
+- Soft-mask features such as `Feather` and `Expansion` are missing, while hard
+  mask path modes remain the only fully wired mask family today.
+- Expressions remain unsupported engine-wide and should not drive near-term
+  competition priorities.
 - `.lottie` support was fragile and still needs broader archive coverage.
 
 ### Major Architecture and Performance Problems
@@ -200,7 +210,8 @@ treated as implemented work rather than open hypotheses:
   intersect/subtract/exclude fixtures.
 - Layer `Blend Modes`: verified fixtures exist for `Multiply`, `Screen`,
   `Overlay`, `Darken`, `Lighten`, `Color Dodge`, `Color Burn`, `Hard Light`,
-  `Soft Light`, `Difference`, and `Exclusion`.
+  `Soft Light`, `Difference`, `Exclusion`, `Hue`, `Saturation`, `Color`, and
+  `Luminosity`.
 - `.lottie` manifest-aware archive selection.
 - Fractional size parsing for real-world JSON that stores dimensions as floats.
 - Tight offscreen composition for blend and matte layers.
@@ -216,12 +227,14 @@ implementation work or broader proof:
 2. Real text-layer support beyond outlined-shape assets, including parser
    coverage for `fonts`, `chars`, and layer `t` payloads plus a dedicated
    renderer path for `Layer::Type::Text`
-3. Additional layer blend families such as hue, saturation, color, and luminosity
-4. `Layer Effects` with fixture-backed support, starting from simple color and
+3. `Layer Effects` with fixture-backed support, starting from simple color and
    stroke-oriented effects
-5. Soft-mask `Expansion` and `Feather`
+4. Soft-mask `Expansion`
+5. Soft-mask `Feather`
 6. Broader `.lottie` archive coverage beyond the current manifest-path cases
-7. Mixed-asset regression coverage so supported fixtures map to real assets
+7. Expressions, explicitly treated as a longer-term project rather than a
+   short-term ThorVG competition lever
+8. Mixed-asset regression coverage so supported fixtures map to real assets
 
 ## Active Performance Backlog
 
@@ -229,29 +242,32 @@ Priority is driven by measured ThorVG comparison losses and current hotspot
 evidence, not by generic cleanup preferences.
 
 1. `expressions/world_locations.json`
-   - Goal: cut matte cost until steady-state is no longer the worst smoke loss.
+   - Goal: cut matte cost until steady-state is no longer the worst smoke
+     loss.
    - Current blocker: repeated matte composition still dominates frame time,
-     especially when matte-clipped translucent shape content falls back to
-     large alpha offscreens.
+     especially when matte-clipped translucent shape content falls back to the
+     two-offscreen path instead of a reusable direct-alpha route.
 2. `11555.json`
    - Goal: stop rerasterizing static vector art when the animation is mostly
      matrix-only motion.
    - Current blocker: static shapes and styles still re-enter the path/raster
      pipeline on transform changes instead of taking a transform-cache path.
-3. `text_anim.json`
+3. `confetti.json`
+   - Goal: make the same transform-cache work pay off on mixed-shape scenes
+     that animate transforms without animated path geometry.
+4. `text_anim.json`
    - Goal: reduce non-opaque precomp/offscreen cost on outlined text scenes
      without pretending this solves the real text-layer gap.
-4. `confetti.json`
-   - Goal: reduce mixed-shape compositing overhead.
 5. `polystar_anim.json`
    - Goal: inspect star/path evaluation and cached geometry reuse.
 6. `stroke_dash.json`
    - Goal: reduce dash recomputation and stroke raster overhead.
-7. `textblock.json`
-   - Goal: treat this as an outlined-shape regression asset, not as evidence of
-     real text support, and keep it secondary to `text_anim`.
-8. `merging_shapes.json`
+7. `merging_shapes.json`
    - Goal: revisit merge-path cost on real assets after stroke semantics work lands.
+
+`textblock.json` is no longer an active smoke loss and should stay secondary to
+`text_anim`, because it is outlined-shape content rather than proof of a real
+text engine.
 
 `masking.json`, `windmill.json`, `glow_loading.json`, and
 `gradient_sleepy_loader.json` are no longer top priority performance targets

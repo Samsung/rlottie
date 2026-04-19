@@ -32,8 +32,10 @@ Current blend-mode fixtures include `blendmode_multiply.json`,
 `blendmode_screen.json`, `blendmode_overlay.json`, `blendmode_darken.json`,
 `blendmode_lighten.json`, `blendmode_color_dodge.json`,
 `blendmode_color_burn.json`, `blendmode_hardlight.json`,
-`blendmode_softlight.json`, `blendmode_difference.json`, and
-`blendmode_exclusion.json`.
+`blendmode_softlight.json`, `blendmode_difference.json`,
+`blendmode_exclusion.json`, `blendmode_hue.json`,
+`blendmode_saturation.json`, `blendmode_color.json`, and
+`blendmode_luminosity.json`.
 
 ## Example Usage
 
