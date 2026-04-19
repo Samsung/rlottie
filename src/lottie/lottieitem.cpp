@@ -254,6 +254,38 @@ static void applyFillEffect(VBitmap &bitmap,
                      effect.opacity(frameNo));
 }
 
+static void applyTintEffect(VBitmap &bitmap,
+                            const model::Layer::TintEffect &effect,
+                            int frameNo)
+{
+    auto black = effect.mapBlackTo(frameNo).toColor();
+    auto white = effect.mapWhiteTo(frameNo).toColor();
+    bitmap.applyTint(bitmap.rect(), black.r, black.g, black.b, white.r,
+                     white.g, white.b, effect.amount(frameNo));
+}
+
+static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer)
+{
+    if (!layer->hasBitmapEffect()) return;
+
+    for (auto effectType : layer->bitmapEffectOrder()) {
+        switch (effectType) {
+        case model::Layer::BitmapEffectType::Fill:
+            if (layer->hasFillEffect()) {
+                applyFillEffect(bitmap, *layer->fillEffect(),
+                                layer->currentFrame());
+            }
+            break;
+        case model::Layer::BitmapEffectType::Tint:
+            if (layer->hasTintEffect()) {
+                applyTintEffect(bitmap, *layer->tintEffect(),
+                                layer->currentFrame());
+            }
+            break;
+        }
+    }
+}
+
 static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
                               const VRle &mask, const VRle &matteRle,
                               renderer::SurfaceCache &cache,
@@ -263,10 +295,7 @@ static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
     beginOffscreenPainter(&layerPainter, bitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
     layerPainter.end();
-
-    if (layer->hasFillEffect()) {
-        applyFillEffect(bitmap, *layer->fillEffect(), layer->currentFrame());
-    }
+    applyBitmapEffects(bitmap, layer);
 }
 
 static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
@@ -316,7 +345,7 @@ static void renderLayerComposite(VPainter *painter, const VRle &mask,
                                  const VRle &matteRle, renderer::Layer *layer,
                                  renderer::SurfaceCache &cache)
 {
-    if (!layer->hasBlendMode() && !layer->hasFillEffect()) {
+    if (!layer->hasBlendMode() && !layer->hasBitmapEffect()) {
         layer->render(painter, mask, matteRle, cache);
         return;
     }
@@ -880,9 +909,7 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
-    if (layer->hasFillEffect()) {
-        applyFillEffect(layerBitmap, *layer->fillEffect(), layer->currentFrame());
-    }
+    applyBitmapEffects(layerBitmap, layer);
     // 2.1update composition mode
     switch (layer->matteType()) {
     case model::MatteType::Alpha:

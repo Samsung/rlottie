@@ -743,6 +743,24 @@ public:
             return std::max(0.0f, std::min(1.0f, value / 100.0f));
         }
     };
+    struct TintEffect {
+        Property<Color> mMapBlackTo{{0, 0, 0}};
+        Property<Color> mMapWhiteTo{{1, 1, 1}};
+        Property<float> mAmount{100.0f};
+        bool            isStatic() const
+        {
+            return mMapBlackTo.isStatic() && mMapWhiteTo.isStatic() &&
+                   mAmount.isStatic();
+        }
+        Color mapBlackTo(int frameNo) const { return mMapBlackTo.value(frameNo); }
+        Color mapWhiteTo(int frameNo) const { return mMapWhiteTo.value(frameNo); }
+        float amount(int frameNo) const
+        {
+            auto value = mAmount.value(frameNo);
+            return std::max(0.0f, std::min(1.0f, value / 100.0f));
+        }
+    };
+    enum class BitmapEffectType : uint8_t { Fill, Tint };
     struct Extra {
         Color               mSolidColor;
         std::string         mPreCompRefId;
@@ -751,6 +769,8 @@ public:
         Asset *             mAsset{nullptr};
         std::vector<Mask *> mMasks;
         std::unique_ptr<FillEffect> mFillEffect;
+        std::unique_ptr<TintEffect> mTintEffect;
+        std::vector<BitmapEffectType> mBitmapEffectOrder;
     };
 
     Layer::Extra *extra()
@@ -765,6 +785,23 @@ public:
     FillEffect *fillEffect() const
     {
         return hasFillEffect() ? mExtra->mFillEffect.get() : nullptr;
+    }
+    bool hasTintEffect() const
+    {
+        return mExtra && mExtra->mTintEffect;
+    }
+    TintEffect *tintEffect() const
+    {
+        return hasTintEffect() ? mExtra->mTintEffect.get() : nullptr;
+    }
+    bool hasBitmapEffect() const
+    {
+        return hasFillEffect() || hasTintEffect();
+    }
+    const std::vector<BitmapEffectType> &bitmapEffectOrder() const
+    {
+        static const std::vector<BitmapEffectType> kEmpty;
+        return mExtra ? mExtra->mBitmapEffectOrder : kEmpty;
     }
 
 public:

@@ -239,6 +239,7 @@ public:
     model::Layer *   parseLayer();
     void             parseLayerEffects(model::Layer *layer);
     bool             parseFillEffect(model::Layer::FillEffect &effect);
+    bool             parseTintEffect(model::Layer::TintEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1224,6 +1225,9 @@ model::Layer *LottieParserImpl::parseLayer()
     if (layer->hasFillEffect()) {
         staticFlag &= layer->fillEffect()->isStatic();
     }
+    if (layer->hasTintEffect()) {
+        staticFlag &= layer->tintEffect()->isStatic();
+    }
 
     layer->setStatic(staticFlag && layer->mTransform->isStatic());
 
@@ -1240,10 +1244,65 @@ static bool allowNarrowEffectSibling(const std::string &matchName)
            matchName == "ADBE Layer Control";
 }
 
+static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
+                                         model::Layer::FillEffect &fillEffect,
+                                         bool &fillSupported,
+                                         model::Layer::TintEffect &tintEffect,
+                                         bool &tintSupported)
+{
+    fillSupported = true;
+    tintSupported = true;
+
+    parser->EnterArray();
+    while (parser->NextArrayValue()) {
+        std::string matchName;
+        std::string name;
+        parser->EnterObject();
+        while (const char *key = parser->NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = parser->GetStringObject();
+            } else if (0 == strcmp(key, "nm")) {
+                name = parser->GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Fill-0002") {
+                    parser->parseProperty(fillEffect.mColor);
+                    tintSupported = false;
+                } else if (matchName == "ADBE Fill-0005") {
+                    parser->parseProperty(fillEffect.mOpacity);
+                    tintSupported = false;
+                } else if (matchName == "ADBE Tint-0001" ||
+                           name == "Map Black To") {
+                    parser->parseProperty(tintEffect.mMapBlackTo);
+                    fillSupported = false;
+                } else if (matchName == "ADBE Tint-0002" ||
+                           name == "Map White To") {
+                    parser->parseProperty(tintEffect.mMapWhiteTo);
+                    fillSupported = false;
+                } else if (matchName == "ADBE Tint-0003" ||
+                           name == "Amount to Tint") {
+                    parser->parseProperty(tintEffect.mAmount);
+                    fillSupported = false;
+                } else {
+                    model::Property<float> property{0.0f};
+                    parser->parseProperty(property);
+                    if (!property.isStatic() || !vIsZero(property.value())) {
+                        fillSupported = false;
+                    }
+                    tintSupported = false;
+                }
+            } else {
+                parser->Skip(key);
+            }
+        }
+    }
+}
+
 void LottieParserImpl::parseLayerEffects(model::Layer *layer)
 {
     EnterArray();
     std::unique_ptr<model::Layer::FillEffect> parsedFillEffect;
+    std::unique_ptr<model::Layer::TintEffect> parsedTintEffect;
+    std::vector<model::Layer::BitmapEffectType> parsedBitmapEffectOrder;
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
         std::string effectMatchName;
@@ -1251,7 +1310,11 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         bool        effectEnabled = true;
         bool        sawParams = false;
         bool        supported = false;
+        bool        fillSupported = false;
+        bool        tintSupported = false;
+        bool        deferredSupport = false;
         model::Layer::FillEffect candidateFillEffect;
+        model::Layer::TintEffect candidateTintEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1263,7 +1326,17 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                 effectEnabled = GetInt();
             } else if (0 == strcmp(key, "ef")) {
                 sawParams = true;
-                supported = parseFillEffect(candidateFillEffect);
+                if (effectType == 21 || effectMatchName == "ADBE Fill") {
+                    supported = parseFillEffect(candidateFillEffect);
+                } else if (effectMatchName == "ADBE Tint") {
+                    supported = parseTintEffect(candidateTintEffect);
+                } else {
+                    deferredSupport = true;
+                    parseNarrowLayerEffectParams(this, candidateFillEffect,
+                                                fillSupported,
+                                                candidateTintEffect,
+                                                tintSupported);
+                }
             } else {
                 Skip(key);
             }
@@ -1275,12 +1348,30 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             (effectType == 21 || effectMatchName == "ADBE Fill");
 
         if (isFillEffect) {
-            if (!sawParams || !supported || parsedFillEffect) {
+            const bool fillEffectSupported =
+                deferredSupport ? fillSupported : supported;
+            if (!sawParams || !fillEffectSupported || parsedFillEffect) {
                 narrowStackSupported = false;
                 continue;
             }
             parsedFillEffect = std::make_unique<model::Layer::FillEffect>(
                 std::move(candidateFillEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::Fill);
+            continue;
+        }
+
+        if (effectMatchName == "ADBE Tint") {
+            const bool tintEffectSupported =
+                deferredSupport ? tintSupported : supported;
+            if (!sawParams || !tintEffectSupported || parsedTintEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedTintEffect = std::make_unique<model::Layer::TintEffect>(
+                std::move(candidateTintEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::Tint);
             continue;
         }
 
@@ -1289,8 +1380,11 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         }
     }
 
-    if (narrowStackSupported && parsedFillEffect) {
-        layer->extra()->mFillEffect = std::move(parsedFillEffect);
+    if (narrowStackSupported && !parsedBitmapEffectOrder.empty()) {
+        auto extra = layer->extra();
+        extra->mFillEffect = std::move(parsedFillEffect);
+        extra->mTintEffect = std::move(parsedTintEffect);
+        extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
 }
 
@@ -1316,6 +1410,42 @@ bool LottieParserImpl::parseFillEffect(model::Layer::FillEffect &effect)
                     if (!property.isStatic() || !vIsZero(property.value())) {
                         supported = false;
                     }
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    return supported;
+}
+
+bool LottieParserImpl::parseTintEffect(model::Layer::TintEffect &effect)
+{
+    bool supported = true;
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        std::string name;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "nm")) {
+                name = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Tint-0001" || name == "Map Black To") {
+                    parseProperty(effect.mMapBlackTo);
+                } else if (matchName == "ADBE Tint-0002" ||
+                           name == "Map White To") {
+                    parseProperty(effect.mMapWhiteTo);
+                } else if (matchName == "ADBE Tint-0003" ||
+                           name == "Amount to Tint") {
+                    parseProperty(effect.mAmount);
+                } else {
+                    supported = false;
+                    Skip(key);
                 }
             } else {
                 Skip(key);

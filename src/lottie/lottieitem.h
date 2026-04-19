@@ -246,6 +246,22 @@ public:
     {
         return mLayerData->fillEffect();
     }
+    bool             hasTintEffect() const
+    {
+        return mLayerData->hasTintEffect();
+    }
+    model::Layer::TintEffect *tintEffect() const
+    {
+        return mLayerData->tintEffect();
+    }
+    bool             hasBitmapEffect() const
+    {
+        return mLayerData->hasBitmapEffect();
+    }
+    const std::vector<model::Layer::BitmapEffectType> &bitmapEffectOrder() const
+    {
+        return mLayerData->bitmapEffectOrder();
+    }
     bool             hasLayerMask() const { return mLayerMask != nullptr; }
     int              currentFrame() const { return mFrameNo; }
     bool             visible() const;

@@ -59,6 +59,9 @@ public:
     void    updateLuma(const VRect &region);
     void    applyFill(const VRect &region, uint8_t red, uint8_t green,
                       uint8_t blue, float amount);
+    void    applyTint(const VRect &region, uint8_t blackRed, uint8_t blackGreen,
+                      uint8_t blackBlue, uint8_t whiteRed, uint8_t whiteGreen,
+                      uint8_t whiteBlue, float amount);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -93,6 +96,10 @@ private:
         void updateLuma(const VRect &region);
         void applyFill(const VRect &region, uint8_t red, uint8_t green,
                        uint8_t blue, float amount);
+        void applyTint(const VRect &region, uint8_t blackRed,
+                       uint8_t blackGreen, uint8_t blackBlue,
+                       uint8_t whiteRed, uint8_t whiteGreen,
+                       uint8_t whiteBlue, float amount);
     };
 
     rc_ptr<Impl> mImpl;
