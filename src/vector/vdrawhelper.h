@@ -199,18 +199,25 @@ struct VSpanData {
 
     VRect clipRect() const
     {
-        return VRect(0, 0, mDrawableSize.width(), mDrawableSize.height());
+        return mDrawRegion;
     }
 
     void setDrawRegion(const VRect &region)
     {
-        mOffset = VPoint(region.left(), region.top());
+        setDrawRegion(region, VPoint(region.left(), region.top()));
+    }
+
+    void setDrawRegion(const VRect &region, const VPoint &bufferOffset)
+    {
+        mDrawRegion = region;
+        mBufferOffset = bufferOffset;
         mDrawableSize = VSize(region.width(), region.height());
     }
 
     uint32_t *buffer(int x, int y) const
     {
-        return mRasterBuffer->pixelRef(x + mOffset.x(), y + mOffset.y());
+        return mRasterBuffer->pixelRef(x - mDrawRegion.left() + mBufferOffset.x(),
+                                       y - mDrawRegion.top() + mBufferOffset.y());
     }
     void initTexture(const VBitmap *image, int alpha, const VRect &sourceRect);
     const VTextureData &texture() const { return mTexture; }
@@ -221,8 +228,9 @@ struct VSpanData {
     ProcessRleSpan                     mUnclippedBlendFunc;
     VSpanData::Type                    mType;
     std::shared_ptr<const VColorTable> mColorTable{nullptr};
-    VPoint                             mOffset;  // offset to the subsurface
+    VPoint                             mBufferOffset;  // offset within target buffer
     VSize                              mDrawableSize;  // suburface size
+    VRect                              mDrawRegion;
     uint32_t                           mSolid;
     VGradientData                      mGradient;
     VTextureData                       mTexture;

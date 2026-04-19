@@ -1,4 +1,4 @@
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON__) && defined(LOTTIE_PIXMAN_ARM_NEON)
 
 #include "vdrawhelper.h"
 

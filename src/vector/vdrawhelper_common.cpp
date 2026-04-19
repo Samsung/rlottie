@@ -168,19 +168,419 @@ static void src_DestinationOut(uint32_t *dest, int length, const uint32_t *src,
     }
 }
 
+static inline uint32_t multiply_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = (vRed(s) * (255 - da) + vRed(d) * (255 - sa) +
+                   vRed(s) * vRed(d)) / 255;
+    const int g = (vGreen(s) * (255 - da) + vGreen(d) * (255 - sa) +
+                   vGreen(s) * vGreen(d)) / 255;
+    const int b = (vBlue(s) * (255 - da) + vBlue(d) * (255 - sa) +
+                   vBlue(s) * vBlue(d)) / 255;
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline uint32_t screen_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = vRed(s) + vRed(d) - ((vRed(s) * vRed(d)) / 255);
+    const int g = vGreen(s) + vGreen(d) - ((vGreen(s) * vGreen(d)) / 255);
+    const int b = vBlue(s) + vBlue(d) - ((vBlue(s) * vBlue(d)) / 255);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline int overlay_channel(int sc, int sa, int dc, int da)
+{
+    if (2 * dc <= da) {
+        return (sc * (255 - da) + dc * (255 - sa) + 2 * sc * dc) / 255;
+    }
+
+    return (sc * (255 - da) + dc * (255 - sa) + sa * da -
+            (2 * (sa - sc) * (da - dc))) / 255;
+}
+
+static inline uint32_t overlay_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = overlay_channel(vRed(s), sa, vRed(d), da);
+    const int g = overlay_channel(vGreen(s), sa, vGreen(d), da);
+    const int b = overlay_channel(vBlue(s), sa, vBlue(d), da);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline int darken_channel(int sc, int sa, int dc, int da)
+{
+    const int blend = (sc * da < dc * sa) ? (sc * da) : (dc * sa);
+    return (sc * (255 - da) + dc * (255 - sa) + blend) / 255;
+}
+
+static inline uint32_t darken_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = darken_channel(vRed(s), sa, vRed(d), da);
+    const int g = darken_channel(vGreen(s), sa, vGreen(d), da);
+    const int b = darken_channel(vBlue(s), sa, vBlue(d), da);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline int lighten_channel(int sc, int sa, int dc, int da)
+{
+    const int blend = (sc * da > dc * sa) ? (sc * da) : (dc * sa);
+    return (sc * (255 - da) + dc * (255 - sa) + blend) / 255;
+}
+
+static inline uint32_t lighten_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = lighten_channel(vRed(s), sa, vRed(d), da);
+    const int g = lighten_channel(vGreen(s), sa, vGreen(d), da);
+    const int b = lighten_channel(vBlue(s), sa, vBlue(d), da);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline int difference_channel(int sc, int sa, int dc, int da)
+{
+    int blend = sc * da - dc * sa;
+    if (blend < 0) blend = -blend;
+    return (sc * (255 - da) + dc * (255 - sa) + blend) / 255;
+}
+
+static inline uint32_t difference_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = difference_channel(vRed(s), sa, vRed(d), da);
+    const int g = difference_channel(vGreen(s), sa, vGreen(d), da);
+    const int b = difference_channel(vBlue(s), sa, vBlue(d), da);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline uint32_t exclusion_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = vRed(s) + vRed(d) - ((2 * vRed(s) * vRed(d)) / 255);
+    const int g = vGreen(s) + vGreen(d) - ((2 * vGreen(s) * vGreen(d)) / 255);
+    const int b = vBlue(s) + vBlue(d) - ((2 * vBlue(s) * vBlue(d)) / 255);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+template <typename BlendFunc>
+static inline int blend_premul_channel(int sc, int sa, int dc, int da,
+                                       BlendFunc blend)
+{
+    if (sa == 0) return dc;
+    if (da == 0) return sc;
+
+    float s = float(sc) / float(sa);
+    float d = float(dc) / float(da);
+    float value = blend(s, d);
+    value = vMin(1.0f, vMax(0.0f, value));
+
+    float result = float(sc * (255 - da) + dc * (255 - sa));
+    result += (float(sa) * float(da) * value);
+    result /= 255.0f;
+    result = vMin(255.0f, vMax(0.0f, result));
+    return int(result + 0.5f);
+}
+
+static inline uint32_t color_dodge_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    auto blend = [](float src, float dst) -> float {
+        if (vIsZero(dst)) return 0.0f;
+        if (src >= 1.0f) return 1.0f;
+        return vMin(1.0f, dst / (1.0f - src));
+    };
+
+    const int r = blend_premul_channel(vRed(s), sa, vRed(d), da, blend);
+    const int g = blend_premul_channel(vGreen(s), sa, vGreen(d), da, blend);
+    const int b = blend_premul_channel(vBlue(s), sa, vBlue(d), da, blend);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline uint32_t color_burn_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    auto blend = [](float src, float dst) -> float {
+        if (dst >= 1.0f) return 1.0f;
+        if (vIsZero(src)) return 0.0f;
+        return 1.0f - vMin(1.0f, (1.0f - dst) / src);
+    };
+
+    const int r = blend_premul_channel(vRed(s), sa, vRed(d), da, blend);
+    const int g = blend_premul_channel(vGreen(s), sa, vGreen(d), da, blend);
+    const int b = blend_premul_channel(vBlue(s), sa, vBlue(d), da, blend);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline uint32_t hard_light_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    const int r = overlay_channel(vRed(d), da, vRed(s), sa);
+    const int g = overlay_channel(vGreen(d), da, vGreen(s), sa);
+    const int b = overlay_channel(vBlue(d), da, vBlue(s), sa);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline float soft_light_curve(float value)
+{
+    if (value <= 0.25f) {
+        return ((16.0f * value - 12.0f) * value + 4.0f) * value;
+    }
+    return std::sqrt(value);
+}
+
+static inline uint32_t soft_light_pixel(uint32_t s, uint32_t d)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    auto blend = [](float src, float dst) -> float {
+        if (src <= 0.5f) {
+            return dst - (1.0f - 2.0f * src) * dst * (1.0f - dst);
+        }
+        return dst + (2.0f * src - 1.0f) * (soft_light_curve(dst) - dst);
+    };
+
+    const int r = blend_premul_channel(vRed(s), sa, vRed(d), da, blend);
+    const int g = blend_premul_channel(vGreen(s), sa, vGreen(d), da, blend);
+    const int b = blend_premul_channel(vBlue(s), sa, vBlue(d), da, blend);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+template <uint32_t (*BlendPixel)(uint32_t, uint32_t)>
+static void color_Blend(uint32_t *dest, int length, uint32_t color,
+                        uint32_t alpha)
+{
+    if (alpha != 255) color = BYTE_MUL(color, alpha);
+    for (int i = 0; i < length; ++i) {
+        dest[i] = BlendPixel(color, dest[i]);
+    }
+}
+
+template <uint32_t (*BlendPixel)(uint32_t, uint32_t)>
+static void src_Blend(uint32_t *dest, int length, const uint32_t *src,
+                      uint32_t alpha)
+{
+    if (alpha == 255) {
+        for (int i = 0; i < length; ++i) {
+            dest[i] = BlendPixel(src[i], dest[i]);
+        }
+    } else {
+        for (int i = 0; i < length; ++i) {
+            dest[i] = BlendPixel(BYTE_MUL(src[i], alpha), dest[i]);
+        }
+    }
+}
+
+static void color_Multiply(uint32_t *dest, int length, uint32_t color,
+                           uint32_t alpha)
+{
+    color_Blend<multiply_pixel>(dest, length, color, alpha);
+}
+
+static void src_Multiply(uint32_t *dest, int length, const uint32_t *src,
+                         uint32_t alpha)
+{
+    src_Blend<multiply_pixel>(dest, length, src, alpha);
+}
+
+static void color_Screen(uint32_t *dest, int length, uint32_t color,
+                         uint32_t alpha)
+{
+    color_Blend<screen_pixel>(dest, length, color, alpha);
+}
+
+static void src_Screen(uint32_t *dest, int length, const uint32_t *src,
+                       uint32_t alpha)
+{
+    src_Blend<screen_pixel>(dest, length, src, alpha);
+}
+
+static void color_Overlay(uint32_t *dest, int length, uint32_t color,
+                          uint32_t alpha)
+{
+    color_Blend<overlay_pixel>(dest, length, color, alpha);
+}
+
+static void src_Overlay(uint32_t *dest, int length, const uint32_t *src,
+                        uint32_t alpha)
+{
+    src_Blend<overlay_pixel>(dest, length, src, alpha);
+}
+
+static void color_Darken(uint32_t *dest, int length, uint32_t color,
+                         uint32_t alpha)
+{
+    color_Blend<darken_pixel>(dest, length, color, alpha);
+}
+
+static void src_Darken(uint32_t *dest, int length, const uint32_t *src,
+                       uint32_t alpha)
+{
+    src_Blend<darken_pixel>(dest, length, src, alpha);
+}
+
+static void color_Lighten(uint32_t *dest, int length, uint32_t color,
+                          uint32_t alpha)
+{
+    color_Blend<lighten_pixel>(dest, length, color, alpha);
+}
+
+static void src_Lighten(uint32_t *dest, int length, const uint32_t *src,
+                        uint32_t alpha)
+{
+    src_Blend<lighten_pixel>(dest, length, src, alpha);
+}
+
+static void color_ColorDodge(uint32_t *dest, int length, uint32_t color,
+                             uint32_t alpha)
+{
+    color_Blend<color_dodge_pixel>(dest, length, color, alpha);
+}
+
+static void src_ColorDodge(uint32_t *dest, int length, const uint32_t *src,
+                           uint32_t alpha)
+{
+    src_Blend<color_dodge_pixel>(dest, length, src, alpha);
+}
+
+static void color_ColorBurn(uint32_t *dest, int length, uint32_t color,
+                            uint32_t alpha)
+{
+    color_Blend<color_burn_pixel>(dest, length, color, alpha);
+}
+
+static void src_ColorBurn(uint32_t *dest, int length, const uint32_t *src,
+                          uint32_t alpha)
+{
+    src_Blend<color_burn_pixel>(dest, length, src, alpha);
+}
+
+static void color_HardLight(uint32_t *dest, int length, uint32_t color,
+                            uint32_t alpha)
+{
+    color_Blend<hard_light_pixel>(dest, length, color, alpha);
+}
+
+static void src_HardLight(uint32_t *dest, int length, const uint32_t *src,
+                          uint32_t alpha)
+{
+    src_Blend<hard_light_pixel>(dest, length, src, alpha);
+}
+
+static void color_SoftLight(uint32_t *dest, int length, uint32_t color,
+                            uint32_t alpha)
+{
+    color_Blend<soft_light_pixel>(dest, length, color, alpha);
+}
+
+static void src_SoftLight(uint32_t *dest, int length, const uint32_t *src,
+                          uint32_t alpha)
+{
+    src_Blend<soft_light_pixel>(dest, length, src, alpha);
+}
+
+static void color_Difference(uint32_t *dest, int length, uint32_t color,
+                             uint32_t alpha)
+{
+    color_Blend<difference_pixel>(dest, length, color, alpha);
+}
+
+static void src_Difference(uint32_t *dest, int length, const uint32_t *src,
+                           uint32_t alpha)
+{
+    src_Blend<difference_pixel>(dest, length, src, alpha);
+}
+
+static void color_Exclusion(uint32_t *dest, int length, uint32_t color,
+                            uint32_t alpha)
+{
+    color_Blend<exclusion_pixel>(dest, length, color, alpha);
+}
+
+static void src_Exclusion(uint32_t *dest, int length, const uint32_t *src,
+                          uint32_t alpha)
+{
+    src_Blend<exclusion_pixel>(dest, length, src, alpha);
+}
+
 RenderFuncTable::RenderFuncTable()
 {
     updateColor(BlendMode::Src, color_Source);
     updateColor(BlendMode::SrcOver, color_SourceOver);
+    updateColor(BlendMode::Multiply, color_Multiply);
+    updateColor(BlendMode::Screen, color_Screen);
+    updateColor(BlendMode::Overlay, color_Overlay);
+    updateColor(BlendMode::Darken, color_Darken);
+    updateColor(BlendMode::Lighten, color_Lighten);
+    updateColor(BlendMode::ColorDodge, color_ColorDodge);
+    updateColor(BlendMode::ColorBurn, color_ColorBurn);
+    updateColor(BlendMode::HardLight, color_HardLight);
+    updateColor(BlendMode::SoftLight, color_SoftLight);
+    updateColor(BlendMode::Difference, color_Difference);
+    updateColor(BlendMode::Exclusion, color_Exclusion);
     updateColor(BlendMode::DestIn, color_DestinationIn);
     updateColor(BlendMode::DestOut, color_DestinationOut);
 
     updateSrc(BlendMode::Src, src_Source);
     updateSrc(BlendMode::SrcOver, src_SourceOver);
+    updateSrc(BlendMode::Multiply, src_Multiply);
+    updateSrc(BlendMode::Screen, src_Screen);
+    updateSrc(BlendMode::Overlay, src_Overlay);
+    updateSrc(BlendMode::Darken, src_Darken);
+    updateSrc(BlendMode::Lighten, src_Lighten);
+    updateSrc(BlendMode::ColorDodge, src_ColorDodge);
+    updateSrc(BlendMode::ColorBurn, src_ColorBurn);
+    updateSrc(BlendMode::HardLight, src_HardLight);
+    updateSrc(BlendMode::SoftLight, src_SoftLight);
+    updateSrc(BlendMode::Difference, src_Difference);
+    updateSrc(BlendMode::Exclusion, src_Exclusion);
     updateSrc(BlendMode::DestIn, src_DestinationIn);
     updateSrc(BlendMode::DestOut, src_DestinationOut);
 
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON__) && defined(LOTTIE_PIXMAN_ARM_NEON)
     neon();
 #endif
 #if defined(__SSE2__)

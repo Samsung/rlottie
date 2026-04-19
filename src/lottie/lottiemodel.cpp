@@ -22,6 +22,7 @@
 
 #include "lottiemodel.h"
 #include <cassert>
+#include <cmath>
 #include <iterator>
 #include <stack>
 #include "vimageloader.h"
@@ -158,16 +159,33 @@ void model::Composition::updateStats()
     visitor.visit(mRootLayer);
 }
 
+static inline float shearFromSkew(float angle)
+{
+    constexpr float Deg2Rad = 0.017453292519943295769f;
+    return std::tan(angle * Deg2Rad);
+}
+
+static inline void applySkew(VMatrix &matrix, float shear, float skewAxis)
+{
+    if (vIsZero(shear)) return;
+
+    matrix.rotate(-skewAxis).shear(shear, 0).rotate(skewAxis);
+}
+
 VMatrix model::Repeater::Transform::matrix(int frameNo, float multiplier) const
 {
     VPointF scale = mScale.value(frameNo) / 100.f;
     scale.setX(std::pow(scale.x(), multiplier));
     scale.setY(std::pow(scale.y(), multiplier));
+    const float shear = shearFromSkew(mSkew.value(frameNo)) * multiplier;
     VMatrix m;
     m.translate(mPosition.value(frameNo) * multiplier)
         .translate(mAnchor.value(frameNo))
-        .scale(scale)
-        .rotate(mRotation.value(frameNo) * multiplier)
+        .scale(scale);
+
+    applySkew(m, shear, mSkewAxis.value(frameNo));
+
+    m.rotate(mRotation.value(frameNo) * multiplier)
         .translate(-mAnchor.value(frameNo));
 
     return m;
@@ -185,17 +203,22 @@ VMatrix model::Transform::Data::matrix(int frameNo, bool autoOrient) const
     }
 
     float angle = autoOrient ? mPosition.angle(frameNo) : 0;
+    const float shear = shearFromSkew(mSkew.value(frameNo));
     if (mExtra && mExtra->m3DData) {
         m.translate(position)
             .rotate(mExtra->m3DRz.value(frameNo) + angle)
             .rotate(mExtra->m3DRy.value(frameNo), VMatrix::Axis::Y)
-            .rotate(mExtra->m3DRx.value(frameNo), VMatrix::Axis::X)
-            .scale(mScale.value(frameNo) / 100.f)
+            .rotate(mExtra->m3DRx.value(frameNo), VMatrix::Axis::X);
+        applySkew(m, shear, mSkewAxis.value(frameNo));
+
+        m.scale(mScale.value(frameNo) / 100.f)
             .translate(-mAnchor.value(frameNo));
     } else {
         m.translate(position)
-            .rotate(mRotation.value(frameNo) + angle)
-            .scale(mScale.value(frameNo) / 100.f)
+            .rotate(mRotation.value(frameNo) + angle);
+        applySkew(m, shear, mSkewAxis.value(frameNo));
+
+        m.scale(mScale.value(frameNo) / 100.f)
             .translate(-mAnchor.value(frameNo));
     }
     return m;

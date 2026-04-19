@@ -56,6 +56,7 @@ public:
     VSize           size() const;
     void            fill(uint32_t pixel);
     void    updateLuma();
+    void    updateLuma(const VRect &region);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -87,6 +88,7 @@ private:
         static uint8_t depth(VBitmap::Format format);
         void fill(uint32_t);
         void updateLuma();
+        void updateLuma(const VRect &region);
     };
 
     rc_ptr<Impl> mImpl;

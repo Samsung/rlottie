@@ -245,6 +245,7 @@ public:
     model::Object *  parseGroupObject();
     model::Rect *    parseRectObject();
     model::RoundedCorner *    parseRoundedCorner();
+    model::MergePaths * parseMergePathsObject();
     void updateRoundedCorner(model::Group *parent, model::RoundedCorner *rc);
 
     model::Ellipse * parseEllipseObject();
@@ -638,6 +639,30 @@ model::BlendMode LottieParserImpl::getBlendMode()
         break;
     case 3:
         mode = model::BlendMode::OverLay;
+        break;
+    case 4:
+        mode = model::BlendMode::Darken;
+        break;
+    case 5:
+        mode = model::BlendMode::Lighten;
+        break;
+    case 6:
+        mode = model::BlendMode::ColorDodge;
+        break;
+    case 7:
+        mode = model::BlendMode::ColorBurn;
+        break;
+    case 8:
+        mode = model::BlendMode::HardLight;
+        break;
+    case 9:
+        mode = model::BlendMode::SoftLight;
+        break;
+    case 10:
+        mode = model::BlendMode::Difference;
+        break;
+    case 11:
+        mode = model::BlendMode::Exclusion;
         break;
     default:
         break;
@@ -1287,8 +1312,7 @@ model::Object *LottieParserImpl::parseObjectTypeAttr()
         curLayerRef->mHasRepeater = true;
         return parseReapeaterObject();
     } else if (0 == strcmp(type, "mm")) {
-        vWarning << "Merge Path is not supported yet";
-        return nullptr;
+        return parseMergePathsObject();
     } else {
 #ifdef DEBUG_PARSER
         vDebug << "The Object Type not yet handled = " << type;
@@ -1415,6 +1439,44 @@ model::RoundedCorner *LottieParserImpl::parseRoundedCorner()
         }
     }
     obj->setStatic(obj->mRadius.isStatic());
+    return obj;
+}
+
+model::MergePaths *LottieParserImpl::parseMergePathsObject()
+{
+    auto obj = allocator().make<model::MergePaths>();
+
+    while (const char *key = NextObjectKey()) {
+        if (0 == strcmp(key, "nm")) {
+            obj->setName(GetString());
+        } else if (0 == strcmp(key, "mm")) {
+            switch (GetInt()) {
+            case 1:
+                obj->mMode = model::MergePaths::Mode::Merge;
+                break;
+            case 2:
+                obj->mMode = model::MergePaths::Mode::Add;
+                break;
+            case 3:
+                obj->mMode = model::MergePaths::Mode::Subtract;
+                break;
+            case 4:
+                obj->mMode = model::MergePaths::Mode::Intersect;
+                break;
+            case 5:
+                obj->mMode = model::MergePaths::Mode::ExcludeIntersections;
+                break;
+            default:
+                obj->mMode = model::MergePaths::Mode::Merge;
+                break;
+            }
+        } else if (0 == strcmp(key, "hd")) {
+            obj->setHidden(GetBool());
+        } else {
+            Skip(key);
+        }
+    }
+
     return obj;
 }
 
@@ -1580,6 +1642,10 @@ void LottieParserImpl::getValue(model::Repeater::Transform &obj)
             parseProperty(obj.mPosition);
         } else if (0 == strcmp(key, "r")) {
             parseProperty(obj.mRotation);
+        } else if (0 == strcmp(key, "sk")) {
+            parseProperty(obj.mSkew);
+        } else if (0 == strcmp(key, "sa")) {
+            parseProperty(obj.mSkewAxis);
         } else if (0 == strcmp(key, "s")) {
             parseProperty(obj.mScale);
         } else if (0 == strcmp(key, "so")) {
@@ -1672,6 +1738,10 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
             }
         } else if (0 == strcmp(key, "r")) {
             parseProperty(obj->mRotation);
+        } else if (0 == strcmp(key, "sk")) {
+            parseProperty(obj->mSkew);
+        } else if (0 == strcmp(key, "sa")) {
+            parseProperty(obj->mSkewAxis);
         } else if (0 == strcmp(key, "s")) {
             parseProperty(obj->mScale);
         } else if (0 == strcmp(key, "o")) {
@@ -1692,7 +1762,8 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
         }
     }
     bool isStatic = obj->mAnchor.isStatic() && obj->mPosition.isStatic() &&
-                    obj->mRotation.isStatic() && obj->mScale.isStatic() &&
+                    obj->mRotation.isStatic() && obj->mSkew.isStatic() &&
+                    obj->mSkewAxis.isStatic() && obj->mScale.isStatic() &&
                     obj->mOpacity.isStatic();
     if (obj->mExtra) {
         isStatic = isStatic && obj->mExtra->m3DRx.isStatic() &&
@@ -2375,6 +2446,13 @@ public:
                    << " , a:" << !obj->isStatic() << " }";
             break;
         }
+        case model::Object::Type::MergePaths: {
+            auto merge = static_cast<model::MergePaths *>(obj);
+            vDebug << level << "{ MergePaths: name: " << obj->name()
+                   << " , mode:" << int(merge->mMode)
+                   << ", a:" << !obj->isStatic() << " }";
+            break;
+        }
         case model::Object::Type::Ellipse: {
             vDebug << level << "{ Ellipse: name: " << obj->name()
                    << " , a:" << !obj->isStatic() << " }";
@@ -2476,6 +2554,105 @@ public:
 
 #endif
 
+static bool readZipEntry(zip_t *zip, const char *entryName, std::string &out)
+{
+    if (zip_entry_open(zip, entryName) != 0) return false;
+
+    void * buf = nullptr;
+    size_t bufSize = 0;
+    auto readSize = zip_entry_read(zip, &buf, &bufSize);
+    zip_entry_close(zip);
+
+    if (readSize <= 0 || !buf || bufSize == 0) {
+        free(buf);
+        return false;
+    }
+
+    out.assign(static_cast<const char *>(buf), bufSize);
+    free(buf);
+    return true;
+}
+
+static char *copyZipEntryToOwnedBuffer(const std::string &content)
+{
+    auto *buffer = static_cast<char *>(malloc(content.size() + 1));
+    if (!buffer) return nullptr;
+
+    memcpy(buffer, content.data(), content.size());
+    buffer[content.size()] = '\0';
+    return buffer;
+}
+
+static std::string dotLottieAnimationPathFromManifest(const std::string &manifest)
+{
+    Document doc;
+    doc.Parse(manifest.data(), manifest.size());
+
+    if (doc.HasParseError() || !doc.IsObject()) return {};
+
+    std::string version;
+    if (doc.HasMember("version") && doc["version"].IsString()) {
+        version = doc["version"].GetString();
+    }
+
+    const bool isV2 = !version.empty() && version[0] == '2';
+    const char *baseDir = isV2 ? "a/" : "animations/";
+    std::string animationId;
+
+    if (isV2 && doc.HasMember("initial") && doc["initial"].IsObject()) {
+        const auto &initial = doc["initial"];
+        if (initial.HasMember("animation") && initial["animation"].IsString()) {
+            animationId = initial["animation"].GetString();
+        }
+    } else if (doc.HasMember("activeAnimationId") &&
+               doc["activeAnimationId"].IsString()) {
+        animationId = doc["activeAnimationId"].GetString();
+    }
+
+    if (animationId.empty() && doc.HasMember("animations") &&
+        doc["animations"].IsArray() && !doc["animations"].Empty()) {
+        const auto &animations = doc["animations"];
+        if (animations[0].IsObject() && animations[0].HasMember("id") &&
+            animations[0]["id"].IsString()) {
+            animationId = animations[0]["id"].GetString();
+        }
+    }
+
+    if (animationId.empty()) return {};
+
+    return std::string(baseDir) + animationId + ".json";
+}
+
+static std::string findFirstDotLottieJson(zip_t *zip)
+{
+    auto totalEntries = zip_entries_total(zip);
+    if (totalEntries <= 0) return {};
+
+    for (ssize_t i = 0; i < totalEntries; ++i) {
+        if (zip_entry_openbyindex(zip, size_t(i)) != 0) continue;
+
+        const char *entryName = zip_entry_name(zip);
+        std::string selected;
+        if (entryName) {
+            const std::string name(entryName);
+            const bool isManifest = name == "manifest.json";
+            const bool isJson = name.size() > 5 &&
+                                name.compare(name.size() - 5, 5, ".json") == 0;
+            const bool isAnimation = name.rfind("animations/", 0) == 0 ||
+                                     name.rfind("a/", 0) == 0;
+            if (!isManifest && isJson && isAnimation) {
+                selected = name;
+            }
+        }
+
+        zip_entry_close(zip);
+
+        if (!selected.empty()) return selected;
+    }
+
+    return {};
+}
+
 static char* uncompressZip(const char * str, size_t length)
 {
     auto zip = zip_stream_open(str, length, 0, 'r');
@@ -2484,33 +2661,38 @@ static char* uncompressZip(const char * str, size_t length)
         return nullptr;
     }
 
-    // Read a representative animation
-    if (zip_entry_openbyindex(zip, 1)) {
-        vCritical << "Failed to unzip dotLottie: open by index fail!";
+    std::string entryName;
+    std::string manifest;
+
+    if (readZipEntry(zip, "manifest.json", manifest)) {
+        entryName = dotLottieAnimationPathFromManifest(manifest);
+    }
+
+    if (entryName.empty()) {
+        entryName = findFirstDotLottieJson(zip);
+    }
+
+    if (entryName.empty()) {
+        vCritical << "Failed to unzip dotLottie: animation entry not found!";
         zip_stream_close(zip);
         return nullptr;
     }
 
-    char* buf = nullptr;
-    size_t bufSize;
-    zip_entry_read(zip, (void**)&buf, &bufSize);
-
-    zip_entry_close(zip);
-    zip_stream_close(zip);
-
-    if (buf == nullptr || bufSize == 0) {
-        vCritical << "Failed to unzip dotLottie: buffer is empty!";
+    std::string content;
+    if (!readZipEntry(zip, entryName.c_str(), content)) {
+        vCritical << "Failed to unzip dotLottie: animation entry read fail!";
+        zip_stream_close(zip);
         return nullptr;
     }
 
-    char* terminatedBuf = static_cast<char*>(realloc(buf, bufSize + 1));
+    zip_stream_close(zip);
+
+    char *terminatedBuf = copyZipEntryToOwnedBuffer(content);
     if (!terminatedBuf) {
-        free(buf);
         vCritical << "Failed to unzip dotLottie: failed to allocate!";
         return nullptr;
     }
 
-    terminatedBuf[bufSize] = '\0';
     return terminatedBuf;
 }
 

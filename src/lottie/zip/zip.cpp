@@ -235,6 +235,35 @@ int zip_entry_openbyindex(struct zip_t *zip, size_t index) {
   return 0;
 }
 
+int zip_entry_open(struct zip_t *zip, const char *entryname) {
+  ssize_t total = 0;
+
+  if (!zip || !entryname) {
+    return ZIP_ENOINIT;
+  }
+
+  total = zip_entries_total(zip);
+  if (total < 0) {
+    return (int)total;
+  }
+
+  for (ssize_t i = 0; i < total; ++i) {
+    int ret = zip_entry_openbyindex(zip, (size_t)i);
+    if (ret != 0) {
+      continue;
+    }
+
+    const char *name = zip_entry_name(zip);
+    if (name && strcmp(name, entryname) == 0) {
+      return 0;
+    }
+
+    zip_entry_close(zip);
+  }
+
+  return ZIP_ENOENT;
+}
+
 int zip_entry_close(struct zip_t *zip) {
   mz_zip_archive *pzip = NULL;
   mz_uint level;
@@ -336,6 +365,21 @@ const char *zip_entry_name(struct zip_t *zip) {
   }
 
   return zip->entry.name;
+}
+
+ssize_t zip_entries_total(struct zip_t *zip) {
+  mz_zip_archive *pzip = NULL;
+
+  if (!zip) {
+    return (ssize_t)ZIP_ENOINIT;
+  }
+
+  pzip = &(zip->archive);
+  if (pzip->m_zip_mode != MZ_ZIP_MODE_READING) {
+    return (ssize_t)ZIP_EINVMODE;
+  }
+
+  return (ssize_t)pzip->m_total_files;
 }
 
 int zip_entry_write(struct zip_t *zip, const void *buf, size_t bufsize) {

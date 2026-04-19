@@ -83,6 +83,100 @@ static bool trimProp(rlottie::Property prop)
     }
 }
 
+static VRect drawableBounds(renderer::DrawableList drawables)
+{
+    VRect bounds;
+    bool hasBounds = false;
+
+    for (auto *drawable : drawables) {
+        auto rleBounds = drawable->rle().boundingRect();
+        if (rleBounds.empty()) continue;
+
+        if (!hasBounds) {
+            bounds = rleBounds;
+            hasBounds = true;
+            continue;
+        }
+
+        bounds.setLeft(std::min(bounds.left(), rleBounds.left()));
+        bounds.setTop(std::min(bounds.top(), rleBounds.top()));
+        bounds.setRight(std::max(bounds.right(), rleBounds.right()));
+        bounds.setBottom(std::max(bounds.bottom(), rleBounds.bottom()));
+    }
+
+    return hasBounds ? bounds : VRect();
+}
+
+static BlendMode toPainterBlendMode(model::BlendMode mode)
+{
+    switch (mode) {
+    case model::BlendMode::Multiply:
+        return BlendMode::Multiply;
+    case model::BlendMode::Screen:
+        return BlendMode::Screen;
+    case model::BlendMode::OverLay:
+        return BlendMode::Overlay;
+    case model::BlendMode::Darken:
+        return BlendMode::Darken;
+    case model::BlendMode::Lighten:
+        return BlendMode::Lighten;
+    case model::BlendMode::ColorDodge:
+        return BlendMode::ColorDodge;
+    case model::BlendMode::ColorBurn:
+        return BlendMode::ColorBurn;
+    case model::BlendMode::HardLight:
+        return BlendMode::HardLight;
+    case model::BlendMode::SoftLight:
+        return BlendMode::SoftLight;
+    case model::BlendMode::Difference:
+        return BlendMode::Difference;
+    case model::BlendMode::Exclusion:
+        return BlendMode::Exclusion;
+    default:
+        return BlendMode::SrcOver;
+    }
+}
+
+static void beginOffscreenPainter(VPainter *painter, VBitmap &bitmap,
+                                  const VRect &drawRegion)
+{
+    painter->begin(&bitmap);
+    painter->setDrawRegion(drawRegion, VPoint());
+}
+
+static VRect localSourceRect(const VRect &rect, const VRect &drawRegion)
+{
+    return VRect(rect.left() - drawRegion.left(),
+                 rect.top() - drawRegion.top(),
+                 rect.width(), rect.height());
+}
+
+static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
+                                 const VRle &matteRle, renderer::Layer *layer,
+                                 renderer::SurfaceCache &cache)
+{
+    if (!layer->hasBlendMode()) {
+        layer->render(painter, mask, matteRle, cache);
+        return;
+    }
+
+    auto drawRegion = painter->clipBoundingRect();
+    auto clip = drawableBounds(layer->renderList()) & drawRegion;
+    if (clip.empty()) clip = drawRegion;
+
+    VSize size = clip.size();
+    VBitmap layerBitmap = cache.make_surface(size.width(), size.height());
+    VPainter layerPainter;
+    beginOffscreenPainter(&layerPainter, layerBitmap, clip);
+    layer->render(&layerPainter, mask, matteRle, cache);
+    layerPainter.end();
+
+    painter->setBlendMode(toPainterBlendMode(layer->blendMode()));
+    painter->drawBitmap(clip, layerBitmap, layerBitmap.rect());
+    painter->setBlendMode(BlendMode::SrcOver);
+    cache.release_surface(layerBitmap);
+}
+
 static renderer::Layer *createLayerItem(model::Layer *layerData,
                                         VArenaAlloc * allocator)
 {
@@ -513,13 +607,14 @@ void renderer::CompLayer::render(VPainter *painter, const VRle &inheritMask,
         renderHelper(painter, inheritMask, matteRle, cache);
     } else {
         if (complexContent()) {
-            VSize    size = painter->clipBoundingRect().size();
+            auto drawRegion = painter->clipBoundingRect();
+            VSize    size = drawRegion.size();
             VPainter srcPainter;
             VBitmap srcBitmap = cache.make_surface(size.width(), size.height());
-            srcPainter.begin(&srcBitmap);
+            beginOffscreenPainter(&srcPainter, srcBitmap, drawRegion);
             renderHelper(&srcPainter, inheritMask, matteRle, cache);
             srcPainter.end();
-            painter->drawBitmap(VPoint(), srcBitmap,
+            painter->drawBitmap(drawRegion, srcBitmap, srcBitmap.rect(),
                                 uint8_t(combinedAlpha() * 255.0f));
             cache.release_surface(srcBitmap);
         } else {
@@ -559,7 +654,8 @@ void renderer::CompLayer::renderHelper(VPainter *    painter,
                         renderMatteLayer(painter, mask, matteRle, matte, layer,
                                          cache);
                 } else {
-                    layer->render(painter, mask, matteRle, cache);
+                    renderLayerWithBlend(painter, mask, matteRle, layer,
+                                         cache);
                 }
             }
             matte = nullptr;
@@ -573,19 +669,24 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
                                            renderer::Layer *src,
                                            SurfaceCache &   cache)
 {
-    VSize size = painter->clipBoundingRect().size();
+    auto drawRegion = painter->clipBoundingRect();
+    VSize size = drawRegion.size();
+    auto layerDrawables = layer->renderList();
+    auto clip = drawableBounds(layerDrawables) & drawRegion;
+    if (clip.empty()) clip = drawRegion;
+    auto srcRect = localSourceRect(clip, drawRegion);
     // Decide if we can use fast matte.
     // 1. draw src layer to matte buffer
     VPainter srcPainter;
     VBitmap  srcBitmap = cache.make_surface(size.width(), size.height());
-    srcPainter.begin(&srcBitmap);
+    beginOffscreenPainter(&srcPainter, srcBitmap, drawRegion);
     src->render(&srcPainter, mask, matteRle, cache);
     srcPainter.end();
 
     // 2. draw layer to layer buffer
     VPainter layerPainter;
     VBitmap  layerBitmap = cache.make_surface(size.width(), size.height());
-    layerPainter.begin(&layerBitmap);
+    beginOffscreenPainter(&layerPainter, layerBitmap, drawRegion);
     layer->render(&layerPainter, mask, matteRle, cache);
 
     // 2.1update composition mode
@@ -607,24 +708,20 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     // 2.2 update srcBuffer if the matte is luma type
     if (layer->matteType() == model::MatteType::Luma ||
         layer->matteType() == model::MatteType::LumaInv) {
-        srcBitmap.updateLuma();
-    }
-
-    auto clip = layerPainter.clipBoundingRect();
-
-    // if the layer has only one renderer then use it as the clip rect
-    // when blending 2 buffer and copy back to final buffer to avoid
-    // unnecessary pixel processing.
-    if (layer->renderList().size() == 1)
-    {
-        clip = layer->renderList()[0]->rle().boundingRect();
+        srcBitmap.updateLuma(srcRect);
     }
 
     // 2.3 draw src buffer as mask
-    layerPainter.drawBitmap(clip, srcBitmap, clip);
+    layerPainter.drawBitmap(clip, srcBitmap, srcRect);
     layerPainter.end();
     // 3. draw the result buffer into painter
-    painter->drawBitmap(clip, layerBitmap, clip);
+    if (src->hasBlendMode()) {
+        painter->setBlendMode(toPainterBlendMode(src->blendMode()));
+    }
+    painter->drawBitmap(clip, layerBitmap, srcRect);
+    if (src->hasBlendMode()) {
+        painter->setBlendMode(BlendMode::SrcOver);
+    }
 
     cache.release_surface(srcBitmap);
     cache.release_surface(layerBitmap);
@@ -821,6 +918,10 @@ static renderer::Object *createContentItem(model::Object *contentData,
         return allocator->make<renderer::Repeater>(
             static_cast<model::Repeater *>(contentData), allocator);
     }
+    case model::Object::Type::MergePaths: {
+        return allocator->make<renderer::Merge>(
+            static_cast<model::MergePaths *>(contentData));
+    }
     case model::Object::Type::Trim: {
         return allocator->make<renderer::Trim>(
             static_cast<model::Trim *>(contentData));
@@ -850,6 +951,7 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 void renderer::ShapeLayer::updateContent()
 {
     mRoot->update(frameNo(), combinedMatrix(), 1.0f , flag());
+    mDrawableListValid = false;
 
     if (mLayerData->hasPathOperator()) {
         mRoot->applyTrim();
@@ -860,6 +962,7 @@ void renderer::ShapeLayer::preprocessStage(const VRect &clip)
 {
     mDrawableList.clear();
     mRoot->renderList(mDrawableList);
+    mDrawableListValid = true;
 
     for (auto &drawable : mDrawableList) drawable->preprocess(clip);
 }
@@ -868,8 +971,11 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
 {
     if (skipRendering()) return {};
 
-    mDrawableList.clear();
-    mRoot->renderList(mDrawableList);
+    if (!mDrawableListValid) {
+        mDrawableList.clear();
+        mRoot->renderList(mDrawableList);
+        mDrawableListValid = true;
+    }
 
     if (mDrawableList.empty()) return {};
 
@@ -885,13 +991,15 @@ void renderer::ShapeLayer::render(VPainter *painter, const VRle &inheritMask,
         Layer::render(painter, inheritMask, matteRle, cache);
     } else {
         //do offscreen rendering
-        VSize    size = painter->clipBoundingRect().size();
+        auto clip = drawableBounds(renderList()) & painter->clipBoundingRect();
+        if (clip.empty()) clip = painter->clipBoundingRect();
+        VSize    size = clip.size();
         VPainter srcPainter;
         VBitmap srcBitmap = cache.make_surface(size.width(), size.height());
-        srcPainter.begin(&srcBitmap);
+        beginOffscreenPainter(&srcPainter, srcBitmap, clip);
         Layer::render(&srcPainter, inheritMask, matteRle, cache);
         srcPainter.end();
-        painter->drawBitmap(VPoint(), srcBitmap,
+        painter->drawBitmap(clip, srcBitmap, srcBitmap.rect(),
                             uint8_t(combinedAlpha() * 255.0f));
         cache.release_surface(srcBitmap);
     }
@@ -1046,6 +1154,11 @@ void renderer::Group::processPaintItems(std::vector<renderer::Shape *> &list)
         }
         case renderer::Object::Type::Paint: {
             static_cast<renderer::Paint *>(content)->addPathItems(list,
+                                                                  curOpCount);
+            break;
+        }
+        case renderer::Object::Type::Merge: {
+            static_cast<renderer::Merge *>(content)->addPathItems(list,
                                                                   curOpCount);
             break;
         }
@@ -1222,19 +1335,47 @@ void renderer::Paint::update(int frameNo, const VMatrix &parentMatrix,
 void renderer::Paint::updateRenderNode()
 {
     bool dirty = false;
+    bool useRle = false;
     for (auto &i : mPathItems) {
         if (i->dirty()) {
             dirty = true;
-            break;
         }
+        useRle = useRle || i->requiresRle();
     }
+    useRle = useRle && (mDrawable.mType == VDrawable::Type::Fill);
 
     if (dirty) {
-        mPath.reset();
-        for (const auto &i : mPathItems) {
-            i->finalPath(mPath);
+        if (useRle) {
+            VRle result;
+            bool haveResult = false;
+            for (const auto &i : mPathItems) {
+                VRle current;
+                if (!i->asRle(current, mDrawable.mFillRule)) {
+                    VPath path;
+                    i->finalPath(path);
+                    if (!path.empty()) {
+                        VRasterizer rasterizer;
+                        rasterizer.rasterize(std::move(path),
+                                             mDrawable.mFillRule);
+                        current = rasterizer.rle();
+                    }
+                }
+
+                if (!haveResult) {
+                    result = current;
+                    haveResult = true;
+                } else {
+                    result = result + current;
+                }
+            }
+            mDrawable.setRle(result);
+        } else {
+            mPath.reset();
+            for (const auto &i : mPathItems) {
+                i->finalPath(mPath);
+            }
+            mDrawable.setPath(mPath);
         }
-        mDrawable.setPath(mPath);
     } else {
         if (mDrawable.mFlag & VDrawable::DirtyState::Path)
             mDrawable.mPath = mPath;
@@ -1480,6 +1621,107 @@ void renderer::Trim::addPathItems(std::vector<renderer::Shape *> &list,
 {
     std::copy(list.begin() + startOffset, list.end(),
               back_inserter(mPathItems));
+}
+
+renderer::MergeShape::MergeShape(model::MergePaths::Mode mode)
+    : renderer::Shape(false), mMode(mode)
+{
+}
+
+bool renderer::MergeShape::dirty() const
+{
+    for (const auto &shape : mPathItems) {
+        if (shape->dirty()) return true;
+    }
+    return false;
+}
+
+void renderer::MergeShape::addPathItems(std::vector<renderer::Shape *> &list,
+                                        size_t                          startOffset)
+{
+    mPathItems.clear();
+    std::copy(list.begin() + startOffset, list.end(),
+              back_inserter(mPathItems));
+}
+
+void renderer::MergeShape::finalPath(VPath &result)
+{
+    for (const auto &shape : mPathItems) {
+        shape->finalPath(result);
+    }
+}
+
+bool renderer::MergeShape::childRle(Shape *shape, FillRule fillRule,
+                                    VRle & result) const
+{
+    if (shape->asRle(result, fillRule)) return true;
+
+    VPath path;
+    shape->finalPath(path);
+    if (path.empty()) {
+        result = {};
+        return true;
+    }
+
+    VRasterizer rasterizer;
+    rasterizer.rasterize(std::move(path), fillRule);
+    result = rasterizer.rle();
+    return true;
+}
+
+bool renderer::MergeShape::asRle(VRle &result, FillRule fillRule)
+{
+    VRle merged;
+    bool initialized = false;
+
+    for (const auto &shape : mPathItems) {
+        VRle current;
+        childRle(shape, fillRule, current);
+
+        if (!initialized) {
+            merged = current;
+            initialized = true;
+            continue;
+        }
+
+        switch (mMode) {
+        case model::MergePaths::Mode::Merge:
+        case model::MergePaths::Mode::Add:
+            merged = merged + current;
+            break;
+        case model::MergePaths::Mode::Subtract:
+            merged = merged - current;
+            break;
+        case model::MergePaths::Mode::Intersect:
+            merged &= current;
+            break;
+        case model::MergePaths::Mode::ExcludeIntersections:
+            merged = merged ^ current;
+            break;
+        }
+    }
+
+    if (!initialized) {
+        result = {};
+    } else if (!merged.empty() && !merged.unique()) {
+        result.clone(merged);
+    } else {
+        result = merged;
+    }
+    return true;
+}
+
+renderer::Merge::Merge(model::MergePaths *data)
+    : mShape(data->mMode)
+{
+}
+
+void renderer::Merge::addPathItems(std::vector<renderer::Shape *> &list,
+                                   size_t                          startOffset)
+{
+    mShape.addPathItems(list, startOffset);
+    list.erase(list.begin() + startOffset, list.end());
+    list.push_back(&mShape);
 }
 
 renderer::Repeater::Repeater(model::Repeater *data, VArenaAlloc *allocator)

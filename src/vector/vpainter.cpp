@@ -50,10 +50,11 @@ void VPainter::drawRle(const VRle &rle, const VRle &clip)
 
 static void fillRect(const VRect &r, VSpanData *data)
 {
-    auto x1 = std::max(r.x(), 0);
-    auto x2 = std::min(r.x() + r.width(), data->mDrawableSize.width());
-    auto y1 = std::max(r.y(), 0);
-    auto y2 = std::min(r.y() + r.height(), data->mDrawableSize.height());
+    auto clip = data->clipRect();
+    auto x1 = std::max(r.x(), clip.left());
+    auto x2 = std::min(r.x() + r.width(), clip.right());
+    auto y1 = std::max(r.y(), clip.top());
+    auto y2 = std::min(r.y() + r.height(), clip.bottom());
 
     if (x2 <= x1 || y2 <= y1) return;
 
@@ -86,8 +87,8 @@ void VPainter::drawBitmapUntransform(const VRect &  target,
     if (!mSpanData.mUnclippedBlendFunc) return;
 
     // update translation matrix for source texture.
-    mSpanData.dx = float(target.x() - source.x());
-    mSpanData.dy = float(target.y() - source.y());
+    mSpanData.dx = float(source.x() - target.x());
+    mSpanData.dy = float(source.y() - target.y());
 
     fillRect(target, &mSpanData);
 }
@@ -109,6 +110,11 @@ void VPainter::end() {}
 void VPainter::setDrawRegion(const VRect &region)
 {
     mSpanData.setDrawRegion(region);
+}
+
+void VPainter::setDrawRegion(const VRect &region, const VPoint &bufferOffset)
+{
+    mSpanData.setDrawRegion(region, bufferOffset);
 }
 
 void VPainter::setBrush(const VBrush &brush)

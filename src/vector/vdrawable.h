@@ -51,6 +51,7 @@ public:
 
     typedef vFlag<DirtyState> DirtyFlag;
     void setPath(const VPath &path);
+    void setRle(const VRle &rle);
     void setFillRule(FillRule rule) { mFillRule = rule; }
     void setBrush(const VBrush &brush) { mBrush = brush; }
     void setStrokeInfo(CapStyle cap, JoinStyle join, float miterLimit,
@@ -81,11 +82,13 @@ public:
     VPath                    mPath;
     VBrush                   mBrush;
     VRasterizer              mRasterizer;
+    VRle                     mRle;
     StrokeInfo              *mStrokeInfo{nullptr};
 
     DirtyFlag                mFlag{DirtyState::All};
     FillRule                 mFillRule{FillRule::Winding};
     VDrawable::Type          mType{Type::Fill};
+    bool                     mUseCustomRle{false};
 
     const char              *mName{nullptr};
 };

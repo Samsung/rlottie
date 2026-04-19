@@ -38,6 +38,7 @@ public:
     bool  begin(VBitmap *buffer);
     void  end();
     void  setDrawRegion(const VRect &region); // sub surface rendering area.
+    void  setDrawRegion(const VRect &region, const VPoint &bufferOffset);
     void  setBrush(const VBrush &brush);
     void  setBlendMode(BlendMode mode);
     void  drawRle(const VPoint &pos, const VRle &rle);

@@ -552,11 +552,11 @@ struct SpanMerger {
         }
     }
     using blitter = void (*)(VRle::Span *, int, uint8_t *, int);
-    blitter                     _blitter;
-    std::array<VRle::Span, 256> _result;
-    std::array<uint8_t, 1024>   _buffer;
-    VRle::Span *                _aStart{nullptr};
-    VRle::Span *                _bStart{nullptr};
+    blitter                  _blitter;
+    std::vector<VRle::Span>  _result;
+    std::vector<uint8_t>     _buffer;
+    VRle::Span *             _aStart{nullptr};
+    VRle::Span *             _bStart{nullptr};
 
     void revert(VRle::Span *&aPtr, VRle::Span *&bPtr)
     {
@@ -585,10 +585,13 @@ size_t SpanMerger::merge(VRle::Span *&aPtr, const VRle::Span *aEnd,
                       (bPtr - 1)->x + (bPtr - 1)->len);
     int length = (lb < 0) ? ub + lb : ub - lb;
 
-    if (length <= 0 || size_t(length) >= _buffer.max_size()) {
-        // can't handle merge . skip
+    if (length <= 0) {
         return 0;
     }
+
+    auto required = static_cast<size_t>(length);
+    if (_buffer.size() < required) _buffer.resize(required);
+    if (_result.size() < required) _result.resize(required);
 
     // clear buffer
     memset(_buffer.data(), 0, length);

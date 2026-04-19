@@ -105,6 +105,41 @@ void VBitmap::Impl::updateLuma()
     }
 }
 
+void VBitmap::Impl::updateLuma(const VRect &region)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    auto dataPtr = data();
+    for (int y = clipped.top(); y < clipped.bottom(); ++y) {
+        uint32_t *pixel =
+            reinterpret_cast<uint32_t *>(dataPtr + mStride * y) + clipped.left();
+        for (int x = clipped.left(); x < clipped.right(); ++x) {
+            int alpha = vAlpha(*pixel);
+            if (alpha == 0) {
+                pixel++;
+                continue;
+            }
+
+            int red = vRed(*pixel);
+            int green = vGreen(*pixel);
+            int blue = vBlue(*pixel);
+
+            if (alpha != 255) {
+                red = (red * 255) / alpha;
+                green = (green * 255) / alpha;
+                blue = (blue * 255) / alpha;
+            }
+            int luminosity =
+                int(0.299f * red + 0.587f * green + 0.114f * blue);
+            *pixel = luminosity << 24;
+            pixel++;
+        }
+    }
+}
+
 VBitmap::VBitmap(size_t width, size_t height, VBitmap::Format format)
 {
     if (width <= 0 || height <= 0 || format == Format::Invalid) return;
@@ -214,6 +249,11 @@ void VBitmap::fill(uint32_t pixel)
 void VBitmap::updateLuma()
 {
     if (mImpl) mImpl->updateLuma();
+}
+
+void VBitmap::updateLuma(const VRect &region)
+{
+    if (mImpl) mImpl->updateLuma(region);
 }
 
 V_END_NAMESPACE

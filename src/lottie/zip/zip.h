@@ -92,6 +92,18 @@ void zip_close(struct zip_t *zip);
 int zip_entry_openbyindex(struct zip_t *zip, size_t index);
 
 /**
+ * Opens a new entry by name in the zip archive.
+ *
+ * This function is only valid if zip archive was opened in 'r' (readonly) mode.
+ *
+ * @param zip zip archive handler.
+ * @param entryname entry path in the archive.
+ *
+ * @return the return code - 0 on success, negative number (< 0) on error.
+ */
+int zip_entry_open(struct zip_t *zip, const char *entryname);
+
+/**
  * Closes a zip entry, flushes buffer and releases resources.
  *
  * @param zip zip archive handler.
@@ -115,6 +127,15 @@ int zip_entry_close(struct zip_t *zip);
  * @return the pointer to the current zip entry name, or NULL on error.
  */
 const char *zip_entry_name(struct zip_t *zip);
+
+/**
+ * Returns the total number of entries in the zip archive.
+ *
+ * @param zip zip archive handler.
+ *
+ * @return total entries on success, negative number (< 0) on error.
+ */
+ssize_t zip_entries_total(struct zip_t *zip);
 
 /**
  * Extracts the current zip entry into output buffer.

@@ -63,7 +63,15 @@ enum class BlendMode : uint8_t {
     Normal = 0,
     Multiply = 1,
     Screen = 2,
-    OverLay = 3
+    OverLay = 3,
+    Darken = 4,
+    Lighten = 5,
+    ColorDodge = 6,
+    ColorBurn = 7,
+    HardLight = 8,
+    SoftLight = 9,
+    Difference = 10,
+    Exclusion = 11
 };
 
 class Color {
@@ -451,6 +459,7 @@ public:
         Polystar,
         Trim,
         Repeater,
+        MergePaths,
         RoundedCorner
     };
 
@@ -599,6 +608,8 @@ public:
             if (!mExtra) mExtra = std::make_unique<Extra>();
         }
         Property<float>             mRotation{0};       /* "r" */
+        Property<float>             mSkew{0};           /* "sk" */
+        Property<float>             mSkewAxis{0};       /* "sa" */
         Property<VPointF>           mScale{{100, 100}}; /* "s" */
         Property<VPointF, Position> mPosition;          /* "p" */
         Property<VPointF>           mAnchor;            /* "a" */
@@ -915,6 +926,22 @@ public:
     Property<float>   mRadius{0};
 };
 
+class MergePaths : public Object {
+public:
+    enum class Mode : uint8_t {
+        Merge = 1,
+        Add = 2,
+        Subtract = 3,
+        Intersect = 4,
+        ExcludeIntersections = 5
+    };
+
+    MergePaths() : Object(Object::Type::MergePaths) {}
+
+public:
+    Mode mMode{Mode::Merge};
+};
+
 class Rect : public Shape {
 public:
     Rect() : Shape(Object::Type::Rect) {}
@@ -975,11 +1002,14 @@ public:
         }
         bool isStatic() const
         {
-            return mRotation.isStatic() && mScale.isStatic() &&
+            return mRotation.isStatic() && mSkew.isStatic() &&
+                   mSkewAxis.isStatic() && mScale.isStatic() &&
                    mPosition.isStatic() && mAnchor.isStatic() &&
                    mStartOpacity.isStatic() && mEndOpacity.isStatic();
         }
         Property<float>   mRotation{0};       /* "r" */
+        Property<float>   mSkew{0};           /* "sk" */
+        Property<float>   mSkewAxis{0};       /* "sa" */
         Property<VPointF> mScale{{100, 100}}; /* "s" */
         Property<VPointF> mPosition;          /* "p" */
         Property<VPointF> mAnchor;            /* "a" */

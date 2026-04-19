@@ -233,6 +233,11 @@ public:
         return true;
     }
     model::MatteType matteType() const { return mLayerData->mMatteType; }
+    model::BlendMode blendMode() const { return mLayerData->mBlendMode; }
+    bool             hasBlendMode() const
+    {
+        return mLayerData->mBlendMode != model::BlendMode::Normal;
+    }
     bool             visible() const;
     virtual void     buildLayerNode();
     LOTLayerNode &   clayer() { return mCApiData->mLayer; }
@@ -327,6 +332,7 @@ protected:
     void                     preprocessStage(const VRect &clip) final;
     void                     updateContent() final;
     std::vector<VDrawable *> mDrawableList;
+    bool                     mDrawableListValid{false};
     Group *                  mRoot{nullptr};
 };
 
@@ -358,7 +364,7 @@ private:
 
 class Object {
 public:
-    enum class Type : uint8_t { Unknown, Group, Shape, Paint, Trim };
+    enum class Type : uint8_t { Unknown, Group, Shape, Paint, Trim, Merge };
     virtual ~Object() = default;
     Object &     operator=(Object &&) noexcept = delete;
     virtual void update(int frameNo, const VMatrix &parentMatrix,
@@ -407,9 +413,11 @@ public:
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) final;
     Object::Type type() const final { return Object::Type::Shape; }
-    bool         dirty() const { return mDirtyPath; }
+    virtual bool dirty() const { return mDirtyPath; }
     const VPath &localPath() const { return mTemp; }
-    void         finalPath(VPath &result);
+    virtual void finalPath(VPath &result);
+    virtual bool asRle(VRle &, FillRule) { return false; }
+    virtual bool requiresRle() const { return false; }
     void         updatePath(const VPath &path)
     {
         mTemp = path;
@@ -610,6 +618,38 @@ private:
     bool                 mDirty{true};
 
     model::Filter<model::Trim> mModel;
+};
+
+class MergeShape final : public Shape {
+public:
+    explicit MergeShape(model::MergePaths::Mode mode);
+    void addPathItems(std::vector<Shape *> &list, size_t startOffset);
+    bool dirty() const final;
+    void finalPath(VPath &result) final;
+    bool asRle(VRle &result, FillRule fillRule) final;
+    bool requiresRle() const final { return true; }
+
+protected:
+    void updatePath(VPath &, int) final {}
+    bool hasChanged(int, int) final { return true; }
+
+private:
+    bool childRle(Shape *shape, FillRule fillRule, VRle &result) const;
+
+private:
+    model::MergePaths::Mode mMode;
+    std::vector<Shape *>    mPathItems;
+};
+
+class Merge final : public Object {
+public:
+    explicit Merge(model::MergePaths *data);
+    void update(int, const VMatrix &, float, const DirtyFlag &) final {}
+    void addPathItems(std::vector<Shape *> &list, size_t startOffset);
+    Object::Type type() const final { return Object::Type::Merge; }
+
+private:
+    MergeShape mShape;
 };
 
 class Repeater final : public Group {

@@ -63,6 +63,8 @@ void VDrawable::applyDashOp()
 
 void VDrawable::preprocess(const VRect &clip)
 {
+    if (mUseCustomRle) return;
+
     if (mFlag & (DirtyState::Path)) {
         if (mType == Type::Fill) {
             mRasterizer.rasterize(std::move(mPath), mFillRule, clip);
@@ -78,7 +80,7 @@ void VDrawable::preprocess(const VRect &clip)
 
 VRle VDrawable::rle()
 {
-    return mRasterizer.rle();
+    return mUseCustomRle ? mRle : mRasterizer.rle();
 }
 
 void VDrawable::setStrokeInfo(CapStyle cap, JoinStyle join, float miterLimit,
@@ -125,6 +127,19 @@ void VDrawable::setDashInfo(std::vector<float> &dashInfo)
 
 void VDrawable::setPath(const VPath &path)
 {
+    mUseCustomRle = false;
     mPath = path;
     mFlag |= DirtyState::Path;
+}
+
+void VDrawable::setRle(const VRle &rle)
+{
+    mUseCustomRle = true;
+    if (!rle.empty() && !rle.unique()) {
+        mRle.clone(rle);
+    } else {
+        mRle = rle;
+    }
+    mPath = {};
+    mFlag &= ~DirtyFlag(DirtyState::Path);
 }
