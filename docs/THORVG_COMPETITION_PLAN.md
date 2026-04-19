@@ -112,6 +112,49 @@ Largest current `rlottie` steady-state losses:
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
+### ThorVG Full-Corpus Audit Snapshot
+
+Reference audit flow:
+
+```sh
+python3 benchmarks/audit_thorvg_corpus.py \
+  --asset-dir /Users/junsu/Documents/thorvg.example/res/lottie \
+  --iterations 5 \
+  --warmup 1 \
+  --size 360x360
+```
+
+Current full-corpus triage on the local comparison host:
+
+- Total cases: `148`
+- Common loaded cases: `146`
+- `rlottie` load failures: `0`
+- ThorVG load failures: `0`
+- Common-case coarse signature mismatches: `119`
+- Parse latency: `rlottie 42` wins, `thorvg 104` wins
+- First-frame latency: `rlottie 115` wins, `thorvg 31` wins
+- Steady-state frame time: `rlottie 50` wins, `thorvg 96` wins
+- Steady RSS: `rlottie 126` wins, `thorvg 20` wins
+
+This broad audit changes the interpretation of the current gap:
+
+- `rlottie` is not broadly failing to load the corpus. The current problem is
+  output correctness drift and steady-state speed on a concentrated set of
+  heavier assets.
+- The worst current zero-output mismatches, such as `32266.json` and
+  `R_QPKIVi.json`, are both expression-heavy. That does not make expressions a
+  short-term project, but it does confirm that some of the broadest visible
+  correctness holes now sit behind expression payloads rather than parser load
+  failures.
+- The biggest full-corpus steady-state losses extend beyond the smoke subset
+  and now include `balloons_with_string.json`, `expressions/11272.json`,
+  `threads.json`, and `43391.json` in addition to `11555.json`.
+- The biggest parse and memory losses also identify separate backlogs:
+  `holdanimation.json`, `page_slide.json`, `expressions/16447.json`,
+  `starburst.json`, `uk_flag.json`, and `textblock.json` should be treated as
+  full-corpus parse/RSS triage cases rather than ignored because they are
+  outside the smoke subset.
+
 ### Hotspot Review
 
 `world_locations.json` is still the highest-value performance target.
@@ -268,6 +311,15 @@ evidence, not by generic cleanup preferences.
 `textblock.json` is no longer an active smoke loss and should stay secondary to
 `text_anim`, because it is outlined-shape content rather than proof of a real
 text engine.
+
+The full-corpus audit adds a second ring of performance targets behind the
+smoke subset:
+
+- `balloons_with_string.json`
+- `expressions/11272.json`
+- `threads.json`
+- `43391.json`
+- `holdanimation.json` for parse/RSS rather than steady-state alone
 
 `masking.json`, `windmill.json`, `glow_loading.json`, and
 `gradient_sleepy_loader.json` are no longer top priority performance targets
