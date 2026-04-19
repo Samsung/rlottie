@@ -351,7 +351,11 @@ static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
 
 static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
 {
-    if (drawable->mType != VDrawable::Type::Fill) return false;
+    if (drawable->mType != VDrawable::Type::Fill &&
+        drawable->mType != VDrawable::Type::Stroke &&
+        drawable->mType != VDrawable::Type::StrokeWithDash) {
+        return false;
+    }
     if (drawable->mBrush.type() != VBrush::Type::Solid) return false;
     return drawable->mBrush.mColor.isOpaque();
 }
