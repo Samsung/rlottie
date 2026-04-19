@@ -30,6 +30,7 @@ struct Options {
     size_t warmup{10};
     bool async{false};
     bool csv{false};
+    bool profile{false};
 };
 
 bool startsWith(const std::string &value, const std::string &prefix)
@@ -107,6 +108,7 @@ int help()
         << "  --warmup <count>\n"
         << "  --async                    use async render path\n"
         << "  --csv                      emit CSV output\n"
+        << "  --profile                  emit rlottie internal timing to stderr\n"
         << "  --help\n\n"
         << "Example:\n"
         << "  lottiebench --asset mask.json --size 240x240 --size 360x360\n"
@@ -143,6 +145,8 @@ bool parseOptions(int argc, char **argv, Options &options)
             options.async = true;
         } else if (arg == "--csv") {
             options.csv = true;
+        } else if (arg == "--profile") {
+            options.profile = true;
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             return false;
@@ -179,6 +183,33 @@ struct Metrics {
     uint64_t greenSum{0};
     uint64_t blueSum{0};
 };
+
+void printProfileStats(const std::string &asset, Size size, bool async,
+                       const char *phase,
+                       const rlottie::PerformanceStats &stats)
+{
+    const char *mode = async ? "async" : "sync";
+    std::cerr << "profile," << phase << "," << asset << "," << size.width
+              << "," << size.height << "," << mode
+              << ",composition_update_calls=" << stats.compositionUpdate.calls
+              << ",composition_update_ms=" << stats.compositionUpdate.totalMs
+              << ",composition_render_calls=" << stats.compositionRender.calls
+              << ",composition_render_ms=" << stats.compositionRender.totalMs
+              << ",comp_update_calls="
+              << stats.compLayerUpdateContent.calls
+              << ",comp_update_ms="
+              << stats.compLayerUpdateContent.totalMs
+              << ",shape_update_calls="
+              << stats.shapeLayerUpdateContent.calls
+              << ",shape_update_ms="
+              << stats.shapeLayerUpdateContent.totalMs
+              << ",paint_update_calls="
+              << stats.paintUpdateRenderNode.calls
+              << ",paint_update_ms="
+              << stats.paintUpdateRenderNode.totalMs
+              << ",render_matte_calls=" << stats.renderMatteLayer.calls
+              << ",render_matte_ms=" << stats.renderMatteLayer.totalMs << "\n";
+}
 
 uint64_t currentRssKb()
 {
@@ -245,8 +276,8 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
     metrics.frames = animation->totalFrame();
     if (!metrics.frames) return metrics;
 
-    auto buffer = std::make_unique<uint32_t[]>(size.width * size.height);
-    rlottie::Surface surface(buffer.get(), size.width, size.height,
+    std::vector<uint32_t> buffer(size.width * size.height, 0u);
+    rlottie::Surface surface(buffer.data(), size.width, size.height,
                              size.width * 4);
 
     auto renderFrame = [&](size_t frameNo) {
@@ -258,17 +289,27 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
         }
     };
 
+    if (options.profile) {
+        rlottie::configurePerformanceStats(true);
+        rlottie::resetPerformanceStats();
+    }
+
     auto firstStart = std::chrono::steady_clock::now();
     renderFrame(0);
     auto firstEnd = std::chrono::steady_clock::now();
     metrics.firstFrameMs =
         std::chrono::duration<double, std::milli>(firstEnd - firstStart).count();
     metrics.rssFirstFrameKb = currentRssKb();
-    captureSignature(buffer.get(), size.width * size.height, metrics);
+    captureSignature(buffer.data(), size.width * size.height, metrics);
+    if (options.profile) {
+        printProfileStats(asset, size, options.async, "first_frame",
+                          rlottie::performanceStats());
+    }
 
     for (size_t i = 0; i < options.warmup; ++i) {
         renderFrame(i % metrics.frames);
     }
+    if (options.profile) rlottie::resetPerformanceStats();
 
     auto steadyStart = std::chrono::steady_clock::now();
     for (size_t i = 0; i < options.iterations; ++i) {
@@ -282,6 +323,11 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
         options.iterations ? metrics.steadyMs / options.iterations : 0.0;
     metrics.fps = metrics.avgFrameMs > 0.0 ? 1000.0 / metrics.avgFrameMs : 0.0;
     metrics.rssSteadyKb = currentRssKb();
+    if (options.profile) {
+        printProfileStats(asset, size, options.async, "steady",
+                          rlottie::performanceStats());
+        rlottie::configurePerformanceStats(false);
+    }
     return metrics;
 }
 

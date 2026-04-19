@@ -40,9 +40,13 @@ Current blend-mode fixtures include `blendmode_multiply.json`,
 ```sh
 build/example/lottiebench --asset-list benchmarks/tizen_cpu_corpus.txt --size 240x240 --size 360x360
 build/example/lottiebench --asset mask.json --size 1080x1080 --async
+build/example/lottiebench --asset /abs/path/world_locations.json --size 360x360 --iterations 30 --warmup 3 --profile
 ```
 
 ThorVG comparison should use the same asset paths, sizes, warmup, and iteration counts.
+`--profile` is diagnostic-only: it prints internal rlottie hotspot timing to
+`stderr`, and the timing probes materially perturb steady-state frame time, so
+do not use it when recording comparison numbers.
 
 ## ThorVG Example Comparison
 

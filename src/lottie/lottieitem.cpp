@@ -22,6 +22,9 @@
 
 #include "lottieitem.h"
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <iterator>
 #include "lottiekeypath.h"
@@ -35,6 +38,96 @@
  * 2. The frame property could be reversed using,time-reverse layer property in
  * AE. which means (start frame > endFrame) 3.
  */
+
+namespace {
+
+enum class ProfileEvent : uint8_t {
+    CompositionUpdate,
+    CompositionRender,
+    CompLayerUpdateContent,
+    ShapeLayerUpdateContent,
+    PaintUpdateRenderNode,
+    RenderMatteLayer,
+    Count
+};
+
+struct ProfileAccumulator {
+    std::atomic<uint64_t> calls{0};
+    std::atomic<uint64_t> totalNs{0};
+};
+
+std::atomic<bool> gPerformanceStatsEnabled{false};
+std::array<ProfileAccumulator, static_cast<size_t>(ProfileEvent::Count)>
+    gPerformanceStats{};
+
+size_t profileIndex(ProfileEvent event)
+{
+    return static_cast<size_t>(event);
+}
+
+rlottie::PerformanceCounter profileCounter(ProfileEvent event)
+{
+    auto &entry = gPerformanceStats[profileIndex(event)];
+    return {entry.calls.load(std::memory_order_relaxed),
+            double(entry.totalNs.load(std::memory_order_relaxed)) / 1000000.0};
+}
+
+struct ScopedProfileEvent {
+    explicit ScopedProfileEvent(ProfileEvent event)
+        : mEvent(event),
+          mEnabled(gPerformanceStatsEnabled.load(std::memory_order_relaxed))
+    {
+        if (mEnabled) mStart = std::chrono::steady_clock::now();
+    }
+
+    ~ScopedProfileEvent()
+    {
+        if (!mEnabled) return;
+
+        auto elapsed = std::chrono::steady_clock::now() - mStart;
+        auto elapsedNs = uint64_t(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed)
+                .count());
+        auto &entry = gPerformanceStats[profileIndex(mEvent)];
+        entry.calls.fetch_add(1, std::memory_order_relaxed);
+        entry.totalNs.fetch_add(elapsedNs, std::memory_order_relaxed);
+    }
+
+private:
+    ProfileEvent                             mEvent;
+    bool                                     mEnabled{false};
+    std::chrono::steady_clock::time_point    mStart{};
+};
+
+}  // namespace
+
+RLOTTIE_API void rlottie::configurePerformanceStats(bool enabled)
+{
+    gPerformanceStatsEnabled.store(enabled, std::memory_order_relaxed);
+}
+
+RLOTTIE_API void rlottie::resetPerformanceStats()
+{
+    for (auto &entry : gPerformanceStats) {
+        entry.calls.store(0, std::memory_order_relaxed);
+        entry.totalNs.store(0, std::memory_order_relaxed);
+    }
+}
+
+RLOTTIE_API rlottie::PerformanceStats rlottie::performanceStats()
+{
+    PerformanceStats stats;
+    stats.compositionUpdate = profileCounter(ProfileEvent::CompositionUpdate);
+    stats.compositionRender = profileCounter(ProfileEvent::CompositionRender);
+    stats.compLayerUpdateContent =
+        profileCounter(ProfileEvent::CompLayerUpdateContent);
+    stats.shapeLayerUpdateContent =
+        profileCounter(ProfileEvent::ShapeLayerUpdateContent);
+    stats.paintUpdateRenderNode =
+        profileCounter(ProfileEvent::PaintUpdateRenderNode);
+    stats.renderMatteLayer = profileCounter(ProfileEvent::RenderMatteLayer);
+    return stats;
+}
 
 static bool transformProp(rlottie::Property prop)
 {
@@ -143,6 +236,7 @@ static void beginOffscreenPainter(VPainter *painter, VBitmap &bitmap,
     painter->begin(&bitmap);
     painter->setDrawRegion(drawRegion, VPoint());
 }
+// matte-fastpath-sentinel
 
 static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
                                  const VRle &matteRle, renderer::Layer *layer,
@@ -215,6 +309,8 @@ void renderer::Composition::setValue(const std::string &keypath,
 bool renderer::Composition::update(int frameNo, const VSize &size,
                                    bool keepAspectRatio)
 {
+    ScopedProfileEvent profile(ProfileEvent::CompositionUpdate);
+
     // check if cached frame is same as requested frame.
     if (!mHasDynamicValue && (mViewSize == size) && (mCurFrameNo == frameNo) &&
         (mKeepAspectRatio == keepAspectRatio))
@@ -248,6 +344,8 @@ bool renderer::Composition::update(int frameNo, const VSize &size,
 
 bool renderer::Composition::render(const rlottie::Surface &surface)
 {
+    ScopedProfileEvent profile(ProfileEvent::CompositionRender);
+
     mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
                    uint32_t(surface.width()), uint32_t(surface.height()),
                    uint32_t(surface.bytesPerLine()),
@@ -662,8 +760,11 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
                                            renderer::Layer *src,
                                            SurfaceCache &   cache)
 {
+    ScopedProfileEvent profile(ProfileEvent::RenderMatteLayer);
+
     auto drawRegion = painter->clipBoundingRect();
     auto layerDrawables = layer->renderList();
+
     auto clip = drawableBounds(layerDrawables) & drawRegion;
     if (clip.empty()) clip = drawRegion;
     VSize size = clip.size();
@@ -745,6 +846,8 @@ VRle renderer::Clipper::rle(const VRle &mask)
 
 void renderer::CompLayer::updateContent()
 {
+    ScopedProfileEvent profile(ProfileEvent::CompLayerUpdateContent);
+
     if (mClipper && flag().testFlag(DirtyFlagBit::Matrix)) {
         mClipper->update(combinedMatrix());
     }
@@ -942,6 +1045,8 @@ renderer::ShapeLayer::ShapeLayer(model::Layer *layerData,
 
 void renderer::ShapeLayer::updateContent()
 {
+    ScopedProfileEvent profile(ProfileEvent::ShapeLayerUpdateContent);
+
     mRoot->update(frameNo(), combinedMatrix(), 1.0f , flag());
     mDrawableListValid = false;
 
@@ -1326,6 +1431,8 @@ void renderer::Paint::update(int frameNo, const VMatrix &parentMatrix,
 
 void renderer::Paint::updateRenderNode()
 {
+    ScopedProfileEvent profile(ProfileEvent::PaintUpdateRenderNode);
+
     bool dirty = false;
     bool useRle = false;
     for (auto &i : mPathItems) {

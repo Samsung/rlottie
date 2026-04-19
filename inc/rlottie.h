@@ -23,6 +23,7 @@
 #ifndef _RLOTTIE_H_
 #define _RLOTTIE_H_
 
+#include <cstdint>
 #include <future>
 #include <vector>
 #include <memory>
@@ -63,6 +64,24 @@ namespace rlottie {
  *  @internal
  */
 RLOTTIE_API void configureModelCacheSize(size_t cacheSize);
+
+struct PerformanceCounter {
+    uint64_t calls{0};
+    double   totalMs{0.0};
+};
+
+struct PerformanceStats {
+    PerformanceCounter compositionUpdate;
+    PerformanceCounter compositionRender;
+    PerformanceCounter compLayerUpdateContent;
+    PerformanceCounter shapeLayerUpdateContent;
+    PerformanceCounter paintUpdateRenderNode;
+    PerformanceCounter renderMatteLayer;
+};
+
+RLOTTIE_API void configurePerformanceStats(bool enabled);
+RLOTTIE_API void resetPerformanceStats();
+RLOTTIE_API PerformanceStats performanceStats();
 
 struct Color {
     Color() = default;
