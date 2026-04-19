@@ -190,19 +190,26 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.499 ms` vs `0.235 ms`
-- `11555.json`: `1.472 ms` vs `1.328 ms`
-- `confetti.json`: `0.175 ms` vs `0.111 ms`
-- `threads.json`: `2.088 ms` vs `1.963 ms`
-- `stroke_dash.json`: `0.160 ms` vs `0.131 ms`
+- `expressions/world_locations.json`: `0.508 ms` vs `0.223 ms`
+- `11555.json`: `1.505 ms` vs `1.376 ms`
+- `confetti.json`: `0.200 ms` vs `0.105 ms`
+- `threads.json`: `2.116 ms` vs `1.986 ms`
+- `stroke_dash.json`: `0.176 ms` vs `0.136 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
 
-- parse: `15.883 ms` vs `0.789 ms`
-- steady-state: `0.167 ms` vs `0.406 ms`
+- parse: `14.828 ms` vs `0.841 ms`
+- steady-state: `0.191 ms` vs `0.434 ms`
+
+Recent cold-review note:
+
+- a wider direct-alpha matte experiment for `world_locations.json` and a
+  translation-only RLE reuse experiment for `11555.json` /
+  `confetti.json` / `threads.json` were both rejected because they did not
+  survive the median-of-5 comparison workflow
 
 ## Current Lagging Buckets
 

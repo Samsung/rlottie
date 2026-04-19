@@ -20,11 +20,12 @@
 | `ty`-last shape parser | `gr/sh/fl/tr` shape object에서 `ty`가 마지막에 와도 payload를 잃지 않도록 parser fallback 추가 |
 | 회귀 fixture | `example/resource/shape_group_ty_last.json` 추가. `100x100` 기준 `nonzero_pixels=1600`으로 정상 렌더 확인 |
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 최신 frame 0은 full-frame에 아주 작은 색/알파 drift가 퍼지는 형태라, parser blank보다 non-opaque shape-layer 합성 drift 의심이 더 크다 |
-| `world_locations.json` matte 경로 | 단순 `Alpha/AlphaInv` matte direct path를 `opaque stroke`까지 넓혀, source offscreen 1장을 더 자주 생략하도록 확장 |
-| `world_locations.json` 최신 판정 | first-frame adjudication은 여전히 `exact_match_ratio = 0.999722` 유지. hardened median steady-state는 `0.499 ms -> 0.235 ms(ThorVG)`로 아직 뒤지지만, 이전 기준선보다 개선됐다 |
+| `world_locations.json` matte 경로 | `first-frame` 정합성은 계속 가깝지만, 이번 배치에서 시도한 broader matte bounds/direct-alpha 확장은 hardened benchmark에서 이득이 불안정해서 모두 버렸다 |
+| `world_locations.json` 최신 판정 | first-frame adjudication은 여전히 `exact_match_ratio = 0.999722` 수준이다. 최신 hardened median steady-state는 `0.508 ms -> 0.223 ms(ThorVG)`라서 아직 matte/offscreen이 최우선 병목이다 |
 | `43391.json` 시도 결과 | `el` order-independent fallback 실험은 cold review에서 버림. `43391`의 핵심 문제는 parser 한 건보다 `Merge Paths` 체인 semantics일 가능성이 높다 |
-| lazy image decode | embedded image asset은 parse 단계에서 디코딩하지 않고 first bitmap access로 지연. `image_embedded.json` 로컬 기준 parse가 대략 `8.18 ms -> 1.93 ms`까지 줄었다 |
-| `32266.json` 재판정 | lazy image decode 이후에도 parse는 `16~17 ms`대로 거의 줄지 않았다. 이 자산의 parse 병목은 이미지 decode보다 giant data URI를 포함한 JSON/base64 payload 자체에 더 가깝다 |
+| JSON file loading | `loadFromFile()`가 iterator 기반 텍스트 읽기 대신 single binary read를 사용하도록 바뀌었다. `page_slide.json`, `32266.json` 같은 parse-heavy 자산에서 실측 이득이 확인됐다 |
+| `32266.json` 재판정 | lazy image decode + single-read loader 이후에도 parse는 여전히 ThorVG보다 훨씬 느리다. 최신 median은 `14.828 ms -> 0.841 ms(ThorVG)`라서 giant data URI를 포함한 JSON/base64 payload 자체가 여전히 핵심 병목이다 |
+| rejected 실험 | `world_locations`용 wider direct-alpha matte, `11555/confetti/threads`용 translation-only RLE 재사용, `stroke_dash`용 narrow `ADBE 4ColorGradient`는 모두 benchmark/adjudication에서 살아남지 못해 버렸다 |
 
 ## 스펙 지원 현황 및 backlog
 
@@ -67,15 +68,15 @@
 
 | 리소스 | 기능군 | rlottie parse (ms) | ThorVG parse (ms) | rlottie frame (ms) | ThorVG frame (ms) | frame 배수 (rlottie/ThorVG) | rlottie RSS (KB) | ThorVG RSS (KB) | 판정 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| world_locations.json | matte/offscreen | 0.459 | 0.459 | 0.499 | 0.235 | 2.12x | 10416 | 4944 | ThorVG 우세 |
-| 11555.json | transform cache | 0.248 | 0.434 | 1.472 | 1.328 | 1.11x | 4496 | 3680 | ThorVG 우세 |
-| confetti.json | transform cache | 2.293 | 0.658 | 0.175 | 0.111 | 1.57x | 4832 | 4352 | ThorVG 우세 |
-| threads.json | transform cache | 0.159 | 0.439 | 2.088 | 1.963 | 1.06x | 4848 | 3648 | ThorVG 우세 |
+| world_locations.json | matte/offscreen | 0.268 | 0.472 | 0.508 | 0.223 | 2.28x | 10128 | 5008 | ThorVG 우세 |
+| 11555.json | transform cache | 0.185 | 0.500 | 1.505 | 1.376 | 1.09x | 4496 | 3680 | ThorVG 우세 |
+| confetti.json | transform cache | 1.540 | 0.678 | 0.200 | 0.105 | 1.91x | 4016 | 4368 | ThorVG 우세 |
+| threads.json | transform cache | 0.142 | 0.481 | 2.116 | 1.986 | 1.07x | 4752 | 3648 | ThorVG 우세 |
 | text_anim.json | outlined text scene | 1.644 | 0.527 | 0.123 | 0.078 | 1.57x | 4848 | 4176 | ThorVG 우세 |
-| stroke_dash.json | real text + effect | 0.196 | 0.441 | 0.160 | 0.131 | 1.22x | 3968 | 3392 | ThorVG 우세 |
-| textrange.json | real text animator | 0.175 | 0.434 | 0.008 | 0.028 | 0.30x | 2848 | 3344 | rlottie 우세 |
+| stroke_dash.json | real text + effect | 0.144 | 0.494 | 0.176 | 0.136 | 1.30x | 3920 | 3392 | ThorVG 우세 |
+| textrange.json | real text animator | 0.129 | 0.477 | 0.009 | 0.027 | 0.32x | 2768 | 3360 | rlottie 우세 |
 | textblock.json | outlined shape text | 4.496 | 1.040 | 0.849 | 0.318 | 2.67x | 8592 | 7584 | ThorVG 우세 |
-| 32266.json | correctness + parse | 15.478 | 0.802 | 0.191 | 0.399 | 0.48x | 20944 | 15952 | rlottie 우세 |
+| 32266.json | correctness + parse | 14.828 | 0.841 | 0.191 | 0.434 | 0.44x | 22656 | 15904 | rlottie 우세 |
 | layereffect.json | layer effect | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
 | abstract_circle.json | basic shape | 0.072 | 0.415 | 0.136 | 0.379 | 0.36x | 3888 | 3952 | rlottie 우세 |
 | glow_loading.json | fill/opacity | 0.130 | 0.404 | 0.011 | 0.033 | 0.32x | 3056 | 3184 | rlottie 우세 |
@@ -90,21 +91,21 @@
 
 | 기능 버킷 | 대표 자산 | rlottie parse 평균 (ms) | ThorVG parse 평균 (ms) | rlottie frame 평균 (ms) | ThorVG frame 평균 (ms) | frame 배수 | rlottie RSS 평균 (KB) | ThorVG RSS 평균 (KB) | 해석 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| matte/offscreen | world_locations.json, masking.json, starts_transparent.json | 0.638 | 0.468 | 0.251 | 0.204 | 1.23x | 6576 | 4421 | ThorVG 우세 |
-| transform cache | 11555.json, confetti.json, threads.json | 0.900 | 0.510 | 1.245 | 1.134 | 1.10x | 4725 | 3893 | ThorVG 우세 |
+| matte/offscreen | world_locations.json | 0.268 | 0.472 | 0.508 | 0.223 | 2.28x | 10128 | 5008 | ThorVG 우세 |
+| transform cache | 11555.json, confetti.json, threads.json | 0.622 | 0.553 | 1.274 | 1.155 | 1.10x | 4421 | 3899 | ThorVG 우세 |
 | outlined text scene | text_anim.json, textblock.json | 3.070 | 0.784 | 0.486 | 0.198 | 2.45x | 6720 | 5880 | ThorVG 우세 |
-| real text / text animator | stroke_dash.json, textrange.json | 0.186 | 0.437 | 0.084 | 0.079 | 1.06x | 3408 | 3368 | ThorVG 우세 |
+| real text / text animator | stroke_dash.json, textrange.json | 0.137 | 0.485 | 0.092 | 0.081 | 1.13x | 3344 | 3376 | ThorVG 우세 |
 | layer effect | layereffect.json | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
 | merge paths | merging_shapes.json | 0.126 | 0.403 | 0.064 | 0.050 | 1.28x | 3104 | 3328 | ThorVG 우세 |
 | basic vector | abstract_circle.json, windmill.json, glow_loading.json, gradient_sleepy_loader.json, polystar_anim.json | 0.107 | 0.403 | 0.099 | 0.151 | 0.66x | 3689 | 3484 | rlottie 우세 |
-| correctness + parse | 32266.json | 15.478 | 0.802 | 0.191 | 0.399 | 0.48x | 20944 | 15952 | rlottie 우세 |
+| correctness + parse | 32266.json, R_QPKIVi.json, 43391.json | 5.266 | 0.620 | 0.220 | 0.222 | 0.99x | 10192 | 7947 | 실성능은 비슷하지만 parse와 correctness는 rlottie 열세 |
 
 ## 현재 우선순위
 
 | 우선순위 | 대상 | 이유 | 바로 할 작업 |
 | --- | --- | --- | --- |
-| 1 | `expressions/world_locations.json` | first-frame은 그대로 맞고, matte path를 더 줄여도 아직 steady-state 격차가 가장 큼 | inherited bounds 전파 마무리, matte 재사용, direct-alpha 적용 범위 추가 확대 |
-| 2 | `11555.json`, `confetti.json`, `threads.json` | subagent 리뷰 기준으로 `matrix dirty -> shape dirty -> reraster` 체인이 본질이다 | content/transform dirty 분리, local-space snapshot cache, precomp snapshot boundary 설계 |
+| 1 | `expressions/world_locations.json` | first-frame은 그대로 맞고, matte/offscreen 격차가 여전히 가장 크다 | inherited bounds 전파 마무리, matte 재사용, source offscreen 생략이 실제 win이 되는 case만 재탐색 |
+| 2 | `11555.json`, `confetti.json`, `threads.json` | `matrix dirty -> shape dirty -> reraster` 체인이 본질이지만 translation-only RLE 재사용 실험은 실패했다 | content/transform dirty 분리, local-space snapshot cache를 더 좁은 조건으로 재설계 |
 | 3 | `stroke_dash.json` | 정적 text는 복구됐고 남은 차이는 effect stack 쪽이다 | late-frame adjudication 정교화, `ADBE 4ColorGradient`와 broader stack 분리 |
 | 4 | `textrange.json` | 성능이 아니라 animated `t.d.k` document + range-selector opacity correctness gap이 본질이다 | `t.d.k` keyframe support, selector subset evaluator |
 | 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 크다. 다만 원인은 각각 다르다 | `32266`: image/precomp drift, `R_QPKIVi`: non-opaque shape-layer 합성, `43391`: chained merge-path semantics 분리 |
@@ -114,6 +115,7 @@
 - `text_anim.json`, `textblock.json`을 보고 real text 지원이 됐다고 판단하면 안 된다.
 - `32266.json`은 steady-state 성능 타깃으로 보면 우선순위를 잘못 잡게 된다.
 - `world_locations.json`은 image-level로는 이미 꽤 가깝기 때문에, correctness보다 matte 성능에 집중해야 한다.
+- `world_locations`와 `11555/confetti/threads`에 대해 speculative한 matte/cache 경로를 억지로 유지하면 오히려 median frame time이 악화된다. 현재 문서에는 benchmark를 통과한 경로만 남긴다.
 - `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리지만, frame 0과 frame 12 판정 모두 비교적 가까워서 effect 단일 원인으로 몰아가면 우선순위를 잘못 잡을 수 있다.
 - `R_QPKIVi.json`은 이제 blank는 아니지만, 최신 판정은 “아예 틀린 도형”보다 “전면적인 작은 합성 drift”에 더 가깝다. parser와 compositing을 분리해서 봐야 한다.
 - `43391.json`은 `el` 하나를 더 읽는다고 닫히지 않았다. merge-path chain semantics를 바로 보지 않으면 시간을 낭비하게 된다.

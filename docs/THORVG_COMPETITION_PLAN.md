@@ -126,11 +126,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.499 ms` vs `0.235 ms`
-2. `11555.json`: `1.472 ms` vs `1.328 ms`
-3. `confetti.json`: `0.175 ms` vs `0.111 ms`
-4. `threads.json`: `2.088 ms` vs `1.963 ms`
-5. `stroke_dash.json`: `0.160 ms` vs `0.131 ms`
+1. `expressions/world_locations.json`: `0.508 ms` vs `0.223 ms`
+2. `11555.json`: `1.505 ms` vs `1.376 ms`
+3. `confetti.json`: `0.200 ms` vs `0.105 ms`
+4. `threads.json`: `2.116 ms` vs `1.986 ms`
+5. `stroke_dash.json`: `0.176 ms` vs `0.136 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a
@@ -239,9 +239,10 @@ The latest alpha-matte pass now skips the extra source offscreen for
 `Alpha` / `AlphaInv` mattes when the source layer has no blend/effect work.
 That path now also accepts opaque solid strokes, which matches the actual
 `world_locations.json` precomp source better than the older fill-only check.
-The hardened median now sits around `0.499 ms` against ThorVG's `0.235 ms`,
-which is still not good enough, but it is directionally better than the older
-fill-only path and it keeps the first-frame adjudication unchanged.
+The latest hardened median now sits around `0.508 ms` against ThorVG's
+`0.223 ms`. Broader direct-alpha and clip-tightening experiments were tried
+again after this point, but they did not survive median-of-5 benchmarking and
+were rejected.
 
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the
@@ -690,6 +691,8 @@ Priority items:
 6. Improve repeater evaluation cost.
 7. Eliminate nested or fragmented scheduler overhead where it hurts.
 8. Harden `VRle` ops for large rows and pathological masks.
+9. Reject speculative matte/cache paths immediately when they do not beat the
+   hardened benchmark workflow.
 
 Completion criteria:
 
