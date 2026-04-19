@@ -8,6 +8,7 @@
 #else
 # include <dlfcn.h>
 #endif  // _WIN32
+#include <string>
 
 using lottie_image_load_f = unsigned char *(*)(const char *filename, int *x,
                                                int *y, int *comp, int req_comp);
@@ -59,6 +60,11 @@ struct VImageLoader::Impl {
     }
 # else  // _WIN32
     void *dl_handle{nullptr};
+    bool tryLoad(const std::string &path)
+    {
+        dl_handle = dlopen(path.c_str(), RTLD_LAZY);
+        return dl_handle != nullptr;
+    }
     void  init()
     {
         imageLoad = reinterpret_cast<lottie_image_load_f>(
@@ -75,8 +81,28 @@ struct VImageLoader::Impl {
     }
     bool moduleLoad()
     {
-        dl_handle = dlopen(LOTTIE_IMAGE_MODULE_PLUGIN, RTLD_LAZY);
-        return (dl_handle == nullptr);
+        if (tryLoad(LOTTIE_IMAGE_MODULE_PLUGIN)) return false;
+
+        Dl_info info;
+        if (dladdr(reinterpret_cast<void *>(&VImageLoader::instance), &info) &&
+            info.dli_fname) {
+            std::string loaderPath(info.dli_fname);
+            auto        slash = loaderPath.find_last_of('/');
+            auto        loaderDir =
+                (slash == std::string::npos) ? std::string() :
+                                               loaderPath.substr(0, slash);
+
+            if (!loaderDir.empty()) {
+                if (tryLoad(loaderDir + "/" + LOTTIE_IMAGE_MODULE_PLUGIN))
+                    return false;
+
+                if (tryLoad(loaderDir + "/src/vector/stb/" +
+                            LOTTIE_IMAGE_MODULE_PLUGIN))
+                    return false;
+            }
+        }
+
+        return true;
     }
 # endif  // _WIN32
 #else  // LOTTIE_IMAGE_MODULE_SUPPORT

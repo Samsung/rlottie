@@ -2,6 +2,7 @@ if(LOTTIE_MODULE)
     add_library(rlottie-image-loader SHARED
                 stb_image.cpp
                )
+    add_dependencies(rlottie rlottie-image-loader)
     if(NOT MSVC)
         target_compile_options(rlottie-image-loader PRIVATE
                                -fvisibility=hidden
