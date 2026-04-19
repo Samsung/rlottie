@@ -48,6 +48,9 @@ The project is complete only when all of the following are true:
 - Narrow `ADBE Fill` parsing is now hardened against JSON key-order variance,
   disabled-effect ordering, unsupported enabled sibling effects, and missing
   explicit opacity parameters.
+- Module-mode image loading now builds the image-loader plugin with `rlottie`
+  and probes build-tree and library-relative plugin locations at runtime,
+  which restores embedded and file-backed image assets in local builds.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
@@ -191,14 +194,14 @@ work should stay behind matte reuse and transform-cache work.
 These are the most important correctness bugs that should be treated as
 active engineering work rather than vague backlog items:
 
-1. Embedded image output can still collapse to zero pixels.
-   - Repro assets: `image_embedded.json`, `32266.json`
-   - Current diagnosis: the broad parser path succeeds, but the image asset
-     decode/binding/draw handoff is still suspect, especially when images sit
-     behind precomp indirection.
-   - Short-term action: trace `Asset::loadImageData()` through image-layer
-     draw submission and build a minimal precomp-contained `ty:2` regression
-     fixture.
+1. Module-build image loading was a recent zero-output blocker.
+   - Status: fixed in local module builds.
+   - Repro assets closed by the fix: `image_embedded.json`, `32266.json`
+   - Root cause: `LOTTIE_MODULE` builds did not reliably build or locate the
+     `rlottie-image-loader` plugin, so image assets fell back to `0x0`
+     bitmaps.
+   - Verification: `image_embedded.json` now renders nonzero pixels locally,
+     and `32266.json` no longer hits the previous zero-output mismatch.
 2. Some real assets still diverge for non-expression reasons even after load
    succeeds.
    - Repro assets: `R_QPKIVi.json`, `43391.json`
@@ -395,18 +398,6 @@ turning into one-off asset hacks.
      shape layers
   3. teach repeaters and grouped transforms to consume cached geometry before
      re-entering the full path/raster pipeline
-
-### Embedded Images And Image/Precomp Handoff
-
-- Representative assets: `image_embedded.json`, `32266.json`
-- Current failure mode: image-bearing assets can still load successfully and
-  then render zero pixels.
-- Improvement strategy:
-  1. trace decode -> asset registration -> layer reference resolution ->
-     image drawable submission end to end
-  2. add a minimal embedded-image-precomp regression fixture
-  3. fix precomp-contained `ty:2` execution before widening to broader image
-     asset coverage
 
 ### Text Layers, Fonts, And Chars
 

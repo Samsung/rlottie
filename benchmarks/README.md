@@ -143,7 +143,6 @@ as one flat ranking:
 
 - mattes and offscreen compositing: `expressions/world_locations.json`
 - transform-only rerasterization: `11555.json`, `confetti.json`, `threads.json`
-- embedded images and precomp handoff: `image_embedded.json`, `32266.json`
 - text/runtime text payloads: `text_anim.json`, `textrange.json`
 - layer effects beyond narrow `ADBE Fill`: `bell.json`, `pumped_up.json`,
   `expressions/layereffect.json`
@@ -151,3 +150,9 @@ as one flat ranking:
 
 This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
+
+Recent correctness fix:
+
+- module-mode image loading now restores nonzero output on
+  `image_embedded.json` and closes the previous zero-output regression on
+  `32266.json`
