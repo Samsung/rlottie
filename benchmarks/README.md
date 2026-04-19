@@ -35,7 +35,8 @@ Current blend-mode fixtures include `blendmode_multiply.json`,
 `blendmode_softlight.json`, `blendmode_difference.json`,
 `blendmode_exclusion.json`, `blendmode_hue.json`,
 `blendmode_saturation.json`, `blendmode_color.json`, and
-`blendmode_luminosity.json`.
+`blendmode_luminosity.json`. Current layer-effect fixtures include
+`layer_effect_fill_solid.json` and `layer_effect_fill_precomp.json`.
 
 ## Example Usage
 

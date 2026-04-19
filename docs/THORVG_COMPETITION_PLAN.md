@@ -43,6 +43,8 @@ The project is complete only when all of the following are true:
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
   `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, `Exclusion`,
   `Hue`, `Saturation`, `Color`, and `Luminosity`.
+- Layer `Effects` now have a narrow first-pass `ADBE Fill` implementation for
+  whole-layer solid and precomp output, with targeted fixtures for both cases.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
@@ -154,6 +156,10 @@ This broad audit changes the interpretation of the current gap:
   `starburst.json`, `uk_flag.json`, and `textblock.json` should be treated as
   full-corpus parse/RSS triage cases rather than ignored because they are
   outside the smoke subset.
+- A post-`ADBE Fill` rerun with the same audit workflow kept the same broad
+  shape: `0` load failures and `119` coarse signature mismatches. Opening
+  layer `ef` parsing for the narrow fill subset did not create a broad
+  regression outside the new effect fixtures.
 
 ### Hotspot Review
 
@@ -203,8 +209,9 @@ work should stay behind matte reuse and transform-cache work.
 - Layer `Blend Modes` now cover the full standard Lottie layer-blend family
   from `Multiply` through `Luminosity` on targeted fixtures, but mixed-asset
   coverage and image-level adjudication against ThorVG are still open.
-- `Layer Effects` are missing, and simple `Fill` / `Tint` / `Stroke` remain
-  the best near-term entry point.
+- `Layer Effects` are still mostly missing. A narrow `ADBE Fill` subset now
+  works on targeted fixtures, but `Tint`, `Stroke`, effect stacks, masked fill,
+  feathered fill, and mixed real-asset adjudication are still open.
 - Soft-mask features such as `Feather` and `Expansion` are missing, while hard
   mask path modes remain the only fully wired mask family today.
 - Expressions remain unsupported engine-wide and should not drive near-term
@@ -270,8 +277,8 @@ implementation work or broader proof:
 2. Real text-layer support beyond outlined-shape assets, including parser
    coverage for `fonts`, `chars`, and layer `t` payloads plus a dedicated
    renderer path for `Layer::Type::Text`
-3. `Layer Effects` with fixture-backed support, starting from simple color and
-   stroke-oriented effects
+3. Broader `Layer Effects` beyond the current narrow `ADBE Fill` subset,
+   starting with `Tint` and `Stroke`
 4. Soft-mask `Expansion`
 5. Soft-mask `Feather`
 6. Broader `.lottie` archive coverage beyond the current manifest-path cases
@@ -341,7 +348,8 @@ Primary targets:
 2. `Merge Paths` stroke semantics and broader real-asset coverage.
 3. broader layer `Blend Modes` coverage beyond the current mode set, especially
    hue/saturation/color family modes and mixed-asset regressions.
-4. `Layer Effects` subset: `Fill`, `Tint`, `Stroke`.
+4. Broader `Layer Effects` subset beyond the current `ADBE Fill` landing:
+   `Tint`, `Stroke`, and mixed-stack correctness.
 5. Soft-mask features: `Expansion`, `Feather`.
 6. broader mixed-asset skew regression coverage.
 
@@ -449,7 +457,7 @@ Priority items:
 2. `Text` glyph-first pipeline and broader correctness coverage
 3. broader layer `Blend Modes` coverage beyond the current mode set, with
    hue/saturation/color family modes next
-4. selected `Layer Effects`
+4. broader `Layer Effects` beyond the current `ADBE Fill` subset
 5. soft-mask `Expansion` and `Feather`
 6. broader `.lottie` robustness
 7. broaden mixed-asset skew regression coverage
