@@ -66,10 +66,11 @@ def diff_metrics(left: Image.Image, right: Image.Image):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Dump and compare rlottie/thorvg first-frame images."
+        description="Dump and compare rlottie/thorvg frame images."
     )
     parser.add_argument("--asset", required=True)
     parser.add_argument("--size", default="360x360")
+    parser.add_argument("--frame", type=int, default=0)
     parser.add_argument(
         "--rlottie-bin",
         default="build/example/lottiebench",
@@ -107,7 +108,8 @@ def main():
             "1",
             "--warmup",
             "0",
-            "--dump-first-frame",
+            "--dump-frame",
+            str(args.frame),
             str(rlottie_ppm),
             "--csv",
         ]
@@ -121,7 +123,8 @@ def main():
             "1",
             "--warmup",
             "0",
-            "--dump-first-frame",
+            "--dump-frame",
+            str(args.frame),
             str(thorvg_ppm),
             "--csv",
         ]
@@ -131,9 +134,9 @@ def main():
         rlottie_run = run_dump(rlottie_cmd)
         thorvg_run = run_dump(thorvg_cmd)
 
-        rlottie_png = output_dir / "rlottie_first_frame.png"
-        thorvg_png = output_dir / "thorvg_first_frame.png"
-        diff_png = output_dir / "diff_first_frame.png"
+        rlottie_png = output_dir / f"rlottie_frame_{args.frame}.png"
+        thorvg_png = output_dir / f"thorvg_frame_{args.frame}.png"
+        diff_png = output_dir / f"diff_frame_{args.frame}.png"
         side_png = output_dir / "side_by_side.png"
         metrics_json = output_dir / "metrics.json"
         rlottie_csv = output_dir / "rlottie_metrics.csv"
@@ -148,6 +151,7 @@ def main():
             metrics = diff_metrics(rlottie_rgb, thorvg_rgb)
             metrics["asset"] = args.asset
             metrics["size"] = args.size
+            metrics["frame"] = args.frame
             metrics["rlottie_command"] = rlottie_cmd
             metrics["thorvg_command"] = thorvg_cmd
             metrics["rlottie_metrics_line"] = extract_metrics_line(rlottie_run.stdout)

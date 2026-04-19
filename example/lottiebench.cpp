@@ -32,7 +32,8 @@ struct Options {
     bool async{false};
     bool csv{false};
     bool profile{false};
-    std::string dumpFirstFrame;
+    std::string dumpFramePath;
+    size_t dumpFrameIndex{0};
 };
 
 bool startsWith(const std::string &value, const std::string &prefix)
@@ -112,6 +113,7 @@ int help()
         << "  --csv                      emit CSV output\n"
         << "  --profile                  emit rlottie internal timing to stderr\n"
         << "  --dump-first-frame <ppm>   write first-frame RGB dump\n"
+        << "  --dump-frame <index> <ppm> write selected-frame RGB dump\n"
         << "  --help\n\n"
         << "Example:\n"
         << "  lottiebench --asset mask.json --size 240x240 --size 360x360\n"
@@ -151,7 +153,12 @@ bool parseOptions(int argc, char **argv, Options &options)
         } else if (arg == "--profile") {
             options.profile = true;
         } else if (arg == "--dump-first-frame" && index + 1 < argc) {
-            options.dumpFirstFrame = argv[++index];
+            options.dumpFrameIndex = 0;
+            options.dumpFramePath = argv[++index];
+        } else if (arg == "--dump-frame" && index + 2 < argc) {
+            options.dumpFrameIndex =
+                static_cast<size_t>(std::stoul(argv[++index]));
+            options.dumpFramePath = argv[++index];
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             return false;
@@ -166,9 +173,9 @@ bool parseOptions(int argc, char **argv, Options &options)
         options.sizes.push_back({240, 240});
         options.sizes.push_back({360, 360});
     }
-    if (!options.dumpFirstFrame.empty() &&
+    if (!options.dumpFramePath.empty() &&
         (options.assets.size() != 1 || options.sizes.size() != 1)) {
-        std::cerr << "--dump-first-frame requires exactly one asset and one size\n";
+        std::cerr << "--dump-first-frame/--dump-frame require exactly one asset and one size\n";
         return false;
     }
     return true;
@@ -322,17 +329,20 @@ Metrics runCase(const std::string &asset, Size size, const Options &options)
         rlottie::resetPerformanceStats();
     }
 
+    const auto dumpFrame = metrics.frames
+                               ? (options.dumpFrameIndex % metrics.frames)
+                               : 0;
     auto firstStart = std::chrono::steady_clock::now();
-    renderFrame(0);
+    renderFrame(dumpFrame);
     auto firstEnd = std::chrono::steady_clock::now();
     metrics.firstFrameMs =
         std::chrono::duration<double, std::milli>(firstEnd - firstStart).count();
     metrics.rssFirstFrameKb = currentRssKb();
     captureSignature(buffer.data(), size.width * size.height, metrics);
-    if (!options.dumpFirstFrame.empty() &&
-        !writePpm(options.dumpFirstFrame, buffer.data(), size)) {
-        std::cerr << "Failed to dump first frame: " << options.dumpFirstFrame
-                  << "\n";
+    if (!options.dumpFramePath.empty() &&
+        !writePpm(options.dumpFramePath, buffer.data(), size)) {
+        std::cerr << "Failed to dump frame " << dumpFrame << ": "
+                  << options.dumpFramePath << "\n";
     }
     if (options.profile) {
         printProfileStats(asset, size, options.async, "first_frame",

@@ -129,15 +129,26 @@ python3 benchmarks/adjudicate_lottie_frames.py \
 
 This workflow writes:
 
-- `rlottie_first_frame.png`
-- `thorvg_first_frame.png`
-- `diff_first_frame.png`
+- `rlottie_frame_<N>.png`
+- `thorvg_frame_<N>.png`
+- `diff_frame_<N>.png`
 - `side_by_side.png`
 - `metrics.json`
 
 The image-level tool is now the preferred adjudication path for concentrated
 correctness gaps such as `32266.json`, `R_QPKIVi.json`, `43391.json`,
 `stroke_dash.json`, and `expressions/layereffect.json`.
+
+Do not assume frame 0 is enough for effect-heavy assets. The script now accepts
+`--frame <index>` so the same asset can be compared at an arbitrary frame:
+
+```sh
+python3 benchmarks/adjudicate_lottie_frames.py \
+  --asset /abs/path/stroke_dash.json \
+  --size 360x360 \
+  --frame 12 \
+  --output-dir /tmp/stroke_dash_frame12
+```
 
 ## Local rlottie-vs-rlottie Comparison
 
@@ -208,8 +219,10 @@ This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
 `stroke_dash.json` and `expressions/layereffect.json` now render again after
 parser hardening. `stroke_dash.json` also has a narrow chars-backed static text
-path now, so the remaining gap is no longer a missing title layer; it is
-broader effect coverage, expression controls, and image-level output drift.
+path now, and frame-0/frame-12 adjudication is already close. That means the
+remaining gap should not be described as "4-Color Gradient only" without
+further evidence. The safer statement is broader effect coverage, expression
+controls, and image-level output drift.
 
 Recent matte work:
 
