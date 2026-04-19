@@ -244,6 +244,31 @@ static void beginOffscreenPainter(VPainter *painter, VBitmap &bitmap,
     painter->begin(&bitmap);
     painter->setDrawRegion(drawRegion, VPoint());
 }
+
+static void applyFillEffect(VBitmap &bitmap,
+                            const model::Layer::FillEffect &effect,
+                            int frameNo)
+{
+    auto color = effect.color(frameNo).toColor();
+    bitmap.applyFill(bitmap.rect(), color.r, color.g, color.b,
+                     effect.opacity(frameNo));
+}
+
+static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
+                              const VRle &mask, const VRle &matteRle,
+                              renderer::SurfaceCache &cache,
+                              VBitmap &bitmap)
+{
+    VPainter layerPainter;
+    beginOffscreenPainter(&layerPainter, bitmap, clip);
+    layer->render(&layerPainter, mask, matteRle, cache);
+    layerPainter.end();
+
+    if (layer->hasFillEffect()) {
+        applyFillEffect(bitmap, *layer->fillEffect(), layer->currentFrame());
+    }
+}
+
 static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
 {
     if (drawable->mType != VDrawable::Type::Fill) return false;
@@ -287,11 +312,11 @@ static bool directAlphaMatteRle(renderer::DrawableList drawables,
     return !result.empty();
 }
 
-static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
+static void renderLayerComposite(VPainter *painter, const VRle &mask,
                                  const VRle &matteRle, renderer::Layer *layer,
                                  renderer::SurfaceCache &cache)
 {
-    if (!layer->hasBlendMode()) {
+    if (!layer->hasBlendMode() && !layer->hasFillEffect()) {
         layer->render(painter, mask, matteRle, cache);
         return;
     }
@@ -302,14 +327,13 @@ static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
 
     VSize size = clip.size();
     VBitmap layerBitmap = cache.make_surface(size.width(), size.height());
-    VPainter layerPainter;
-    beginOffscreenPainter(&layerPainter, layerBitmap, clip);
-    layer->render(&layerPainter, mask, matteRle, cache);
-    layerPainter.end();
+    renderLayerBitmap(layer, clip, mask, matteRle, cache, layerBitmap);
 
-    painter->setBlendMode(toPainterBlendMode(layer->blendMode()));
+    if (layer->hasBlendMode()) {
+        painter->setBlendMode(toPainterBlendMode(layer->blendMode()));
+    }
     painter->drawBitmap(clip, layerBitmap, layerBitmap.rect());
-    painter->setBlendMode(BlendMode::SrcOver);
+    if (layer->hasBlendMode()) painter->setBlendMode(BlendMode::SrcOver);
     cache.release_surface(layerBitmap);
 }
 
@@ -794,7 +818,7 @@ void renderer::CompLayer::renderHelper(VPainter *    painter,
                         renderMatteLayer(painter, mask, matteRle, matte, layer,
                                          cache);
                 } else {
-                    renderLayerWithBlend(painter, mask, matteRle, layer,
+                    renderLayerComposite(painter, mask, matteRle, layer,
                                          cache);
                 }
             }
@@ -820,11 +844,11 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
 
         VRle directMatte;
         if (directAlphaMatteRle(srcDrawables, clipMask, directMatte)) {
-            renderLayerWithBlend(painter, clipMask, directMatte, layer, cache);
+            renderLayerComposite(painter, clipMask, directMatte, layer, cache);
             return;
         }
         if (layer->matteType() == model::MatteType::AlphaInv) {
-            renderLayerWithBlend(painter, clipMask, {}, layer, cache);
+            renderLayerComposite(painter, clipMask, {}, layer, cache);
             return;
         }
         return;
@@ -848,18 +872,17 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     VSize size = clip.size();
     // Decide if we can use fast matte.
     // 1. draw src layer to matte buffer
-    VPainter srcPainter;
     VBitmap  srcBitmap = cache.make_surface(size.width(), size.height());
-    beginOffscreenPainter(&srcPainter, srcBitmap, clip);
-    src->render(&srcPainter, mask, matteRle, cache);
-    srcPainter.end();
+    renderLayerBitmap(src, clip, mask, matteRle, cache, srcBitmap);
 
     // 2. draw layer to layer buffer
-    VPainter layerPainter;
     VBitmap  layerBitmap = cache.make_surface(size.width(), size.height());
+    VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
-
+    if (layer->hasFillEffect()) {
+        applyFillEffect(layerBitmap, *layer->fillEffect(), layer->currentFrame());
+    }
     // 2.1update composition mode
     switch (layer->matteType()) {
     case model::MatteType::Alpha:

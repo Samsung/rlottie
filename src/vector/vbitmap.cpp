@@ -140,6 +140,56 @@ void VBitmap::Impl::updateLuma(const VRect &region)
     }
 }
 
+void VBitmap::Impl::applyFill(const VRect &region, uint8_t red, uint8_t green,
+                              uint8_t blue, float amount)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    amount = std::max(0.0f, std::min(1.0f, amount));
+    if (vIsZero(amount)) return;
+
+    auto dataPtr = data();
+    for (int y = clipped.top(); y < clipped.bottom(); ++y) {
+        uint32_t *pixel =
+            reinterpret_cast<uint32_t *>(dataPtr + mStride * y) + clipped.left();
+        for (int x = clipped.left(); x < clipped.right(); ++x) {
+            auto alpha = int(vAlpha(*pixel));
+            if (alpha == 0) {
+                pixel++;
+                continue;
+            }
+
+            auto srcRed = int(vRed(*pixel));
+            auto srcGreen = int(vGreen(*pixel));
+            auto srcBlue = int(vBlue(*pixel));
+
+            if (alpha != 255) {
+                srcRed = (srcRed * 255) / alpha;
+                srcGreen = (srcGreen * 255) / alpha;
+                srcBlue = (srcBlue * 255) / alpha;
+            }
+
+            auto outRed =
+                int(std::lround(srcRed + (int(red) - srcRed) * amount));
+            auto outGreen =
+                int(std::lround(srcGreen + (int(green) - srcGreen) * amount));
+            auto outBlue =
+                int(std::lround(srcBlue + (int(blue) - srcBlue) * amount));
+
+            outRed = (outRed * alpha + 127) / 255;
+            outGreen = (outGreen * alpha + 127) / 255;
+            outBlue = (outBlue * alpha + 127) / 255;
+
+            *pixel = (uint32_t(alpha) << 24) | (uint32_t(outRed) << 16) |
+                     (uint32_t(outGreen) << 8) | uint32_t(outBlue);
+            pixel++;
+        }
+    }
+}
+
 VBitmap::VBitmap(size_t width, size_t height, VBitmap::Format format)
 {
     if (width <= 0 || height <= 0 || format == Format::Invalid) return;
@@ -254,6 +304,12 @@ void VBitmap::updateLuma()
 void VBitmap::updateLuma(const VRect &region)
 {
     if (mImpl) mImpl->updateLuma(region);
+}
+
+void VBitmap::applyFill(const VRect &region, uint8_t red, uint8_t green,
+                        uint8_t blue, float amount)
+{
+    if (mImpl) mImpl->applyFill(region, red, green, blue, amount);
 }
 
 V_END_NAMESPACE

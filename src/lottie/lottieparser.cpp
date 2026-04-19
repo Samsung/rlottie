@@ -237,6 +237,8 @@ public:
     model::Asset *   parseAsset();
     void             parseLayers(model::Composition *comp);
     model::Layer *   parseLayer();
+    void             parseLayerEffects(model::Layer *layer);
+    bool             parseFillEffect(model::Layer::FillEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1173,6 +1175,8 @@ model::Layer *LottieParserImpl::parseLayer()
             layer->mHasMask = GetBool();
         } else if (0 == strcmp(key, "masksProperties")) {
             parseMaskProperty(layer);
+        } else if (0 == strcmp(key, "ef")) {
+            parseLayerEffects(layer);
         } else if (0 == strcmp(key, "ao")) {
             layer->mAutoOrient = GetInt();
         } else if (0 == strcmp(key, "hd")) {
@@ -1217,10 +1221,83 @@ model::Layer *LottieParserImpl::parseLayer()
             staticFlag &= mask->isStatic();
         }
     }
+    if (layer->hasFillEffect()) {
+        staticFlag &= layer->fillEffect()->isStatic();
+    }
 
     layer->setStatic(staticFlag && layer->mTransform->isStatic());
 
     return layer;
+}
+
+void LottieParserImpl::parseLayerEffects(model::Layer *layer)
+{
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string effectMatchName;
+        int         effectType = -1;
+        bool        effectEnabled = true;
+        bool        parsed = false;
+        model::Layer::FillEffect fillEffect;
+
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                effectMatchName = GetStringObject();
+            } else if (0 == strcmp(key, "ty")) {
+                effectType = GetInt();
+            } else if (0 == strcmp(key, "en")) {
+                effectEnabled = GetInt();
+            } else if (0 == strcmp(key, "ef")) {
+                if (effectEnabled &&
+                    (effectType == 21 || effectMatchName == "ADBE Fill")) {
+                    parsed = parseFillEffect(fillEffect);
+                } else {
+                    SkipArray();
+                }
+            } else {
+                Skip(key);
+            }
+        }
+
+        if (parsed) {
+            layer->extra()->mFillEffect =
+                std::make_unique<model::Layer::FillEffect>(
+                    std::move(fillEffect));
+        }
+    }
+}
+
+bool LottieParserImpl::parseFillEffect(model::Layer::FillEffect &effect)
+{
+    bool supported = true;
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Fill-0002") {
+                    parseProperty(effect.mColor);
+                } else if (matchName == "ADBE Fill-0005") {
+                    parseProperty(effect.mOpacity);
+                } else {
+                    model::Property<float> property{0.0f};
+                    parseProperty(property);
+                    if (!property.isStatic() || !vIsZero(property.value())) {
+                        supported = false;
+                    }
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    return supported;
 }
 
 void LottieParserImpl::parseMaskProperty(model::Layer *layer)

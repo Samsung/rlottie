@@ -238,7 +238,16 @@ public:
     {
         return mLayerData->mBlendMode != model::BlendMode::Normal;
     }
+    bool             hasFillEffect() const
+    {
+        return mLayerData->hasFillEffect();
+    }
+    model::Layer::FillEffect *fillEffect() const
+    {
+        return mLayerData->fillEffect();
+    }
     bool             hasLayerMask() const { return mLayerMask != nullptr; }
+    int              currentFrame() const { return mFrameNo; }
     bool             visible() const;
     virtual void     buildLayerNode();
     LOTLayerNode &   clayer() { return mCApiData->mLayer; }

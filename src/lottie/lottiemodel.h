@@ -729,6 +729,20 @@ public:
         return mTransform ? mTransform->opacity(frameNo) : 1.0f;
     }
     Asset *asset() const { return mExtra ? mExtra->mAsset : nullptr; }
+    struct FillEffect {
+        Property<Color> mColor{{0, 0, 0}};
+        Property<float> mOpacity{1.0f};
+        bool            isStatic() const
+        {
+            return mColor.isStatic() && mOpacity.isStatic();
+        }
+        Color color(int frameNo) const { return mColor.value(frameNo); }
+        float opacity(int frameNo) const
+        {
+            auto value = mOpacity.value(frameNo);
+            return std::max(0.0f, std::min(1.0f, value / 100.0f));
+        }
+    };
     struct Extra {
         Color               mSolidColor;
         std::string         mPreCompRefId;
@@ -736,12 +750,21 @@ public:
         Composition *       mCompRef{nullptr};
         Asset *             mAsset{nullptr};
         std::vector<Mask *> mMasks;
+        std::unique_ptr<FillEffect> mFillEffect;
     };
 
     Layer::Extra *extra()
     {
         if (!mExtra) mExtra = std::make_unique<Layer::Extra>();
         return mExtra.get();
+    }
+    bool hasFillEffect() const
+    {
+        return mExtra && mExtra->mFillEffect;
+    }
+    FillEffect *fillEffect() const
+    {
+        return hasFillEffect() ? mExtra->mFillEffect.get() : nullptr;
     }
 
 public:

@@ -57,6 +57,8 @@ public:
     void            fill(uint32_t pixel);
     void    updateLuma();
     void    updateLuma(const VRect &region);
+    void    applyFill(const VRect &region, uint8_t red, uint8_t green,
+                      uint8_t blue, float amount);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -89,6 +91,8 @@ private:
         void fill(uint32_t);
         void updateLuma();
         void updateLuma(const VRect &region);
+        void applyFill(const VRect &region, uint8_t red, uint8_t green,
+                       uint8_t blue, float amount);
     };
 
     rc_ptr<Impl> mImpl;
