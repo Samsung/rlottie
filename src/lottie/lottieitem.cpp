@@ -144,13 +144,6 @@ static void beginOffscreenPainter(VPainter *painter, VBitmap &bitmap,
     painter->setDrawRegion(drawRegion, VPoint());
 }
 
-static VRect localSourceRect(const VRect &rect, const VRect &drawRegion)
-{
-    return VRect(rect.left() - drawRegion.left(),
-                 rect.top() - drawRegion.top(),
-                 rect.width(), rect.height());
-}
-
 static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
                                  const VRle &matteRle, renderer::Layer *layer,
                                  renderer::SurfaceCache &cache)
@@ -670,23 +663,22 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
                                            SurfaceCache &   cache)
 {
     auto drawRegion = painter->clipBoundingRect();
-    VSize size = drawRegion.size();
     auto layerDrawables = layer->renderList();
     auto clip = drawableBounds(layerDrawables) & drawRegion;
     if (clip.empty()) clip = drawRegion;
-    auto srcRect = localSourceRect(clip, drawRegion);
+    VSize size = clip.size();
     // Decide if we can use fast matte.
     // 1. draw src layer to matte buffer
     VPainter srcPainter;
     VBitmap  srcBitmap = cache.make_surface(size.width(), size.height());
-    beginOffscreenPainter(&srcPainter, srcBitmap, drawRegion);
+    beginOffscreenPainter(&srcPainter, srcBitmap, clip);
     src->render(&srcPainter, mask, matteRle, cache);
     srcPainter.end();
 
     // 2. draw layer to layer buffer
     VPainter layerPainter;
     VBitmap  layerBitmap = cache.make_surface(size.width(), size.height());
-    beginOffscreenPainter(&layerPainter, layerBitmap, drawRegion);
+    beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
 
     // 2.1update composition mode
@@ -708,17 +700,17 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     // 2.2 update srcBuffer if the matte is luma type
     if (layer->matteType() == model::MatteType::Luma ||
         layer->matteType() == model::MatteType::LumaInv) {
-        srcBitmap.updateLuma(srcRect);
+        srcBitmap.updateLuma(srcBitmap.rect());
     }
 
     // 2.3 draw src buffer as mask
-    layerPainter.drawBitmap(clip, srcBitmap, srcRect);
+    layerPainter.drawBitmap(clip, srcBitmap, srcBitmap.rect());
     layerPainter.end();
     // 3. draw the result buffer into painter
     if (src->hasBlendMode()) {
         painter->setBlendMode(toPainterBlendMode(src->blendMode()));
     }
-    painter->drawBitmap(clip, layerBitmap, srcRect);
+    painter->drawBitmap(clip, layerBitmap, layerBitmap.rect());
     if (src->hasBlendMode()) {
         painter->setBlendMode(BlendMode::SrcOver);
     }
