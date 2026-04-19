@@ -103,6 +103,28 @@ This wrapper still uses `compare_lottie_engines.py` underneath, but it adds a
 direct triage summary for unsupported assets and the top parse, first-frame,
 steady-state, and RSS gaps.
 
+For top mismatches where a coarse signature is not enough, dump and compare the
+first rendered frame directly:
+
+```sh
+python3 benchmarks/adjudicate_lottie_frames.py \
+  --asset ../thorvg.example/res/lottie/32266.json \
+  --size 360x360 \
+  --output-dir /tmp/rlottie_adjudicate_32266
+```
+
+This workflow writes:
+
+- `rlottie_first_frame.png`
+- `thorvg_first_frame.png`
+- `diff_first_frame.png`
+- `side_by_side.png`
+- `metrics.json`
+
+The image-level tool is now the preferred adjudication path for concentrated
+correctness gaps such as `32266.json`, `R_QPKIVi.json`, `43391.json`,
+`stroke_dash.json`, and `expressions/layereffect.json`.
+
 ## Local rlottie-vs-rlottie Comparison
 
 When a candidate optimization is noisy or too narrow to trust from a single

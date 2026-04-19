@@ -30,6 +30,8 @@ The project is complete only when all of the following are true:
 - `lottiebench` now supports internal hotspot profiling through `--profile`.
 - `thorvgbench` and `compare_lottie_engines.py` provide direct
   `rlottie` vs `thorvg` comparison on shared JSON corpora.
+- `adjudicate_lottie_frames.py` now provides image-level first-frame dumps and
+  diff metrics for targeted correctness review.
 - `.lottie` loading improved to select animation JSON from manifest-aware archive paths.
 - Fractional `w/h/sw/sh` values now parse correctly on compositions, assets, and
   layers, which unblocks real text-heavy assets such as `text_anim.json`.
@@ -174,6 +176,10 @@ This broad audit changes the interpretation of the current gap:
   `expressions/layereffect.json`. Those assets now load and render, so they
   move from zero-output triage to the partial-support backlog covering real
   text, expression controls, `ADBE 4ColorGradient`, and broader effect stacks.
+- Image-level first-frame adjudication is now available for concentrated
+  mismatches. Initial runs show `expressions/world_locations.json` is already
+  visually close on frame 0, while `32266.json` still has a material image
+  delta and should remain on the correctness backlog.
 
 ### Hotspot Review
 
@@ -457,6 +463,19 @@ turning into one-off asset hacks.
   2. compare layer update, group transform composition, bounds propagation,
      and drawable-list generation independently
   3. fix correctness before optimizing performance on these assets
+
+### Image-Level Adjudication
+
+- Representative assets: `32266.json`, `R_QPKIVi.json`, `43391.json`,
+  `stroke_dash.json`, `expressions/layereffect.json`
+- Current failure mode: coarse signatures identify drift but do not explain
+  whether the issue is visually minor, region-localized, or structurally wrong.
+- Improvement strategy:
+  1. dump first-frame images from both engines directly from the benchmark
+     binaries
+  2. keep side-by-side and absolute-difference images for review
+  3. use image-level evidence to decide whether an asset belongs in
+     correctness, performance, or spec-support backlog
 
 ### Expressions
 
