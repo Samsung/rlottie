@@ -132,11 +132,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.488 ms` vs `0.236 ms`
-2. `11555.json`: `1.461 ms` vs `1.307 ms`
-3. `confetti.json`: `0.182 ms` vs `0.106 ms`
-4. `threads.json`: `1.999 ms` vs `1.902 ms`
-5. `stroke_dash.json`: `0.159 ms` vs `0.127 ms`
+1. `expressions/world_locations.json`: `0.487 ms` vs `0.232 ms`
+2. `11555.json`: `1.454 ms` vs `1.307 ms`
+3. `confetti.json`: `0.168 ms` vs `0.111 ms`
+4. `threads.json`: `1.985 ms` vs `1.924 ms`
+5. `stroke_dash.json`: `0.157 ms` vs `0.136 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a
@@ -235,20 +235,19 @@ This broad audit changes the interpretation of the current gap:
 
 Current `lottiebench --profile` run shows:
 
-- `render_matte_ms = 15.04 ms` across the 30-frame steady-state loop
+- `render_matte_ms = 14.96 ms` across the 30-frame steady-state loop
 - `composition_render_ms = 15.56 ms` total steady render time
 - `comp_update_ms = 0.25 ms`
 - `shape_update_ms = 0.18 ms`
 - `paint_update_ms = 0.12 ms`
 
-The latest alpha-matte pass now skips the extra source offscreen for
-`Alpha` / `AlphaInv` mattes when the source layer has no blend/effect work.
-That path now also accepts opaque solid strokes, which matches the actual
-`world_locations.json` precomp source better than the older fill-only check.
-The latest hardened median now sits around `0.508 ms` against ThorVG's
-`0.223 ms`. Broader direct-alpha and clip-tightening experiments were tried
-again after this point, but they did not survive median-of-5 benchmarking and
-were rejected.
+The latest surviving matte-side change is narrower: when a `ShapeLayer` must
+render through an alpha offscreen because of layer opacity, it now clips that
+scratch surface to the inherited mask and matte bounds instead of the whole
+layer bounds. The latest hardened median now sits around `0.487 ms` against
+ThorVG's `0.232 ms`. Broader direct-alpha and `CompLayer` clip-tightening
+experiments were tried again after this point, but they did not survive
+median-of-5 benchmarking and were rejected.
 
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the

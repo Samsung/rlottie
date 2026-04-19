@@ -173,7 +173,7 @@ whether they deserve a ThorVG comparison run and a permanent commit.
 ## Current Priority Signal
 
 The current `360x360`, `30` iteration smoke run is not the final answer, but it
-is the active gating signal for heartbeat work:
+is the active gating signal for optimization work:
 
 - `rlottie` currently leads on parse latency, first-frame latency, and steady RSS
 - steady-state frame time is still behind overall
@@ -190,11 +190,11 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.508 ms` vs `0.223 ms`
-- `11555.json`: `1.505 ms` vs `1.376 ms`
-- `confetti.json`: `0.200 ms` vs `0.105 ms`
-- `threads.json`: `2.116 ms` vs `1.986 ms`
-- `stroke_dash.json`: `0.176 ms` vs `0.136 ms`
+- `expressions/world_locations.json`: `0.487 ms` vs `0.232 ms`
+- `11555.json`: `1.454 ms` vs `1.307 ms`
+- `confetti.json`: `0.168 ms` vs `0.111 ms`
+- `threads.json`: `1.985 ms` vs `1.924 ms`
+- `stroke_dash.json`: `0.157 ms` vs `0.136 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
@@ -210,6 +210,10 @@ Recent cold-review note:
   translation-only RLE reuse experiment for `11555.json` /
   `confetti.json` / `threads.json` were both rejected because they did not
   survive the median-of-5 comparison workflow
+- the current surviving `world_locations.json` optimization is narrower:
+  `ShapeLayer` alpha offscreen rendering now clips its scratch surface to the
+  inherited mask and matte bounding rectangles, which keeps first-frame
+  adjudication unchanged while shaving a small amount off the steady-state gap
 
 ## Current Lagging Buckets
 
