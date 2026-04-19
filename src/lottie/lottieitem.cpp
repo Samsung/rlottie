@@ -236,7 +236,48 @@ static void beginOffscreenPainter(VPainter *painter, VBitmap &bitmap,
     painter->begin(&bitmap);
     painter->setDrawRegion(drawRegion, VPoint());
 }
-// matte-fastpath-sentinel
+static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
+{
+    if (drawable->mType != VDrawable::Type::Fill) return false;
+    if (drawable->mBrush.type() != VBrush::Type::Solid) return false;
+    return drawable->mBrush.mColor.isOpaque();
+}
+
+static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
+                                   renderer::DrawableList drawables)
+{
+    if (layer->matteType() != model::MatteType::Alpha &&
+        layer->matteType() != model::MatteType::AlphaInv) {
+        return false;
+    }
+    if (src->hasLayerMask() || src->hasBlendMode()) return false;
+    if (drawables.empty()) return false;
+
+    for (auto *drawable : drawables) {
+        if (!isDirectAlphaMatteDrawable(drawable)) return false;
+    }
+    return true;
+}
+
+static bool directAlphaMatteRle(renderer::DrawableList drawables,
+                                const VRle &clipMask, VRle &result)
+{
+    bool haveResult = false;
+    for (auto *drawable : drawables) {
+        auto current = drawable->rle();
+        if (current.empty()) continue;
+        if (!haveResult) {
+            result = current;
+            haveResult = true;
+        } else {
+            result = result + current;
+        }
+    }
+
+    if (!haveResult) return false;
+    if (!clipMask.empty()) result &= clipMask;
+    return !result.empty();
+}
 
 static void renderLayerWithBlend(VPainter *painter, const VRle &mask,
                                  const VRle &matteRle, renderer::Layer *layer,
@@ -761,6 +802,25 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
                                            SurfaceCache &   cache)
 {
     ScopedProfileEvent profile(ProfileEvent::RenderMatteLayer);
+
+    auto srcDrawables = src->renderList();
+    if (canUseDirectAlphaMatte(layer, src, srcDrawables)) {
+        VRle clipMask = mask;
+        if (!matteRle.empty()) {
+            clipMask = clipMask.empty() ? matteRle : (clipMask & matteRle);
+        }
+
+        VRle directMatte;
+        if (directAlphaMatteRle(srcDrawables, clipMask, directMatte)) {
+            renderLayerWithBlend(painter, clipMask, directMatte, layer, cache);
+            return;
+        }
+        if (layer->matteType() == model::MatteType::AlphaInv) {
+            renderLayerWithBlend(painter, clipMask, {}, layer, cache);
+            return;
+        }
+        return;
+    }
 
     auto drawRegion = painter->clipBoundingRect();
     auto layerDrawables = layer->renderList();

@@ -238,6 +238,7 @@ public:
     {
         return mLayerData->mBlendMode != model::BlendMode::Normal;
     }
+    bool             hasLayerMask() const { return mLayerMask != nullptr; }
     bool             visible() const;
     virtual void     buildLayerNode();
     LOTLayerNode &   clayer() { return mCApiData->mLayer; }
