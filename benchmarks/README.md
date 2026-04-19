@@ -144,8 +144,8 @@ as one flat ranking:
 - mattes and offscreen compositing: `expressions/world_locations.json`
 - transform-only rerasterization: `11555.json`, `confetti.json`, `threads.json`
 - text/runtime text payloads: `text_anim.json`, `textrange.json`
-- layer effects beyond narrow `ADBE Fill`: `bell.json`, `pumped_up.json`,
-  `expressions/layereffect.json`
+- layer effects beyond narrow `ADBE Fill` / `ADBE Tint`: `stroke_dash.json`,
+  `shutup.json`, `expressions/layereffect.json`
 - expressions: `balloons_with_string.json`, `expressions/11272.json`
 
 This grouping matters because the fix strategy is different for each family.

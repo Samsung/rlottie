@@ -10,7 +10,7 @@ mask_matte,matte_two_item_with_lowerlayer.json,matte,supported,pending,benchmark
 mask_alpha,starts_transparent.json,alpha and transparency,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 dynamic,dynamic_property.json,dynamic property,pending,pending,fixture-needed,starter corpus
 stroke_dash,static_dynamic_dash.json,dash,pending,pending,fixture-needed,starter corpus
-stroke_dash,stroke_dash.json,dash,supported,supported,benchmark-verified,real asset loads and renders but rlottie still trails ThorVG on steady-state at 360x360
+stroke_dash,stroke_dash.json,dash plus text/effect mix,unsupported,supported,full-corpus-audit,asset currently yields zero frames in rlottie while ThorVG renders it so it should stay on the explicit text/effect backlog instead of being counted as a dash-only gap
 repeater,windmill.json,repeater,supported,supported,benchmark-verified,smoke corpus asset and rlottie currently leads ThorVG on steady-state at 360x360
 repeater,skew_repeater_x.json,repeater skew,supported,pending,render-bounds-verified,baseline ignored repeater skew and current bbox expands on x
 compositing,blendmode_multiply.json,layer blend multiply,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 77200/109400/87800 from 201200/183600/89200
@@ -30,6 +30,8 @@ compositing,blendmode_color.json,layer blend color,supported,supported,pixel-sum
 compositing,blendmode_luminosity.json,layer blend luminosity,supported,supported,pixel-sum-verified,rlottie overlap pixel sums shift to 159400/180200/211400 on the HSL fixture and ThorVG also renders the mode with a distinct non-src-over signature
 effects,layer_effect_fill_solid.json,layer effect fill on solid,supported,supported,pixel-sum-verified,baseline stayed black while current fixture shifts to green and ThorVG also renders a non-black green result though exact opacity semantics still need image-level adjudication
 effects,layer_effect_fill_precomp.json,layer effect fill on precomp,supported,supported,pixel-sum-verified,baseline stayed black while current fixture shifts to red and ThorVG also renders a non-black red result though exact opacity semantics still need image-level adjudication
+effects,layer_effect_tint_solid.json,layer effect tint on solid,supported,supported,pixel-sum-verified,baseline gray solid had equal rgb sums at 1280000 and current plus ThorVG both lift blue to about 2530000 or more while reordered-key variants still render correctly
+effects,layer_effect_tint_precomp.json,layer effect tint on precomp,supported,supported,pixel-sum-verified,baseline black-white precomp had equal rgb sums at 1275000 and current plus ThorVG both lift blue to about 2530000 or more
 path_operator,merge_paths_intersect_fill.json,merge paths intersect fill,supported,pending,render-bounds-verified,baseline rendered union while current bbox shrinks to overlap region
 path_operator,merge_paths_subtract_fill.json,merge paths subtract fill,supported,pending,render-bounds-verified,baseline rendered union while current bbox shrinks to subtract region
 path_operator,merge_paths_exclude_fill.json,merge paths exclude fill,supported,pending,pixel-count-verified,baseline rendered union while current nonzero pixels drop from 1000 to 800
@@ -50,7 +52,10 @@ mixed,R_QPKIVi.json,shape pipeline correctness,incorrect,supported,full-corpus-a
 mixed,jolly_walker.json,mixed animation,pending,pending,fixture-needed,starter corpus
 mixed,loader_animation.json,mixed animation,pending,pending,fixture-needed,starter corpus
 mixed,world_locations.json,mixed animation,supported,supported,benchmark-verified,real asset loads and renders and is the current highest-priority performance hotspot because matte work dominates steady-state time
+mixed,27746-joypixels-partying-face-emoji-animation.json,pseudo-controller emoji rig,unsupported,supported,full-corpus-audit,real asset still renders zero frames in rlottie and points to unsupported pseudo-controls or expression-style rig payloads rather than a simple raster bug
 expressions,balloons_with_string.json,expressions,partial,supported,full-corpus-audit,asset loads but remains one of the largest steady-state losses and still sits behind the unsupported-expression backlog
+expressions,expressions/16447.json,expressions,unsupported,supported,full-corpus-audit,asset still renders zero frames in rlottie and also remains one of the heaviest parse-throughput losses
+effects,expressions/layereffect.json,expression-driven layer effects,unsupported,supported,full-corpus-audit,real asset still renders zero frames in rlottie and remains blocked on expression controls plus broader layer-effect coverage
 expressions,expressions/11272.json,expressions,partial,supported,full-corpus-audit,real asset remains a top steady-state loss and should stay in the explicit longer-term expression bucket rather than being misclassified as a generic raster bug
 ux,UXSample_1920x1080/A Shapes_All_01_1920x1080.json,shape coverage,pending,pending,fixture-needed,ux sample
 ux,UXSample_1920x1080/F Masks_All_01_1920x1080.json,mask coverage,pending,pending,fixture-needed,ux sample

@@ -43,11 +43,12 @@ The project is complete only when all of the following are true:
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
   `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, `Exclusion`,
   `Hue`, `Saturation`, `Color`, and `Luminosity`.
-- Layer `Effects` now have a narrow first-pass `ADBE Fill` implementation for
-  whole-layer solid and precomp output, with targeted fixtures for both cases.
-- Narrow `ADBE Fill` parsing is now hardened against JSON key-order variance,
-  disabled-effect ordering, unsupported enabled sibling effects, and missing
-  explicit opacity parameters.
+- Layer `Effects` now have narrow first-pass `ADBE Fill` and `ADBE Tint`
+  implementations for whole-layer solid and precomp output, with targeted
+  fixtures for both cases.
+- Narrow whole-layer `ADBE Fill` / `ADBE Tint` parsing is now hardened against
+  JSON key-order variance, disabled-effect ordering, unsupported enabled
+  sibling effects, and missing explicit opacity parameters.
 - Module-mode image loading now builds the image-loader plugin with `rlottie`
   and probes build-tree and library-relative plugin locations at runtime,
   which restores embedded and file-backed image assets in local builds.
@@ -158,14 +159,23 @@ This broad audit changes the interpretation of the current gap:
   and now include `balloons_with_string.json`, `expressions/11272.json`,
   `threads.json`, and `43391.json` in addition to `11555.json`.
 - The biggest parse and memory losses also identify separate backlogs:
-  `holdanimation.json`, `page_slide.json`, `expressions/16447.json`,
-  `starburst.json`, `uk_flag.json`, and `textblock.json` should be treated as
-  full-corpus parse/RSS triage cases rather than ignored because they are
-  outside the smoke subset.
+  `page_slide.json`, `starburst.json`, `gradient_background.json`,
+  `32266.json`, `new_design.json`, `holdanimation.json`,
+  `expressions/16447.json`, `textblock.json`, and `uk_flag.json` should be
+  treated as full-corpus parse/RSS triage cases rather than ignored because
+  they are outside the smoke subset.
 - A post-`ADBE Fill` rerun with the same audit workflow kept the same broad
   shape: `0` load failures and `119` coarse signature mismatches. Opening
   layer `ef` parsing for the narrow fill subset did not create a broad
   regression outside the new effect fixtures.
+- A later direct full-corpus rerun after narrow `ADBE Tint` support still
+  showed `118` coarse signature mismatches and `7` rlottie zero-output vs
+  ThorVG-output gaps: `27746-joypixels-partying-face-emoji-animation.json`,
+  `expressions/10456.json`, `expressions/16447.json`,
+  `expressions/layereffect.json`, `expressions/traveling.json`, `shutup.json`,
+  and `stroke_dash.json`. The current `thorvg.example` corpus does not contain
+  a direct `ADBE Tint` asset, so this landing expands supported spec surface
+  but does not close one of the current competition gaps by itself.
 
 ### Hotspot Review
 
@@ -242,9 +252,10 @@ active engineering work rather than vague backlog items:
 - Layer `Blend Modes` now cover the full standard Lottie layer-blend family
   from `Multiply` through `Luminosity` on targeted fixtures, but mixed-asset
   coverage and image-level adjudication against ThorVG are still open.
-- `Layer Effects` are still mostly missing. A narrow `ADBE Fill` subset now
-  works on targeted fixtures, but `Tint`, `Stroke`, effect stacks, masked fill,
-  feathered fill, and mixed real-asset adjudication are still open.
+- `Layer Effects` are still mostly missing. Narrow whole-layer `ADBE Fill` and
+  `ADBE Tint` subsets now work on targeted fixtures, but `Stroke`, effect
+  stacks, masked fill, feathered fill, and mixed real-asset adjudication are
+  still open.
 - Soft-mask features such as `Feather` and `Expansion` are missing, while hard
   mask path modes remain the only fully wired mask family today.
 - Expressions remain unsupported engine-wide and should not drive near-term
@@ -415,13 +426,14 @@ turning into one-off asset hacks.
 ### Layer Effects
 
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
-  `bell.json`, `pumped_up.json`
-- Current failure mode: only a narrow whole-layer `ADBE Fill` subset is
-  supported today.
+  `stroke_dash.json`
+- Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
+  subsets are supported today, while real assets still fail on expression
+  controls, text/effect mixtures, and broader effect stacks.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front
-  2. land `Tint` and `Stroke` next
+  2. land `Stroke` next
   3. only after single-effect fixtures are stable, handle mixed enabled stacks
      with an explicit allowlist and adjudicated output
 
