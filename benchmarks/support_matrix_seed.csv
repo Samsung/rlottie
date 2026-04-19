@@ -1,0 +1,40 @@
+bucket,asset,primary_feature,rlottie_status,thorvg_status,evidence,notes
+shape_mask,mask.json,masks,pending,pending,fixture-needed,starter corpus
+shape_basic,red_box.json,basic shapes,pending,pending,fixture-needed,starter corpus
+shape_polystar,polystar_anim.json,polystar,pending,pending,fixture-needed,starter corpus
+shape_path,dynamic_path_test.json,animated path,pending,pending,fixture-needed,starter corpus
+gradient,gradient_animated_background.json,gradient fill,pending,pending,fixture-needed,starter corpus
+gradient,gradient_sleepy_loader.json,gradient fill,pending,pending,fixture-needed,starter corpus
+fill_glow,glow_loading.json,fill and opacity,pending,pending,fixture-needed,starter corpus
+mask_matte,matte_two_item_with_lowerlayer.json,matte,pending,pending,fixture-needed,starter corpus
+mask_alpha,starts_transparent.json,alpha and transparency,pending,pending,fixture-needed,starter corpus
+dynamic,dynamic_property.json,dynamic property,pending,pending,fixture-needed,starter corpus
+stroke_dash,static_dynamic_dash.json,dash,pending,pending,fixture-needed,starter corpus
+repeater,windmill.json,repeater,pending,pending,fixture-needed,starter corpus
+repeater,skew_repeater_x.json,repeater skew,supported,pending,render-bounds-verified,baseline ignored repeater skew and current bbox expands on x
+compositing,blendmode_multiply.json,layer blend multiply,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 77200/109400/87800 from 201200/183600/89200
+compositing,blendmode_screen.json,layer blend screen,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 201400/195200/205400 from 201200/183600/89200
+compositing,blendmode_overlay.json,layer blend overlay,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 98200/158000/198800 from 201200/183600/89200
+compositing,blendmode_darken.json,layer blend darken,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 78400/122000/89000 from 201200/183600/89200
+compositing,blendmode_lighten.json,layer blend lighten,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 199600/182000/203600 from 201200/183600/89200
+compositing,blendmode_color_dodge.json,layer blend color dodge,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 207400/213200/211400 from 201200/183600/89200
+compositing,blendmode_color_burn.json,layer blend color burn,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 71200/99200/172400 from 201200/183600/89200
+compositing,blendmode_hardlight.json,layer blend hard light,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 194200/176000/116000 from 201200/183600/89200
+compositing,blendmode_softlight.json,layer blend soft light,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 110200/143000/199400 from 201200/183600/89200
+compositing,blendmode_difference.json,layer blend difference,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 176800/121400/173600 from 201200/183600/89200
+compositing,blendmode_exclusion.json,layer blend exclusion,supported,pending,pixel-sum-verified,baseline used src-over while current overlap pixel sums shift to 179800/146600/177200 from 201200/183600/89200
+path_operator,merge_paths_intersect_fill.json,merge paths intersect fill,supported,pending,render-bounds-verified,baseline rendered union while current bbox shrinks to overlap region
+path_operator,merge_paths_subtract_fill.json,merge paths subtract fill,supported,pending,render-bounds-verified,baseline rendered union while current bbox shrinks to subtract region
+path_operator,merge_paths_exclude_fill.json,merge paths exclude fill,supported,pending,pixel-count-verified,baseline rendered union while current nonzero pixels drop from 1000 to 800
+path_operator,merge_paths_intersect_gfill.json,merge paths intersect gradient fill,supported,pending,render-bounds-verified,baseline rendered union while current bbox shrinks to overlap region with gradient fill
+transform,skew_rect_x.json,skew on x axis,supported,pending,render-bounds-verified,baseline ignored skew and current bbox expands on x
+transform,skew_rect_y.json,skew on y axis,supported,pending,render-bounds-verified,baseline ignored skew and current bbox expands on y
+transform,skew_rect_3d_y.json,3d layer skew on y axis,supported,pending,render-bounds-verified,baseline ignored 3d skew and current bbox expands on y
+image,image_test.json,image asset,pending,pending,fixture-needed,starter corpus
+image,image_embedded.json,embedded image,pending,pending,fixture-needed,starter corpus
+mixed,confetti.json,mixed shapes,pending,pending,fixture-needed,starter corpus
+mixed,jolly_walker.json,mixed animation,pending,pending,fixture-needed,starter corpus
+mixed,loader_animation.json,mixed animation,pending,pending,fixture-needed,starter corpus
+mixed,world_locations.json,mixed animation,pending,pending,fixture-needed,starter corpus
+ux,UXSample_1920x1080/A Shapes_All_01_1920x1080.json,shape coverage,pending,pending,fixture-needed,ux sample
+ux,UXSample_1920x1080/F Masks_All_01_1920x1080.json,mask coverage,pending,pending,fixture-needed,ux sample

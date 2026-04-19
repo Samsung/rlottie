@@ -1,0 +1,17 @@
+# Representative ThorVG example corpus for smoke comparison.
+11555.json
+abstract_circle.json
+confetti.json
+glow_loading.json
+gradient_sleepy_loader.json
+masking.json
+merging_shapes.json
+polystar_anim.json
+starts_transparent.json
+stroke_dash.json
+text_anim.json
+textblock.json
+textrange.json
+expressions/layereffect.json
+expressions/windmill.json
+expressions/world_locations.json

@@ -1,0 +1,34 @@
+# Shapes and transforms
+mask.json
+red_box.json
+polystar_anim.json
+dynamic_path_test.json
+
+# Gradients and fills
+gradient_animated_background.json
+gradient_sleepy_loader.json
+glow_loading.json
+
+# Masks and mattes
+mask.json
+matte_two_item_with_lowerlayer.json
+starts_transparent.json
+
+# Repeaters and path operators
+dynamic_property.json
+static_dynamic_dash.json
+windmill.json
+
+# Images
+image_test.json
+image_embedded.json
+
+# Larger mixed assets
+confetti.json
+jolly_walker.json
+loader_animation.json
+world_locations.json
+
+# UX samples
+UXSample_1920x1080/A Shapes_All_01_1920x1080.json
+UXSample_1920x1080/F Masks_All_01_1920x1080.json
