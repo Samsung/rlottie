@@ -137,9 +137,12 @@ same asset.
 
 ### Major Feature Gaps
 
-- `Text` support is partial rather than absent. Real assets such as
-  `text_anim.json`, `textblock.json`, and `textrange.json` now load and render,
-  but text feature breadth and performance still trail ThorVG.
+- `Text` support is still structurally incomplete. Some assets such as
+  `text_anim.json`, `textblock.json`, and `textrange.json` render today, but
+  `textblock.json` is outlined shape content rather than proof of a real
+  runtime text pipeline. The parser still does not consume full text payloads
+  such as `fonts`, `chars`, and layer `t` data, and the renderer still has no
+  dedicated `Layer::Type::Text` execution path.
 - `Merge Paths` now has fixture-backed fill/gradient-fill support for boolean
   modes, and static merge RLE no longer gets recomputed every frame, but stroke
   semantics still fall back to path concatenation and need a real path-boolean
@@ -160,6 +163,8 @@ same asset.
 - Full-tree frame evaluation remains too eager.
 - Offscreen composition is still too expensive in matte-heavy assets, even after
   recent tight-surface and direct-alpha improvements.
+- Matrix-only animation still tends to rebuild and rerasterize static vector
+  content instead of reusing transform-friendly cached results.
 - Async scheduling is fragmented and risks nested parallel inefficiency.
 - `VRle` boolean paths needed correctness hardening.
 - Repeater strategy is structurally expensive.
@@ -208,8 +213,9 @@ These are the highest-value compatibility gaps that still need explicit
 implementation work or broader proof:
 
 1. `Merge Paths` stroke semantics with a real path-boolean backend
-2. Text feature breadth beyond the currently loading corpus, especially
-   correctness and performance on larger animated text scenes
+2. Real text-layer support beyond outlined-shape assets, including parser
+   coverage for `fonts`, `chars`, and layer `t` payloads plus a dedicated
+   renderer path for `Layer::Type::Text`
 3. Additional layer blend families such as hue, saturation, color, and luminosity
 4. `Layer Effects` with fixture-backed support, starting from simple color and
    stroke-oriented effects
@@ -224,21 +230,26 @@ evidence, not by generic cleanup preferences.
 
 1. `expressions/world_locations.json`
    - Goal: cut matte cost until steady-state is no longer the worst smoke loss.
-   - Current blocker: repeated matte composition dominates frame time.
+   - Current blocker: repeated matte composition still dominates frame time,
+     especially when matte-clipped translucent shape content falls back to
+     large alpha offscreens.
 2. `11555.json`
-   - Goal: profile large mixed asset behavior and identify whether the loss is
-     path fill, compositing, or property churn.
-3. `textblock.json`
-   - Goal: close the large steady-state text gap without regressing
-     `textrange.json`.
+   - Goal: stop rerasterizing static vector art when the animation is mostly
+     matrix-only motion.
+   - Current blocker: static shapes and styles still re-enter the path/raster
+     pipeline on transform changes instead of taking a transform-cache path.
+3. `text_anim.json`
+   - Goal: reduce non-opaque precomp/offscreen cost on outlined text scenes
+     without pretending this solves the real text-layer gap.
 4. `confetti.json`
    - Goal: reduce mixed-shape compositing overhead.
 5. `polystar_anim.json`
    - Goal: inspect star/path evaluation and cached geometry reuse.
 6. `stroke_dash.json`
    - Goal: reduce dash recomputation and stroke raster overhead.
-7. `text_anim.json`
-   - Goal: improve text animation throughput now that parser compatibility is fixed.
+7. `textblock.json`
+   - Goal: treat this as an outlined-shape regression asset, not as evidence of
+     real text support, and keep it secondary to `text_anim`.
 8. `merging_shapes.json`
    - Goal: revisit merge-path cost on real assets after stroke semantics work lands.
 
@@ -278,11 +289,12 @@ Primary targets:
 
 1. Repeated alpha-matte and matte-layer cost reduction for `world_locations`.
 2. Better frame-to-frame dirty propagation.
-3. Property evaluation acceleration with segment cursors or indexed search.
-4. Dash, star, and text-specific geometry reuse for current ThorVG loss assets.
-5. Repeater lazy materialization.
-6. Scheduler simplification or unification.
-7. More useful cache behavior for surfaces, paths, and repeated frame work.
+3. Transform-cache paths for matrix-only static vector content such as `11555`.
+4. Property evaluation acceleration with segment cursors or indexed search.
+5. Dash, star, and text-specific geometry reuse for current ThorVG loss assets.
+6. Repeater lazy materialization.
+7. Scheduler simplification or unification.
+8. More useful cache behavior for surfaces, paths, and repeated frame work.
 
 ### Group C: Benchmark and Validation
 
@@ -345,12 +357,13 @@ Fix the most obvious render-path inefficiencies before large feature work lands.
 Priority items:
 
 1. Reduce repeated matte composition in `world_locations`.
-2. Replace remaining clip-sized offscreen surfaces with tight content bounds where possible.
-3. Reduce repeated drawable-list creation and repeated path work.
-4. Accelerate property lookup for animated channels.
-5. Improve repeater evaluation cost.
-6. Eliminate nested or fragmented scheduler overhead where it hurts.
-7. Harden `VRle` ops for large rows and pathological masks.
+2. Add branch-vs-baseline validation before claiming narrow performance wins.
+3. Replace remaining clip-sized offscreen surfaces with tight content bounds where possible.
+4. Reduce repeated drawable-list creation and repeated path work.
+5. Accelerate property lookup for animated channels.
+6. Improve repeater evaluation cost.
+7. Eliminate nested or fragmented scheduler overhead where it hurts.
+8. Harden `VRle` ops for large rows and pathological masks.
 
 Completion criteria:
 

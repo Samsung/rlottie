@@ -33,8 +33,8 @@ transform,skew_rect_y.json,skew on y axis,supported,pending,render-bounds-verifi
 transform,skew_rect_3d_y.json,3d layer skew on y axis,supported,pending,render-bounds-verified,baseline ignored 3d skew and current bbox expands on y
 image,image_test.json,image asset,pending,pending,fixture-needed,starter corpus
 image,image_embedded.json,embedded image,pending,pending,fixture-needed,starter corpus
-text,text_anim.json,text animation,partial,supported,benchmark-verified,parser compatibility now works and asset renders but rlottie still trails ThorVG on steady-state and text feature breadth remains incomplete
-text,textblock.json,text block animation,partial,supported,benchmark-verified,asset renders but remains one of the larger steady-state losses in the smoke corpus
+text,text_anim.json,text animation,partial,supported,benchmark-verified,parser compatibility now works and asset renders but this is still the real text-performance regression target and text feature breadth remains incomplete
+text,textblock.json,text block animation,partial,supported,benchmark-verified,asset renders but it is outlined shape content rather than proof of real runtime text-layer support
 text,textrange.json,text range animation,partial,supported,benchmark-verified,asset renders and rlottie currently leads ThorVG on steady-state but broader text correctness coverage is still missing
 mixed,11555.json,mixed large asset,supported,supported,benchmark-verified,real asset loads and renders but remains a top steady-state loss
 mixed,confetti.json,mixed shapes,supported,supported,benchmark-verified,real asset loads and renders but remains on the active performance backlog
