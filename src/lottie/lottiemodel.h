@@ -731,7 +731,7 @@ public:
     Asset *asset() const { return mExtra ? mExtra->mAsset : nullptr; }
     struct FillEffect {
         Property<Color> mColor{{0, 0, 0}};
-        Property<float> mOpacity{1.0f};
+        Property<float> mOpacity{100.0f};
         bool            isStatic() const
         {
             return mColor.isStatic() && mOpacity.isStatic();

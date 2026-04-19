@@ -1230,15 +1230,28 @@ model::Layer *LottieParserImpl::parseLayer()
     return layer;
 }
 
+static bool allowNarrowEffectSibling(const std::string &matchName)
+{
+    return matchName == "ADBE Slider Control" ||
+           matchName == "ADBE Color Control" ||
+           matchName == "ADBE Checkbox Control" ||
+           matchName == "ADBE Angle Control" ||
+           matchName == "ADBE Point Control" ||
+           matchName == "ADBE Layer Control";
+}
+
 void LottieParserImpl::parseLayerEffects(model::Layer *layer)
 {
     EnterArray();
+    std::unique_ptr<model::Layer::FillEffect> parsedFillEffect;
+    bool narrowStackSupported = true;
     while (NextArrayValue()) {
         std::string effectMatchName;
         int         effectType = -1;
         bool        effectEnabled = true;
-        bool        parsed = false;
-        model::Layer::FillEffect fillEffect;
+        bool        sawParams = false;
+        bool        supported = false;
+        model::Layer::FillEffect candidateFillEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1249,22 +1262,35 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             } else if (0 == strcmp(key, "en")) {
                 effectEnabled = GetInt();
             } else if (0 == strcmp(key, "ef")) {
-                if (effectEnabled &&
-                    (effectType == 21 || effectMatchName == "ADBE Fill")) {
-                    parsed = parseFillEffect(fillEffect);
-                } else {
-                    SkipArray();
-                }
+                sawParams = true;
+                supported = parseFillEffect(candidateFillEffect);
             } else {
                 Skip(key);
             }
         }
 
-        if (parsed) {
-            layer->extra()->mFillEffect =
-                std::make_unique<model::Layer::FillEffect>(
-                    std::move(fillEffect));
+        if (!effectEnabled) continue;
+
+        const bool isFillEffect =
+            (effectType == 21 || effectMatchName == "ADBE Fill");
+
+        if (isFillEffect) {
+            if (!sawParams || !supported || parsedFillEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedFillEffect = std::make_unique<model::Layer::FillEffect>(
+                std::move(candidateFillEffect));
+            continue;
         }
+
+        if (!allowNarrowEffectSibling(effectMatchName)) {
+            narrowStackSupported = false;
+        }
+    }
+
+    if (narrowStackSupported && parsedFillEffect) {
+        layer->extra()->mFillEffect = std::move(parsedFillEffect);
     }
 }
 
