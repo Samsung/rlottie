@@ -23,6 +23,8 @@
 | `world_locations.json` matte 경로 | 단순 `Alpha/AlphaInv` matte direct path를 `opaque stroke`까지 넓혀, source offscreen 1장을 더 자주 생략하도록 확장 |
 | `world_locations.json` 최신 판정 | first-frame adjudication은 여전히 `exact_match_ratio = 0.999722` 유지. hardened median steady-state는 `0.499 ms -> 0.235 ms(ThorVG)`로 아직 뒤지지만, 이전 기준선보다 개선됐다 |
 | `43391.json` 시도 결과 | `el` order-independent fallback 실험은 cold review에서 버림. `43391`의 핵심 문제는 parser 한 건보다 `Merge Paths` 체인 semantics일 가능성이 높다 |
+| lazy image decode | embedded image asset은 parse 단계에서 디코딩하지 않고 first bitmap access로 지연. `image_embedded.json` 로컬 기준 parse가 대략 `8.18 ms -> 1.93 ms`까지 줄었다 |
+| `32266.json` 재판정 | lazy image decode 이후에도 parse는 `16~17 ms`대로 거의 줄지 않았다. 이 자산의 parse 병목은 이미지 decode보다 giant data URI를 포함한 JSON/base64 payload 자체에 더 가깝다 |
 
 ## 스펙 지원 현황 및 backlog
 

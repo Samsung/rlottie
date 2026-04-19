@@ -60,6 +60,10 @@ The project is complete only when all of the following are true:
 - Module-mode image loading now builds the image-loader plugin with `rlottie`
   and probes build-tree and library-relative plugin locations at runtime,
   which restores embedded and file-backed image assets in local builds.
+- Image assets now defer bitmap decode until first use instead of decoding
+  immediately during parse; this materially reduces parse time for small
+  embedded-image assets, but it does not fix `32266.json` because that parse
+  cost is dominated by the giant embedded payload in the JSON itself.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
