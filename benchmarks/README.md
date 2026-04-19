@@ -179,12 +179,12 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.592 ms` vs `0.226 ms`
-- `11555.json`: `1.539 ms` vs `1.312 ms`
-- `confetti.json`: `0.248 ms` vs `0.101 ms`
-- `threads.json`: `1.989 ms` vs `1.927 ms`
-- `text_anim.json`: `0.123 ms` vs `0.098 ms`
-- `stroke_dash.json`: `0.155 ms` vs `0.130 ms`
+- `expressions/world_locations.json`: `0.476 ms` vs `0.223 ms`
+- `11555.json`: `1.514 ms` vs `1.288 ms`
+- `confetti.json`: `0.233 ms` vs `0.110 ms`
+- `threads.json`: `1.961 ms` vs `1.888 ms`
+- `text_anim.json`: `0.125 ms` vs `0.084 ms`
+- `stroke_dash.json`: `0.153 ms` vs `0.121 ms`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -210,6 +210,17 @@ Do not treat all full-corpus losses as generic render slowness.
 parser hardening, but they still belong in the layer-effects bucket because
 the remaining gap is real text, expression controls, and broader effect
 coverage rather than pure zero-output failure.
+
+Recent matte work:
+
+- `expressions/world_locations.json` now preprocesses positive matte pairs
+  against tighter current-frame source bounds, while skipping layers whose
+  mask semantics depend on the full clip rectangle.
+- That change moved the median steady-state cost from `0.592 ms` down to
+  `0.476 ms`.
+- The same change cut `render_matte_ms` in the steady profile from
+  `18.67 ms` to `15.95 ms` over the 30-frame loop without changing the
+  first-frame adjudication result (`0.999722` exact-match ratio).
 
 Recent correctness fix:
 

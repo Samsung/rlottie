@@ -62,6 +62,9 @@ The project is complete only when all of the following are true:
   buffers.
 - Matte composition now uses tight offscreen surfaces, and direct alpha-matte
   cases avoid a full offscreen blend pass when the layer stack qualifies.
+- Positive alpha/luma matte pairs now preprocess against tighter current-frame
+  source bounds, while skipping layers whose mask semantics depend on the full
+  clip rectangle.
 - `thorvg_example_smoke.txt` now defines a repeatable smoke subset from
   `thorvg.example/res/lottie` for functional, performance, and memory checks.
 
@@ -116,13 +119,14 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.572 ms` vs `0.197 ms`
-2. `11555.json`: `1.548 ms` vs `1.173 ms`
-3. `confetti.json`: `0.230 ms` vs `0.177 ms`
-4. `text_anim.json`: `0.129 ms` vs `0.081 ms`
-5. `polystar_anim.json`: `0.157 ms` vs `0.121 ms`
-6. `stroke_dash.json`: `0.160 ms` vs `0.140 ms`
-7. `merging_shapes.json`: `0.061 ms` vs `0.053 ms`
+1. `expressions/world_locations.json`: `0.476 ms` vs `0.223 ms`
+2. `11555.json`: `1.514 ms` vs `1.288 ms`
+3. `confetti.json`: `0.233 ms` vs `0.110 ms`
+4. `threads.json`: `1.961 ms` vs `1.888 ms`
+5. `text_anim.json`: `0.125 ms` vs `0.084 ms`
+6. `stroke_dash.json`: `0.153 ms` vs `0.121 ms`
+7. `32266.json` remains a correctness and parse target rather than a
+   steady-state target
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
@@ -211,11 +215,11 @@ This broad audit changes the interpretation of the current gap:
 
 Current `lottiebench --profile` run shows:
 
-- `render_matte_ms = 17.68 ms` across the 30-frame steady-state loop
-- `composition_render_ms = 18.69 ms` total steady render time
+- `render_matte_ms = 15.95 ms` across the 30-frame steady-state loop
+- `composition_render_ms = 16.90 ms` total steady render time
 - `comp_update_ms = 0.31 ms`
-- `shape_update_ms = 0.21 ms`
-- `paint_update_ms = 0.15 ms`
+- `shape_update_ms = 0.22 ms`
+- `paint_update_ms = 0.16 ms`
 
 That means the current dominant loss is no longer general property evaluation.
 It is still matte composition, especially repeated alpha-matte work inside the
@@ -231,8 +235,8 @@ The current median-of-5 priority comparison on the main lagging assets gives
 this practical order:
 
 1. `expressions/world_locations.json`
-2. `confetti.json`
-3. `11555.json`
+2. `11555.json`
+3. `confetti.json`
 4. `threads.json`
 5. `text_anim.json`
 6. `stroke_dash.json`
@@ -431,9 +435,11 @@ turning into one-off asset hacks.
   direct-alpha path.
 - Improvement strategy:
   1. propagate inherited mask/matte bounds into every offscreen entry point
-  2. widen direct-alpha matte coverage
-  3. reuse matte-source RLE where the source stack is static
-  4. formalize opaque vs non-opaque layer-stack fast paths instead of keeping
+  2. reuse positive matte source bounds at preprocess time, not only inside
+     the final composite step
+  3. widen direct-alpha matte coverage
+  4. reuse matte-source RLE where the source stack is static
+  5. formalize opaque vs non-opaque layer-stack fast paths instead of keeping
      them implicit
 
 ### Static Geometry With Animated Transforms
