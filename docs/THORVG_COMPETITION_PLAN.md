@@ -208,13 +208,14 @@ This broad audit changes the interpretation of the current gap:
   move from zero-output triage to the partial-support backlog covering real
   text, expression controls, `ADBE 4ColorGradient`, and broader effect stacks.
 - A later narrow text pass converts static `chars`-backed text layers into
-  shape content. `stroke_dash.json` now carries its title text again and first-
-  frame image adjudication improves, but animated text, text animators, and
-  broader effect-stack semantics are still open.
-- Image-level first-frame adjudication is now available for concentrated
-  mismatches. Initial runs show `expressions/world_locations.json` is already
-  visually close on frame 0, while `32266.json` still has a material image
-  delta and should remain on the correctness backlog.
+  shape content. `stroke_dash.json` now carries its title text again, and
+  frame-0/frame-12 image adjudication stays fairly close, but animated text,
+  text animators, and broader effect-stack semantics are still open.
+- Image-level adjudication is now available for arbitrary frames on
+  concentrated mismatches. Current runs show `expressions/world_locations.json`
+  is already visually close on frame 0, `32266.json` still has a material
+  image delta, and `R_QPKIVi.json` remains fully blank against ThorVG on frame
+  0.
 
 ### Hotspot Review
 
@@ -484,8 +485,9 @@ turning into one-off asset hacks.
   `stroke_dash.json`
 - Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
   subsets are supported today. `stroke_dash.json` now includes its static title
-  text again, but real assets still diverge on expression controls,
-  `ADBE 4ColorGradient`, and broader effect stacks.
+  text again, but frame-0/frame-12 adjudication is not strong enough to call
+  `ADBE 4ColorGradient` the sole remaining gap. The safer read is broader
+  effect coverage, expression controls, and remaining image-level drift.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front

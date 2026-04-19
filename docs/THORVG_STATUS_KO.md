@@ -11,7 +11,7 @@
 | 해상도 | `360x360` |
 | 반복 | `30 iterations`, `3 warmup`, `5 trials` |
 | 비교 기준 | median-case, ThorVG `--threads 1` 고정 |
-| correctness 판정 | `benchmarks/adjudicate_lottie_frames.py` first-frame image adjudication |
+| correctness 판정 | `benchmarks/adjudicate_lottie_frames.py` frame 지정 image adjudication |
 
 ## 스펙 지원 현황 및 backlog
 
@@ -25,7 +25,7 @@
 | 구현 | .lottie manifest 경로 선택 | 지원 | 지원 관찰 | archive 선택 호환성 확보 | 브로드 코퍼스 확대 |
 | 구현 | fractional size parser | 지원 | 지원 관찰 | text-heavy asset 로드 복구 | 추가 회귀 자산 확대 |
 | 구현 | module image loading | 지원 | 지원 관찰 | 32266 zero-output 복구 기여 | correctness drift 추가 수정 |
-| 부분 지원 | ADBE 4ColorGradient | 미지원 | 지원 관찰 | stroke_dash의 주된 남은 gap | narrow bitmap effect로 우선 구현 |
+| 부분 지원 | ADBE 4ColorGradient | 미지원 | 지원 관찰 | stroke_dash의 후보 gap이지만 단독 원인으로 확정되지는 않음 | frame 지정 adjudication 후 효과 범위 재확정 |
 | 부분 지원 | Layer Effect Stroke | 미지원 | 지원 관찰 | Fill/Tint 이후 다음 단계 | alpha silhouette 기반 narrow path |
 | 부분 지원 | Merge Paths Stroke | 미지원 | 지원 관찰 | fill은 되지만 stroke semantics 부족 | stroke outline 후 boolean 또는 path boolean backend |
 | 부분 지원 | Animated text document (t.d.k) | 미지원 | 지원 관찰 | textrange가 대표 gap | document keyframe/glyph regeneration |
@@ -41,7 +41,7 @@
 
 | 항목 | 현재 결론 |
 | --- | --- |
-| `stroke_dash.json` | 주된 남은 gap은 text 자체보다 `ADBE 4ColorGradient` effect semantics다. |
+| `stroke_dash.json` | 정적 title text는 복구됐고 frame 0/12 adjudication도 꽤 가깝다. 남은 차이는 broader effect stack과 image-level drift로 보는 편이 더 안전하다. |
 | `textrange.json` | 정적 chars text가 아니라 animated `t.d.k` document와 range-selector opacity animator가 핵심 gap이다. |
 | `text_anim.json` | runtime text가 아니라 outlined shape scene이다. real text 완성의 근거로 쓰면 안 된다. |
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
@@ -90,7 +90,7 @@
 | --- | --- | --- | --- |
 | 1 | `expressions/world_locations.json` | `render_matte_ms`가 여전히 지배적이고 steady-state 격차가 가장 큼 | inherited bounds 전파, matte 재사용, direct-alpha 확대 |
 | 2 | `11555.json`, `confetti.json`, `threads.json` | transform-only rerasterization 때문에 static vector가 매 프레임 다시 그려짐 | content/transform dirty 분리, local-space snapshot cache |
-| 3 | `stroke_dash.json` | text는 복구됐고 이제 `ADBE 4ColorGradient`가 핵심 gap | narrow bitmap effect로 4ColorGradient 지원 |
+| 3 | `stroke_dash.json` | text는 복구됐지만 남은 차이를 `4ColorGradient` 단독으로 단정할 근거가 약함 | frame 지정 adjudication으로 late-frame drift를 먼저 분리 |
 | 4 | `textrange.json` | static text가 아니라 animated document + animator gap | `t.d.k` keyframe support, range-selector opacity subset |
 | 5 | `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큼 | image adjudication 기반 축소 재현, 구조 버그 분리 |
 
@@ -99,5 +99,5 @@
 - `text_anim.json`, `textblock.json`을 보고 real text 지원이 됐다고 판단하면 안 된다.
 - `32266.json`은 steady-state 성능 타깃으로 보면 우선순위를 잘못 잡게 된다.
 - `world_locations.json`은 image-level로는 이미 꽤 가깝기 때문에, correctness보다 matte 성능에 집중해야 한다.
-- `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리다. effect semantics를 닫지 않으면 완전 승리로 볼 수 없다.
-
+- `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리지만, frame 0과 frame 12 판정 모두 비교적 가까워서 effect 단일 원인으로 몰아가면 우선순위를 잘못 잡을 수 있다.
+- `R_QPKIVi.json`은 frame 0 지정 adjudication에서도 rlottie가 완전 blank라서, shape correctness 버킷의 최상위 긴급 자산으로 봐야 한다.
