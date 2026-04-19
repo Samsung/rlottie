@@ -83,3 +83,17 @@ The comparison tool emits per-engine CSV rows with:
 
 If ThorVG thread count needs to be controlled explicitly, pass `--threads <n>`
 to the comparison script and it will forward that value to `thorvgbench`.
+
+## Current Priority Signal
+
+The current `360x360`, `30` iteration smoke run is not the final answer, but it
+is the active gating signal for heartbeat work:
+
+- `rlottie` currently leads on parse latency, first-frame latency, and steady RSS
+- steady-state frame time is still behind overall
+- the largest current steady-state loss is
+  `expressions/world_locations.json`, and internal profiling points to
+  `render_matte` as the dominant hotspot
+
+Heartbeat-driven work should follow the active backlog in
+`docs/THORVG_COMPETITION_PLAN.md` rather than picking speculative work at random.

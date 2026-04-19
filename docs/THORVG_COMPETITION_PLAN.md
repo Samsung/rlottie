@@ -27,21 +27,26 @@ The project is complete only when all of the following are true:
 - Repository cloned from `Samsung/rlottie`.
 - Local build path restored on macOS arm64.
 - CMake benchmark target for `lottieperf` added.
+- `lottiebench` now supports internal hotspot profiling through `--profile`.
+- `thorvgbench` and `compare_lottie_engines.py` provide direct
+  `rlottie` vs `thorvg` comparison on shared JSON corpora.
 - `.lottie` loading improved to select animation JSON from manifest-aware archive paths.
+- Fractional `w/h/sw/sh` values now parse correctly on compositions, assets, and
+  layers, which unblocks real text-heavy assets such as `text_anim.json`.
 - Large-row `VRle` merge path no longer depends on a fixed 1024-byte scratch buffer.
 - `ShapeLayer` now avoids one obvious repeated drawable-list rebuild path.
 - `Skew` / `Skew Axis` parsing and transform composition now work on targeted
   group-transform, repeater, and 3D layer fixtures.
+- `Merge Paths` now has fixture-backed boolean support for fill and gradient-fill
+  cases, including `Intersect`, `Subtract`, and `Exclude`.
 - Layer `Blend Modes` now have fixture-backed software-render support for
   `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `Color Dodge`,
   `Color Burn`, `Hard Light`, `Soft Light`, `Difference`, and `Exclusion`.
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
-- `thorvgbench` and `compare_lottie_engines.py` now provide direct
-  `rlottie` vs `thorvg` comparison on shared JSON corpora, including steady
-  time, first-frame time, parse time, resident RSS snapshots, and first-frame
-  pixel signatures.
+- Matte composition now uses tight offscreen surfaces, and direct alpha-matte
+  cases avoid a full offscreen blend pass when the layer stack qualifies.
 - `thorvg_example_smoke.txt` now defines a repeatable smoke subset from
   `thorvg.example/res/lottie` for functional, performance, and memory checks.
 
@@ -59,8 +64,68 @@ The project is complete only when all of the following are true:
 ### What Is Still Weak
 
 - Existing automated tests are too shallow to validate support claims.
-- Current benchmark is not representative enough to decide whether we are beating ThorVG.
+- The smoke benchmark is useful, but it is still a coarse sample and not yet a
+  complete Tizen product corpus.
 - The support table in `README.md` is stale relative to the implementation.
+
+## Current Measured Status
+
+### ThorVG Smoke Snapshot
+
+Reference run:
+
+```sh
+python3 benchmarks/compare_lottie_engines.py \
+  --asset-dir /Users/junsu/Documents/thorvg.example/res/lottie \
+  --asset-list benchmarks/thorvg_example_smoke.txt \
+  --size 360x360 \
+  --iterations 30 \
+  --warmup 3
+```
+
+Current result on the local comparison host:
+
+- Parse latency: `rlottie 11` wins, `thorvg 5` wins
+- First-frame latency: `rlottie 11` wins, `thorvg 5` wins
+- Steady-state frame time: `rlottie 7` wins, `thorvg 9` wins
+- Steady RSS: `rlottie 12` wins, `thorvg 4` wins
+
+Clear current `rlottie` steady-state wins:
+
+- `glow_loading.json`
+- `gradient_sleepy_loader.json`
+- `masking.json`
+- `starts_transparent.json`
+- `textrange.json`
+- `windmill.json`
+
+Largest current `rlottie` steady-state losses:
+
+1. `expressions/world_locations.json`: `0.597 ms` vs `0.213 ms`
+2. `11555.json`: `1.652 ms` vs `1.243 ms`
+3. `textblock.json`: `0.934 ms` vs `0.529 ms`
+4. `confetti.json`: `0.278 ms` vs `0.214 ms`
+5. `polystar_anim.json`: `0.154 ms` vs `0.121 ms`
+6. `stroke_dash.json`: `0.157 ms` vs `0.143 ms`
+7. `text_anim.json`: `0.125 ms` vs `0.086 ms`
+
+Near-parity or noise-range assets should not dominate priority decisions.
+
+### Hotspot Review
+
+`world_locations.json` is still the highest-value performance target.
+
+Current `lottiebench --profile` run shows:
+
+- `render_matte_ms = 17.68 ms` across the 30-frame steady-state loop
+- `composition_render_ms = 18.69 ms` total steady render time
+- `comp_update_ms = 0.31 ms`
+- `shape_update_ms = 0.21 ms`
+- `paint_update_ms = 0.15 ms`
+
+That means the current dominant loss is no longer general property evaluation.
+It is still matte composition, especially repeated alpha-matte work inside the
+same asset.
 
 ## Critical Review Summary
 
@@ -72,7 +137,9 @@ The project is complete only when all of the following are true:
 
 ### Major Feature Gaps
 
-- `Text` is effectively unsupported.
+- `Text` support is partial rather than absent. Real assets such as
+  `text_anim.json`, `textblock.json`, and `textrange.json` now load and render,
+  but text feature breadth and performance still trail ThorVG.
 - `Merge Paths` now has fixture-backed fill/gradient-fill support for boolean
   modes, and static merge RLE no longer gets recomputed every frame, but stroke
   semantics still fall back to path concatenation and need a real path-boolean
@@ -91,7 +158,8 @@ The project is complete only when all of the following are true:
 ### Major Architecture and Performance Problems
 
 - Full-tree frame evaluation remains too eager.
-- Offscreen composition is too expensive because alpha, matte, and complex content render through large temporary surfaces.
+- Offscreen composition is still too expensive in matte-heavy assets, even after
+  recent tight-surface and direct-alpha improvements.
 - Async scheduling is fragmented and risks nested parallel inefficiency.
 - `VRle` boolean paths needed correctness hardening.
 - Repeater strategy is structurally expensive.
@@ -115,6 +183,68 @@ Every non-trivial change must be reviewed against these questions:
 
 No feature should be marked supported without a reproducible fixture.
 No performance change should be called an optimization without before/after measurement.
+
+## Implemented Spec Review
+
+The following areas now have direct code or fixture coverage and should be
+treated as implemented work rather than open hypotheses:
+
+- `Skew` / `Skew Axis`: verified on base transforms, repeater transforms, and
+  3D layer transforms.
+- `Merge Paths` fill and gradient-fill boolean modes: verified on
+  intersect/subtract/exclude fixtures.
+- Layer `Blend Modes`: verified fixtures exist for `Multiply`, `Screen`,
+  `Overlay`, `Darken`, `Lighten`, `Color Dodge`, `Color Burn`, `Hard Light`,
+  `Soft Light`, `Difference`, and `Exclusion`.
+- `.lottie` manifest-aware archive selection.
+- Fractional size parsing for real-world JSON that stores dimensions as floats.
+- Tight offscreen composition for blend and matte layers.
+- Direct alpha-matte clip-path fast path for qualifying layer stacks.
+- Profiling-backed benchmark workflow for internal hotspot attribution.
+
+## Remaining Spec Backlog
+
+These are the highest-value compatibility gaps that still need explicit
+implementation work or broader proof:
+
+1. `Merge Paths` stroke semantics with a real path-boolean backend
+2. Text feature breadth beyond the currently loading corpus, especially
+   correctness and performance on larger animated text scenes
+3. Additional layer blend families such as hue, saturation, color, and luminosity
+4. `Layer Effects` with fixture-backed support, starting from simple color and
+   stroke-oriented effects
+5. Soft-mask `Expansion` and `Feather`
+6. Broader `.lottie` archive coverage beyond the current manifest-path cases
+7. Mixed-asset regression coverage so supported fixtures map to real assets
+
+## Active Performance Backlog
+
+Priority is driven by measured ThorVG comparison losses and current hotspot
+evidence, not by generic cleanup preferences.
+
+1. `expressions/world_locations.json`
+   - Goal: cut matte cost until steady-state is no longer the worst smoke loss.
+   - Current blocker: repeated matte composition dominates frame time.
+2. `11555.json`
+   - Goal: profile large mixed asset behavior and identify whether the loss is
+     path fill, compositing, or property churn.
+3. `textblock.json`
+   - Goal: close the large steady-state text gap without regressing
+     `textrange.json`.
+4. `confetti.json`
+   - Goal: reduce mixed-shape compositing overhead.
+5. `polystar_anim.json`
+   - Goal: inspect star/path evaluation and cached geometry reuse.
+6. `stroke_dash.json`
+   - Goal: reduce dash recomputation and stroke raster overhead.
+7. `text_anim.json`
+   - Goal: improve text animation throughput now that parser compatibility is fixed.
+8. `merging_shapes.json`
+   - Goal: revisit merge-path cost on real assets after stroke semantics work lands.
+
+`masking.json`, `windmill.json`, `glow_loading.json`, and
+`gradient_sleepy_loader.json` are no longer top priority performance targets
+because they are already competitive or faster than ThorVG in the current smoke run.
 
 ## Workstream Structure
 
@@ -146,12 +276,13 @@ Owner responsibilities:
 
 Primary targets:
 
-1. Tight-bounds offscreen composition for alpha and matte paths.
+1. Repeated alpha-matte and matte-layer cost reduction for `world_locations`.
 2. Better frame-to-frame dirty propagation.
 3. Property evaluation acceleration with segment cursors or indexed search.
-4. Repeater lazy materialization.
-5. Scheduler simplification or unification.
-6. More useful cache behavior for surfaces, paths, and repeated frame work.
+4. Dash, star, and text-specific geometry reuse for current ThorVG loss assets.
+5. Repeater lazy materialization.
+6. Scheduler simplification or unification.
+7. More useful cache behavior for surfaces, paths, and repeated frame work.
 
 ### Group C: Benchmark and Validation
 
@@ -213,12 +344,13 @@ Fix the most obvious render-path inefficiencies before large feature work lands.
 
 Priority items:
 
-1. Replace clip-sized offscreen surfaces with tight content bounds where possible.
-2. Reduce repeated drawable-list creation and repeated path work.
-3. Accelerate property lookup for animated channels.
-4. Improve repeater evaluation cost.
-5. Eliminate nested or fragmented scheduler overhead where it hurts.
-6. Harden `VRle` ops for large rows and pathological masks.
+1. Reduce repeated matte composition in `world_locations`.
+2. Replace remaining clip-sized offscreen surfaces with tight content bounds where possible.
+3. Reduce repeated drawable-list creation and repeated path work.
+4. Accelerate property lookup for animated channels.
+5. Improve repeater evaluation cost.
+6. Eliminate nested or fragmented scheduler overhead where it hurts.
+7. Harden `VRle` ops for large rows and pathological masks.
 
 Completion criteria:
 
@@ -233,9 +365,9 @@ Close the most damaging compatibility gaps in descending ROI order.
 Priority items:
 
 1. `Merge Paths` stroke semantics and mixed-asset regression coverage
-2. broader layer `Blend Modes` coverage beyond the current mode set, with
+2. `Text` glyph-first pipeline and broader correctness coverage
+3. broader layer `Blend Modes` coverage beyond the current mode set, with
    hue/saturation/color family modes next
-3. `Text` glyph-first pipeline
 4. selected `Layer Effects`
 5. soft-mask `Expansion` and `Feather`
 6. broader `.lottie` robustness
