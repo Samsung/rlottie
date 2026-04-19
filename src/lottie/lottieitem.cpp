@@ -2007,6 +2007,23 @@ bool renderer::MergeShape::childRle(Shape *shape, FillRule fillRule,
 
 bool renderer::MergeShape::asRle(VRle &result, FillRule fillRule)
 {
+    if (mMode == model::MergePaths::Mode::Merge) {
+        VPath mergedPath;
+        for (const auto &shape : mPathItems) {
+            shape->finalPath(mergedPath);
+        }
+
+        if (mergedPath.empty()) {
+            result = {};
+            return true;
+        }
+
+        VRasterizer rasterizer;
+        rasterizer.rasterize(std::move(mergedPath), fillRule);
+        result = rasterizer.rle();
+        return true;
+    }
+
     VRle merged;
     bool initialized = false;
 
