@@ -369,15 +369,95 @@ void model::Gradient::update(std::unique_ptr<VGradient> &grad, int frameNo)
     }
 }
 
+VBitmap model::Asset::bitmap() const
+{
+    loadBitmapIfNeeded();
+    return mBitmap;
+}
+
+static std::string b64decode(const char *p, size_t len)
+{
+    static constexpr unsigned char B64index[256] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62,
+        0, 0, 0, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0, 0, 0, 0, 0,
+        0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+        18, 19, 20, 21, 22, 23, 24, 25, 0, 0, 0, 0, 0, 0, 26, 27, 28, 29,
+        30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+        47, 48, 49, 50, 51
+    };
+
+    const size_t pad = len > 0 && (len % 4 || p[len - 1] == '=');
+    const size_t L = ((len + 3) / 4 - pad) * 4;
+    std::string  str(L / 4 * 3 + pad, '\0');
+
+    for (size_t i = 0, j = 0; i < L; i += 4) {
+        int n = B64index[static_cast<unsigned char>(p[i])] << 18 |
+                B64index[static_cast<unsigned char>(p[i + 1])] << 12 |
+                B64index[static_cast<unsigned char>(p[i + 2])] << 6 |
+                B64index[static_cast<unsigned char>(p[i + 3])];
+        str[j++] = n >> 16;
+        str[j++] = n >> 8 & 0xFF;
+        str[j++] = n & 0xFF;
+    }
+
+    if (pad) {
+        int n = B64index[static_cast<unsigned char>(p[L])] << 18 |
+                B64index[static_cast<unsigned char>(p[L + 1])] << 12;
+        str[str.size() - 1] = n >> 16;
+
+        if (len > L + 2 && p[L + 2] != '=') {
+            n |= B64index[static_cast<unsigned char>(p[L + 2])] << 6;
+            str.push_back(n >> 8 & 0xFF);
+        }
+    }
+
+    return str;
+}
+
+static std::string convertFromBase64(const std::string &str)
+{
+    auto startIndex = str.find(",");
+    if (startIndex == std::string::npos) return {};
+    startIndex += 1;
+    const char *b64Data = str.c_str() + startIndex;
+    return b64decode(b64Data, str.length() - startIndex);
+}
+
+void model::Asset::loadBitmapIfNeeded() const
+{
+    if (mImageLoadTried) return;
+
+    mImageLoadTried = true;
+    if (!mImageData.empty()) {
+        auto rawData = mImageData;
+        if (rawData.compare(0, 5, "data:") == 0 &&
+            rawData.find(',') != std::string::npos) {
+            rawData = convertFromBase64(rawData);
+        }
+        mBitmap = VImageLoader::instance().load(rawData.c_str(),
+                                                rawData.length());
+        mImageData.clear();
+    } else if (!mImagePath.empty()) {
+        mBitmap = VImageLoader::instance().load(mImagePath.c_str());
+        mImagePath.clear();
+    }
+}
+
 void model::Asset::loadImageData(std::string data)
 {
-    if (!data.empty())
-        mBitmap = VImageLoader::instance().load(data.c_str(), data.length());
+    mImageData = std::move(data);
+    mImagePath.clear();
+    mBitmap = {};
+    mImageLoadTried = false;
 }
 
 void model::Asset::loadImagePath(std::string path)
 {
-    if (!path.empty()) mBitmap = VImageLoader::instance().load(path.c_str());
+    mImagePath = std::move(path);
+    mImageData.clear();
+    mBitmap = {};
+    mImageLoadTried = false;
 }
 
 std::vector<LayerInfo> model::Composition::layerInfoList() const

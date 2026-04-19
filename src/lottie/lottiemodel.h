@@ -523,9 +523,9 @@ struct Asset {
     enum class Type : unsigned char { Precomp, Image, Char };
     bool                  isStatic() const { return mStatic; }
     void                  setStatic(bool value) { mStatic = value; }
-    VBitmap               bitmap() const { return mBitmap; }
+    VBitmap               bitmap() const;
     void                  loadImageData(std::string data);
-    void                  loadImagePath(std::string Path);
+    void                  loadImagePath(std::string path);
     Type                  mAssetType{Type::Precomp};
     bool                  mStatic{true};
     std::string           mRefId;  // ref id
@@ -533,7 +533,11 @@ struct Asset {
     // image asset data
     int     mWidth{0};
     int     mHeight{0};
-    VBitmap mBitmap;
+    void    loadBitmapIfNeeded() const;
+    mutable VBitmap      mBitmap;
+    mutable std::string  mImageData;
+    mutable std::string  mImagePath;
+    mutable bool         mImageLoadTried{false};
 };
 
 class Layer;
