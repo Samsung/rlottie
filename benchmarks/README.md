@@ -84,6 +84,26 @@ The comparison tool emits per-engine CSV rows with:
 If ThorVG thread count needs to be controlled explicitly, pass `--threads <n>`
 to the comparison script and it will forward that value to `thorvgbench`.
 
+## Local rlottie-vs-rlottie Comparison
+
+When a candidate optimization is noisy or too narrow to trust from a single
+ThorVG smoke pass, compare the current build directly against a baseline
+`lottiebench` binary from another branch or worktree:
+
+```sh
+python3 benchmarks/compare_rlottie_builds.py \
+  --current-bin build/example/lottiebench \
+  --baseline-bin /Users/junsu/Documents/rlottie-heartbeat/build/example/lottiebench \
+  --asset-dir ../thorvg.example/res/lottie \
+  --asset-list benchmarks/thorvg_example_smoke.txt \
+  --size 360x360 \
+  --iterations 60 \
+  --warmup 5
+```
+
+This is especially useful for validating branch-local changes before deciding
+whether they deserve a ThorVG comparison run and a permanent commit.
+
 ## Current Priority Signal
 
 The current `360x360`, `30` iteration smoke run is not the final answer, but it
