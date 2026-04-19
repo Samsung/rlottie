@@ -1370,6 +1370,9 @@ void renderer::ShapeLayer::render(VPainter *painter, const VRle &inheritMask,
         //do offscreen rendering
         auto clip = drawableBounds(renderList()) & painter->clipBoundingRect();
         if (clip.empty()) clip = painter->clipBoundingRect();
+        if (!inheritMask.empty()) clip = clip & inheritMask.boundingRect();
+        if (!matteRle.empty()) clip = clip & matteRle.boundingRect();
+        if (clip.empty()) return;
         VSize    size = clip.size();
         VPainter srcPainter;
         VBitmap srcBitmap = cache.make_surface(size.width(), size.height());
