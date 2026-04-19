@@ -71,7 +71,11 @@ enum class BlendMode : uint8_t {
     HardLight = 8,
     SoftLight = 9,
     Difference = 10,
-    Exclusion = 11
+    Exclusion = 11,
+    Hue = 12,
+    Saturation = 13,
+    Color = 14,
+    Luminosity = 15
 };
 
 class Color {

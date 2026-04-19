@@ -225,6 +225,14 @@ static BlendMode toPainterBlendMode(model::BlendMode mode)
         return BlendMode::Difference;
     case model::BlendMode::Exclusion:
         return BlendMode::Exclusion;
+    case model::BlendMode::Hue:
+        return BlendMode::Hue;
+    case model::BlendMode::Saturation:
+        return BlendMode::Saturation;
+    case model::BlendMode::Color:
+        return BlendMode::Color;
+    case model::BlendMode::Luminosity:
+        return BlendMode::Luminosity;
     default:
         return BlendMode::SrcOver;
     }

@@ -20,6 +20,8 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include "vdrawhelper.h"
 
@@ -291,6 +293,167 @@ static inline uint32_t exclusion_pixel(uint32_t s, uint32_t d)
     return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
 }
 
+struct StraightColor
+{
+    float r;
+    float g;
+    float b;
+};
+
+static inline float clamp01(float value)
+{
+    return vMin(1.0f, vMax(0.0f, value));
+}
+
+static inline StraightColor to_straight_color(uint32_t pixel, int alpha)
+{
+    if (alpha == 0) return {0.0f, 0.0f, 0.0f};
+    const float invAlpha = 1.0f / float(alpha);
+    return {float(vRed(pixel)) * invAlpha, float(vGreen(pixel)) * invAlpha,
+            float(vBlue(pixel)) * invAlpha};
+}
+
+static inline float color_lum(const StraightColor &color)
+{
+    return 0.3f * color.r + 0.59f * color.g + 0.11f * color.b;
+}
+
+static inline float color_sat(const StraightColor &color)
+{
+    return vMax(color.r, vMax(color.g, color.b)) -
+           vMin(color.r, vMin(color.g, color.b));
+}
+
+static inline StraightColor clip_color(StraightColor color)
+{
+    const float lum = color_lum(color);
+    const float minValue = vMin(color.r, vMin(color.g, color.b));
+    const float maxValue = vMax(color.r, vMax(color.g, color.b));
+
+    if (minValue < 0.0f && !vIsZero(lum - minValue)) {
+        color.r = lum + ((color.r - lum) * lum) / (lum - minValue);
+        color.g = lum + ((color.g - lum) * lum) / (lum - minValue);
+        color.b = lum + ((color.b - lum) * lum) / (lum - minValue);
+    }
+
+    if (maxValue > 1.0f && !vIsZero(maxValue - lum)) {
+        color.r =
+            lum + ((color.r - lum) * (1.0f - lum)) / (maxValue - lum);
+        color.g =
+            lum + ((color.g - lum) * (1.0f - lum)) / (maxValue - lum);
+        color.b =
+            lum + ((color.b - lum) * (1.0f - lum)) / (maxValue - lum);
+    }
+
+    color.r = clamp01(color.r);
+    color.g = clamp01(color.g);
+    color.b = clamp01(color.b);
+    return color;
+}
+
+static inline StraightColor set_lum(StraightColor color, float lum)
+{
+    const float delta = lum - color_lum(color);
+    color.r += delta;
+    color.g += delta;
+    color.b += delta;
+    return clip_color(color);
+}
+
+static inline StraightColor set_sat(StraightColor color, float sat)
+{
+    float *channels[3] = {&color.r, &color.g, &color.b};
+    int minIndex = 0;
+    int midIndex = 1;
+    int maxIndex = 2;
+
+    if (*channels[minIndex] > *channels[midIndex]) {
+        std::swap(minIndex, midIndex);
+    }
+    if (*channels[midIndex] > *channels[maxIndex]) {
+        std::swap(midIndex, maxIndex);
+    }
+    if (*channels[minIndex] > *channels[midIndex]) {
+        std::swap(minIndex, midIndex);
+    }
+
+    float &minValue = *channels[minIndex];
+    float &midValue = *channels[midIndex];
+    float &maxValue = *channels[maxIndex];
+
+    if (!vIsZero(maxValue - minValue)) {
+        midValue = ((midValue - minValue) * sat) / (maxValue - minValue);
+        maxValue = sat;
+    } else {
+        midValue = 0.0f;
+        maxValue = 0.0f;
+    }
+    minValue = 0.0f;
+    return color;
+}
+
+template <typename BlendColorFunc>
+static inline uint32_t blend_nonseparable_pixel(uint32_t s, uint32_t d,
+                                                BlendColorFunc blendColor)
+{
+    const int sa = vAlpha(s);
+    const int da = vAlpha(d);
+    const int a = sa + da - ((sa * da) / 255);
+
+    if (sa == 0) return d;
+    if (da == 0) return s;
+
+    const StraightColor src = to_straight_color(s, sa);
+    const StraightColor dst = to_straight_color(d, da);
+    const StraightColor blended = blendColor(src, dst);
+
+    auto blendChannel = [&](int sc, int dc, float value) -> int {
+        float result = float(sc * (255 - da) + dc * (255 - sa));
+        result += float(sa) * float(da) * clamp01(value);
+        result /= 255.0f;
+        result = vMin(255.0f, vMax(0.0f, result));
+        return int(result + 0.5f);
+    };
+
+    const int r = blendChannel(vRed(s), vRed(d), blended.r);
+    const int g = blendChannel(vGreen(s), vGreen(d), blended.g);
+    const int b = blendChannel(vBlue(s), vBlue(d), blended.b);
+
+    return uint32_t((a << 24) | (r << 16) | (g << 8) | b);
+}
+
+static inline uint32_t hue_pixel(uint32_t s, uint32_t d)
+{
+    return blend_nonseparable_pixel(
+        s, d, [](const StraightColor &src, const StraightColor &dst) {
+            return set_lum(set_sat(src, color_sat(dst)), color_lum(dst));
+        });
+}
+
+static inline uint32_t saturation_pixel(uint32_t s, uint32_t d)
+{
+    return blend_nonseparable_pixel(
+        s, d, [](const StraightColor &src, const StraightColor &dst) {
+            return set_lum(set_sat(dst, color_sat(src)), color_lum(dst));
+        });
+}
+
+static inline uint32_t color_pixel(uint32_t s, uint32_t d)
+{
+    return blend_nonseparable_pixel(
+        s, d, [](const StraightColor &src, const StraightColor &dst) {
+            return set_lum(src, color_lum(dst));
+        });
+}
+
+static inline uint32_t luminosity_pixel(uint32_t s, uint32_t d)
+{
+    return blend_nonseparable_pixel(
+        s, d, [](const StraightColor &src, const StraightColor &dst) {
+            return set_lum(dst, color_lum(src));
+        });
+}
+
 template <typename BlendFunc>
 static inline int blend_premul_channel(int sc, int sa, int dc, int da,
                                        BlendFunc blend)
@@ -546,6 +709,54 @@ static void src_Exclusion(uint32_t *dest, int length, const uint32_t *src,
     src_Blend<exclusion_pixel>(dest, length, src, alpha);
 }
 
+static void color_Hue(uint32_t *dest, int length, uint32_t color,
+                      uint32_t alpha)
+{
+    color_Blend<hue_pixel>(dest, length, color, alpha);
+}
+
+static void src_Hue(uint32_t *dest, int length, const uint32_t *src,
+                    uint32_t alpha)
+{
+    src_Blend<hue_pixel>(dest, length, src, alpha);
+}
+
+static void color_Saturation(uint32_t *dest, int length, uint32_t color,
+                             uint32_t alpha)
+{
+    color_Blend<saturation_pixel>(dest, length, color, alpha);
+}
+
+static void src_Saturation(uint32_t *dest, int length, const uint32_t *src,
+                           uint32_t alpha)
+{
+    src_Blend<saturation_pixel>(dest, length, src, alpha);
+}
+
+static void color_Color(uint32_t *dest, int length, uint32_t color,
+                        uint32_t alpha)
+{
+    color_Blend<color_pixel>(dest, length, color, alpha);
+}
+
+static void src_Color(uint32_t *dest, int length, const uint32_t *src,
+                      uint32_t alpha)
+{
+    src_Blend<color_pixel>(dest, length, src, alpha);
+}
+
+static void color_Luminosity(uint32_t *dest, int length, uint32_t color,
+                             uint32_t alpha)
+{
+    color_Blend<luminosity_pixel>(dest, length, color, alpha);
+}
+
+static void src_Luminosity(uint32_t *dest, int length, const uint32_t *src,
+                           uint32_t alpha)
+{
+    src_Blend<luminosity_pixel>(dest, length, src, alpha);
+}
+
 RenderFuncTable::RenderFuncTable()
 {
     updateColor(BlendMode::Src, color_Source);
@@ -561,6 +772,10 @@ RenderFuncTable::RenderFuncTable()
     updateColor(BlendMode::SoftLight, color_SoftLight);
     updateColor(BlendMode::Difference, color_Difference);
     updateColor(BlendMode::Exclusion, color_Exclusion);
+    updateColor(BlendMode::Hue, color_Hue);
+    updateColor(BlendMode::Saturation, color_Saturation);
+    updateColor(BlendMode::Color, color_Color);
+    updateColor(BlendMode::Luminosity, color_Luminosity);
     updateColor(BlendMode::DestIn, color_DestinationIn);
     updateColor(BlendMode::DestOut, color_DestinationOut);
 
@@ -577,6 +792,10 @@ RenderFuncTable::RenderFuncTable()
     updateSrc(BlendMode::SoftLight, src_SoftLight);
     updateSrc(BlendMode::Difference, src_Difference);
     updateSrc(BlendMode::Exclusion, src_Exclusion);
+    updateSrc(BlendMode::Hue, src_Hue);
+    updateSrc(BlendMode::Saturation, src_Saturation);
+    updateSrc(BlendMode::Color, src_Color);
+    updateSrc(BlendMode::Luminosity, src_Luminosity);
     updateSrc(BlendMode::DestIn, src_DestinationIn);
     updateSrc(BlendMode::DestOut, src_DestinationOut);
 

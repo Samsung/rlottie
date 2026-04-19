@@ -664,6 +664,18 @@ model::BlendMode LottieParserImpl::getBlendMode()
     case 11:
         mode = model::BlendMode::Exclusion;
         break;
+    case 12:
+        mode = model::BlendMode::Hue;
+        break;
+    case 13:
+        mode = model::BlendMode::Saturation;
+        break;
+    case 14:
+        mode = model::BlendMode::Color;
+        break;
+    case 15:
+        mode = model::BlendMode::Luminosity;
+        break;
     default:
         break;
     }
