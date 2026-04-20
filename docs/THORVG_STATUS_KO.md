@@ -28,6 +28,7 @@
 | transform-cache 선행 작업 | `VPainter`에 affine bitmap draw helper를 추가했고, `model::Layer`에는 layer transform과 분리된 `contentStatic` 메타데이터를 넣었다. 여기에 더해 static `ShapeLayer` drawable-list 재사용은 실제 benchmark를 통과해 남겼다. 반면 narrow `ShapeLayer` snapshot cache 프로토타입은 `11555.json`, `threads.json`에서 ThorVG image adjudication을 악화시켜 버렸다 |
 | `43391.json` 시도 결과 | `Merge Paths::Mode::Merge`를 boolean union 대신 compound-path rasterization으로 바꿔 chained merge case를 부분 복구했다. frame 0 exact match ratio는 `0.778789`까지 올라왔지만, 여전히 correctness backlog다 |
 | JSON file loading | `loadFromFile()`가 iterator 기반 텍스트 읽기 대신 single binary read를 사용하도록 바뀌었다. `page_slide.json`, `32266.json` 같은 parse-heavy 자산에서 실측 이득이 확인됐다 |
+| embedded image first-frame 경로 | `loadBitmapIfNeeded()`가 embedded image/data URI를 소비할 때 `mImageData`와 `mImagePath`를 추가 복사하지 않고 move로 넘기도록 바뀌었다. `image_embedded.json`은 first-frame median이 `0.1405 ms -> 0.1230 ms`, `rss_first_frame_kb`는 `3600 -> 3264`로 줄었다. 반면 `32266.json` 같은 giant data URI correctness/parse 자산은 의미 있게 달라지지 않았다 |
 | `32266.json` 재판정 | lazy image decode + single-read loader 이후에도 parse는 여전히 ThorVG보다 훨씬 느리다. 최신 median은 `14.192 ms -> 0.796 ms(ThorVG)`라서 giant data URI를 포함한 JSON/base64 payload 자체가 여전히 핵심 병목이다 |
 | rejected 실험 | recursive precomp `coverageBounds()`, `11555/confetti/threads`용 translation-only RLE 재사용, world-space snapshot cache, broad `contentStatic` skip은 모두 benchmark/adjudication에서 살아남지 못해 버렸다 |
 
