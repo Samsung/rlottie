@@ -572,7 +572,7 @@ turning into one-off asset hacks.
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
   `stroke_dash.json`
 - Current failure mode: narrow whole-layer `ADBE Fill` / `ADBE Tint`, a
-  shape-layer subset of `ADBE Stroke`, and the default static
+  shape-layer subset of `ADBE Stroke` with `Paint Style 1/2/3`, and the default static
   `ADBE 4ColorGradient` path are supported today, but broader effect coverage
   is still missing. `stroke_dash.json` now includes its static title text
   again, and the default static `ADBE 4ColorGradient` path uses a quad
