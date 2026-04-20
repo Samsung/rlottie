@@ -99,10 +99,17 @@ The project is complete only when all of the following are true:
   clip rectangle.
 - `VDrawable` now caches path bounds at `setPath()` time and uses those bounds
   to tighten raster clips instead of always rasterizing against the caller's
-  full clip. On the current comparison host that keeps representative
+  full clip. In the latest revision, drawables whose padded bounds do not
+  intersect the current clip reset to an empty RLE without paying the raster
+  cost, while leaving the path dirty so a later wider clip can still rebuild
+  correctly. On the current comparison host that keeps representative
   late-frame dumps exact-match with the `HEAD` baseline on `threads`,
-  `text_anim`, `11555`, `stroke_dash`, and `confetti` while materially
-  reducing the `threads.json` steady-state gap.
+  `text_anim`, `11555`, `stroke_dash`, `confetti`, and `world_locations`,
+  while same-machine `HEAD` A/B medians moved from
+  `world_locations 0.085 -> 0.080 ms`, `11555 0.190 -> 0.093 ms`,
+  `confetti 0.085 -> 0.081 ms`, `threads 2.072 -> 2.006 ms`,
+  `stroke_dash 0.216 -> 0.196 ms`, `text_anim 0.162 -> 0.122 ms`, and
+  `textrange 0.030 -> 0.007 ms`.
 - `thorvg_example_smoke.txt` now defines a repeatable smoke subset from
   `thorvg.example/res/lottie` for functional, performance, and memory checks.
 
@@ -157,17 +164,16 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `threads.json`: `1.905 ms` vs `1.831 ms`
-2. `stroke_dash.json`: `0.213 ms` vs `0.131 ms`
-3. `text_anim.json`: `0.114 ms` vs `0.083 ms`
+1. `threads.json`: `1.914 ms` vs `1.841 ms`
+2. `stroke_dash.json`: `0.207 ms` vs `0.125 ms`
+3. `text_anim.json`: `0.115 ms` vs `0.084 ms`
 4. `textblock.json`
 5. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 6. `32266.json` remains a correctness and parse target rather than a
    steady-state target
-7. `expressions/world_locations.json` and `11555.json`
-   remain desktop wins; `confetti.json` is back on the `rlottie`-leading side
-   on the current hardened comparison host
+7. `expressions/world_locations.json`, `11555.json`, and `confetti.json`
+   remain desktop wins on the current hardened comparison host
 
 Near-parity or noise-range assets should not dominate priority decisions.
 

@@ -190,24 +190,24 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `threads.json`: `1.905 ms` vs `1.831 ms`
-- `stroke_dash.json`: `0.213 ms` vs `0.131 ms`
-- `text_anim.json`: `0.114 ms` vs `0.083 ms`
+- `threads.json`: `1.914 ms` vs `1.841 ms`
+- `stroke_dash.json`: `0.207 ms` vs `0.125 ms`
+- `text_anim.json`: `0.115 ms` vs `0.084 ms`
 - `textblock.json` remains part of the broader outlined-scene bucket
-- `confetti.json` is back on the `rlottie`-leading side on this host:
-  `0.080 ms` vs `0.098 ms`
+- `confetti.json` remains on the `rlottie`-leading side on this host:
+  `0.077 ms` vs `0.099 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
 Representative wins after the latest static drawable-list reuse and cached
 path-bounds raster clips:
 
-- `expressions/world_locations.json`: `0.060 ms` vs `0.219 ms`
-- `11555.json`: `0.087 ms` vs `1.291 ms`
-- `confetti.json`: `0.080 ms` vs `0.098 ms`
+- `expressions/world_locations.json`: `0.061 ms` vs `0.219 ms`
+- `11555.json`: `0.084 ms` vs `1.265 ms`
+- `confetti.json`: `0.077 ms` vs `0.099 ms`
 - same-machine `HEAD` baseline late-frame adjudication stayed exact-match for
-  `threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`, and
-  `confetti@30`
+  `threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`,
+  `confetti@30`, and `world_locations@120`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -242,11 +242,16 @@ Recent cold-review note:
   `stroke_dash@12`, and `textrange@120` all stayed exact-match with the
   `HEAD` baseline while median frame time improved materially
 - the current surviving low-level raster optimization is cached path-bounds
-  clipping in `VDrawable`: bounds are computed once in `setPath()` and reused
-  at raster time. On the current comparison host this moved
-  `threads.json` into the `2.016 ms` range and kept representative late-frame
-  dumps exact-match with the `HEAD` baseline on `threads`, `text_anim`,
-  `11555`, `stroke_dash`, and `confetti`
+  clipping in `VDrawable`, now extended so drawables whose padded bounds do
+  not intersect the current clip reset to an empty RLE instead of paying the
+  raster cost. On the current comparison host this kept representative
+  late-frame dumps exact-match with the `HEAD` baseline on `threads`,
+  `text_anim`, `11555`, `stroke_dash`, `confetti`, and `world_locations`,
+  while the same-machine `HEAD` A/B medians moved from
+  `world_locations 0.085 -> 0.080 ms`, `11555 0.190 -> 0.093 ms`,
+  `confetti 0.085 -> 0.081 ms`, `threads 2.072 -> 2.006 ms`,
+  `stroke_dash 0.216 -> 0.196 ms`, `text_anim 0.162 -> 0.122 ms`, and
+  `textrange 0.030 -> 0.007 ms`
 
 ## Current Lagging Buckets
 
