@@ -73,6 +73,10 @@ The project is complete only when all of the following are true:
 - Offscreen blend composition now supports logical draw regions, so blend
   layers can render into tight temporary surfaces instead of full clip-sized
   buffers.
+- `VPainter` now has an affine bitmap draw helper, and `model::Layer` now
+  tracks transform-free `contentStatic` metadata. These are enablers for the
+  next transform-cache attempt rather than shipped performance wins by
+  themselves.
 - Matte composition now uses tight offscreen surfaces, and direct alpha-matte
   cases avoid a full offscreen blend pass when the layer stack qualifies.
 - Single translucent solid-fill matte sources can now also use the direct
@@ -268,6 +272,13 @@ The broader backlog is no longer matte-only. Follow-up hotspot review shows
 vector content under transform-only motion, while `text_anim.json` is dominated
 by coarse non-opaque precomp/offscreen composition. Generic keyframe lookup
 work should stay behind matte reuse and transform-cache work.
+
+A later narrow `ShapeLayer` snapshot-cache prototype was reviewed and rejected.
+It reduced same-machine baseline medians on `11555.json` and `threads.json`,
+but it moved both assets farther away from ThorVG at frame 0. The surviving
+result from that line of work is only the new affine bitmap helper and the
+transform-free `contentStatic` metadata; the actual cache path did not meet the
+quality bar.
 
 Targeted review of the lagging shape-correctness assets further changes the
 priority framing:

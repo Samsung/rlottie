@@ -258,6 +258,11 @@ Recent matte work:
   changing the first-frame adjudication result (`0.999722` exact-match
   ratio). Profile runs remain noisy enough that they should be used only as
   hotspot guides, not as ranking inputs.
+- A later narrow `ShapeLayer` snapshot-cache prototype did not survive review.
+  It improved same-machine baseline medians on some transform-heavy assets, but
+  frame-0 adjudication moved `11555.json` and `threads.json` farther away from
+  ThorVG, so the cache path was discarded. Only the affine bitmap-draw helper
+  and transform-free `contentStatic` metadata were kept as future enablers.
 
 Recent correctness fix:
 

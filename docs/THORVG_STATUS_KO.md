@@ -22,6 +22,7 @@
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 이번 배치에서 single solid-fill shape layer는 layer alpha를 drawable 쪽으로 접고 offscreen을 생략하도록 바꿨다. exact match는 여전히 `0`이지만 full-frame compositing drift는 확실히 줄었다 |
 | `world_locations.json` matte 경로 | 기존 `ShapeLayer` alpha offscreen clip tightening 위에, nested child-layer walk가 필요한 source에서 source offscreen을 건너뛰는 recursive direct-alpha matte 경로를 추가했다. `first-frame` 정합성은 그대로 유지된다 |
 | `world_locations.json` 최신 판정 | first-frame adjudication은 여전히 `exact_match_ratio = 0.999722` 수준이다. 최신 profile은 여전히 `render_matte_ms`가 mid-teens라 matte가 병목임을 보여준다. hardened median steady-state는 `0.504 ms -> 0.235 ms(ThorVG)`다. 같은 머신에서 `HEAD baseline`과 교차 A/B median을 다시 재면 `0.580 ms -> 0.548 ms`로 내려간다 |
+| transform-cache 선행 작업 | `VPainter`에 affine bitmap draw helper를 추가했고, `model::Layer`에는 layer transform과 분리된 `contentStatic` 메타데이터를 넣었다. narrow `ShapeLayer` snapshot cache 프로토타입도 시도했지만 `11555.json`, `threads.json`에서 baseline보다 ThorVG와 더 멀어져 이번 배치에는 남기지 않았다 |
 | `43391.json` 시도 결과 | `Merge Paths::Mode::Merge`를 boolean union 대신 compound-path rasterization으로 바꿔 chained merge case를 부분 복구했다. frame 0 exact match ratio는 `0.778789`까지 올라왔지만, 여전히 correctness backlog다 |
 | JSON file loading | `loadFromFile()`가 iterator 기반 텍스트 읽기 대신 single binary read를 사용하도록 바뀌었다. `page_slide.json`, `32266.json` 같은 parse-heavy 자산에서 실측 이득이 확인됐다 |
 | `32266.json` 재판정 | lazy image decode + single-read loader 이후에도 parse는 여전히 ThorVG보다 훨씬 느리다. 최신 median은 `14.192 ms -> 0.796 ms(ThorVG)`라서 giant data URI를 포함한 JSON/base64 payload 자체가 여전히 핵심 병목이다 |
@@ -61,6 +62,7 @@
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
 | `world_locations.json` | correctness보다 성능 문제다. first-frame은 거의 맞고, 병목은 여전히 matte/offscreen이다. |
 | `11555/confetti/threads` | matte보다 transform-only rerasterization이 본질이다. snapshot/cache 경로가 필요하다. |
+| transform-cache 프로토타입 | world-space snapshot 재투영만으로는 충분하지 않았다. `11555.json`과 `threads.json`은 baseline보다 빨라졌지만 ThorVG image adjudication에서는 오히려 더 멀어졌다. 다음 시도는 world-space bitmap reuse가 아니라 local-space cache + 명시적 transform 경계 분리여야 한다. |
 | `R_QPKIVi.json` | `ty`가 마지막인 shape object parser blank는 닫혔다. 이번 배치에서 single solid-fill shape layer alpha를 drawable 쪽으로 접으면서 frame 0 drift가 더 줄었다. exact match는 여전히 `0`이지만 mean abs diff RGB는 `[0.1539, 1.1118, 0.1537] -> [0.0960, 0.9815, 0.0505]`로 개선됐다. |
 | `43391.json` | chained `Merge Paths` semantics 수정으로 큰 빈 구멍은 줄었지만 아직 틀린 영역이 남는다. 현재는 추가 merge-path chain semantics와 stroke semantics를 같이 봐야 한다. |
 
@@ -116,6 +118,7 @@
 - `32266.json`은 steady-state 성능 타깃으로 보면 우선순위를 잘못 잡게 된다.
 - `world_locations.json`은 image-level로는 이미 꽤 가깝기 때문에, correctness보다 matte 성능에 집중해야 한다.
 - `world_locations`와 `11555/confetti/threads`에 대해 speculative한 matte/cache 경로를 억지로 유지하면 오히려 median frame time이 악화된다. 현재 문서에는 benchmark를 통과한 경로만 남긴다.
+- 이번 배치에서 시도한 narrow `ShapeLayer` snapshot cache는 baseline steady-state를 일부 줄였지만 `11555.json`과 `threads.json`에서 baseline 대비 frame 0 drift가 커졌다. 그래서 코드에는 남기지 않고, `contentStatic` 메타데이터와 affine bitmap draw helper만 선행 작업으로 유지한다.
 - 이번 recursive direct-alpha matte 변경은 같은 머신에서 `HEAD baseline`과 교차 A/B median으로 다시 확인했다. `world_locations`는 `0.580 -> 0.548 ms`, `11555`는 `1.615 -> 1.507 ms`, `confetti`는 `0.201 -> 0.196 ms`, `threads`는 `2.237 -> 2.124 ms`로 내려갔다.
 - `stroke_dash.json`은 text path를 올린 뒤에도 frame 시간은 아직 ThorVG보다 느리지만, frame 0과 frame 12 판정 모두 비교적 가까워서 effect 단일 원인으로 몰아가면 우선순위를 잘못 잡을 수 있다.
 - `R_QPKIVi.json`은 이제 blank도 아니고 catastrophic miss도 아니다. single solid-fill layer alpha를 inline한 뒤에도 exact match는 `0`이지만, 이건 여전히 전면적인 작은 compositing drift 문제라는 뜻이다.
