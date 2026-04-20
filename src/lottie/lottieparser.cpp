@@ -247,6 +247,7 @@ public:
     bool             parseFourColorGradientEffect(
         model::Layer::FourColorGradientEffect &effect);
     bool             parseStrokeEffect(model::Layer::StrokeEffect &effect);
+    bool             parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1927,6 +1928,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
     std::unique_ptr<model::Layer::FourColorGradientEffect>
         parsedFourColorGradientEffect;
     std::unique_ptr<model::Layer::StrokeEffect> parsedStrokeEffect;
+    std::unique_ptr<model::Layer::BoxBlurEffect> parsedBoxBlurEffect;
     std::vector<model::Layer::BitmapEffectType> parsedBitmapEffectOrder;
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
@@ -1943,6 +1945,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         model::Layer::TintEffect candidateTintEffect;
         model::Layer::FourColorGradientEffect candidateFourColorGradientEffect;
         model::Layer::StrokeEffect candidateStrokeEffect;
+        model::Layer::BoxBlurEffect candidateBoxBlurEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1963,6 +1966,8 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                         candidateFourColorGradientEffect);
                 } else if (effectMatchName == "ADBE Stroke") {
                     supported = parseStrokeEffect(candidateStrokeEffect);
+                } else if (effectMatchName == "ADBE Box Blur2") {
+                    supported = parseBoxBlurEffect(candidateBoxBlurEffect);
                 } else {
                     deferredSupport = true;
                     parseNarrowLayerEffectParams(this, candidateFillEffect,
@@ -2036,6 +2041,18 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             continue;
         }
 
+        if (effectMatchName == "ADBE Box Blur2") {
+            if (!sawParams || !supported || parsedBoxBlurEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedBoxBlurEffect = std::make_unique<model::Layer::BoxBlurEffect>(
+                std::move(candidateBoxBlurEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::BoxBlur);
+            continue;
+        }
+
         if (!allowNarrowEffectSibling(effectMatchName)) {
             narrowStackSupported = false;
         }
@@ -2048,6 +2065,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         extra->mFourColorGradientEffect =
             std::move(parsedFourColorGradientEffect);
         extra->mStrokeEffect = std::move(parsedStrokeEffect);
+        extra->mBoxBlurEffect = std::move(parsedBoxBlurEffect);
         extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
 }
@@ -2256,6 +2274,41 @@ bool LottieParserImpl::parseStrokeEffect(model::Layer::StrokeEffect &effect)
     supported &= path.isStatic() && vIsZero(path.value());
     supported &= effect.mPaintStyle.isStatic() && effect.paintStyle(0) >= 1 &&
                  effect.paintStyle(0) <= 3;
+    return supported;
+}
+
+bool LottieParserImpl::parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect)
+{
+    bool supported = true;
+    model::Property<float> repeatEdge{0.0f};
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Box Blur2-0001") {
+                    parseProperty(effect.mRadius);
+                } else if (matchName == "ADBE Box Blur2-0002") {
+                    parseProperty(effect.mIterations);
+                } else if (matchName == "ADBE Box Blur2-0003") {
+                    parseProperty(effect.mDimensions);
+                } else if (matchName == "ADBE Box Blur2-0004") {
+                    parseProperty(repeatEdge);
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    supported &= repeatEdge.isStatic() && vIsZero(repeatEdge.value());
+    supported &= effect.dimensions(0) >= 1 && effect.dimensions(0) <= 3;
     return supported;
 }
 

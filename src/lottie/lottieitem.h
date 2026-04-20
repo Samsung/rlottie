@@ -285,6 +285,14 @@ public:
     {
         return mLayerData->strokeEffect();
     }
+    bool             hasBoxBlurEffect() const
+    {
+        return mLayerData->hasBoxBlurEffect();
+    }
+    model::Layer::BoxBlurEffect *boxBlurEffect() const
+    {
+        return mLayerData->boxBlurEffect();
+    }
     FourColorGradientCache &ensureFourColorGradientCache()
     {
         if (!mFourColorGradientCache) {

@@ -72,6 +72,8 @@ public:
                                    const VColor colors[4], float amount);
     void    applyFourColorGradient(const VRect &region,
                                    const VBitmap &gradientMap, float amount);
+    void    applyBoxBlur(const VRect &region, float radius, int iterations,
+                         int dimensions);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -120,6 +122,8 @@ private:
                                     const VColor colors[4], float amount);
         void applyFourColorGradient(const VRect &region,
                                     const VBitmap &gradientMap, float amount);
+        void applyBoxBlur(const VRect &region, float radius, int iterations,
+                          int dimensions);
     };
 
     rc_ptr<Impl> mImpl;

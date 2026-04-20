@@ -316,6 +316,14 @@ static void applyStrokeEffect(VBitmap &bitmap,
                        effect.paintStyle(frameNo));
 }
 
+static void applyBoxBlurEffect(VBitmap &bitmap,
+                               const model::Layer::BoxBlurEffect &effect,
+                               int frameNo)
+{
+    bitmap.applyBoxBlur(bitmap.rect(), effect.radius(frameNo),
+                        effect.iterations(frameNo), effect.dimensions(frameNo));
+}
+
 static void applyFourColorGradientEffect(
     VBitmap &bitmap, const model::Layer::FourColorGradientEffect &effect,
     renderer::Layer *layer, const VRect &drawRegion)
@@ -399,6 +407,12 @@ static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer,
                                   layer->currentFrame());
             }
             break;
+        case model::Layer::BitmapEffectType::BoxBlur:
+            if (layer->hasBoxBlurEffect()) {
+                applyBoxBlurEffect(bitmap, *layer->boxBlurEffect(),
+                                   layer->currentFrame());
+            }
+            break;
         }
     }
 }
@@ -473,6 +487,13 @@ static int bitmapEffectOutset(renderer::Layer *layer)
             outset,
             int(std::ceil(layer->strokeEffect()->brushSize(layer->currentFrame()) *
                           0.5f)));
+    }
+    if (layer->hasBoxBlurEffect()) {
+        auto effect = layer->boxBlurEffect();
+        outset = std::max(
+            outset,
+            int(std::ceil(effect->radius(layer->currentFrame()) *
+                          effect->iterations(layer->currentFrame()))));
     }
     return outset;
 }

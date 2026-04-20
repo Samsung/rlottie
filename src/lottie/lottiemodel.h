@@ -833,11 +833,35 @@ public:
             return int(std::lround(mPaintStyle.value(frameNo)));
         }
     };
+    struct BoxBlurEffect {
+        Property<float> mRadius{0.0f};
+        Property<float> mIterations{1.0f};
+        Property<float> mDimensions{1.0f};
+        bool            isStatic() const
+        {
+            return mRadius.isStatic() && mIterations.isStatic() &&
+                   mDimensions.isStatic();
+        }
+        float radius(int frameNo) const
+        {
+            return std::max(0.0f, mRadius.value(frameNo));
+        }
+        int iterations(int frameNo) const
+        {
+            return std::max(1, int(std::lround(mIterations.value(frameNo))));
+        }
+        int dimensions(int frameNo) const
+        {
+            auto value = int(std::lround(mDimensions.value(frameNo)));
+            return std::max(1, std::min(3, value));
+        }
+    };
     enum class BitmapEffectType : uint8_t {
         Fill,
         Tint,
         FourColorGradient,
-        Stroke
+        Stroke,
+        BoxBlur
     };
     struct Extra {
         Color               mSolidColor;
@@ -850,6 +874,7 @@ public:
         std::unique_ptr<TintEffect> mTintEffect;
         std::unique_ptr<FourColorGradientEffect> mFourColorGradientEffect;
         std::unique_ptr<StrokeEffect> mStrokeEffect;
+        std::unique_ptr<BoxBlurEffect> mBoxBlurEffect;
         std::vector<BitmapEffectType> mBitmapEffectOrder;
     };
 
@@ -892,10 +917,19 @@ public:
     {
         return hasStrokeEffect() ? mExtra->mStrokeEffect.get() : nullptr;
     }
+    bool hasBoxBlurEffect() const
+    {
+        return mExtra && mExtra->mBoxBlurEffect;
+    }
+    BoxBlurEffect *boxBlurEffect() const
+    {
+        return hasBoxBlurEffect() ? mExtra->mBoxBlurEffect.get() : nullptr;
+    }
     bool hasBitmapEffect() const
     {
         return hasFillEffect() || hasTintEffect() ||
-               hasFourColorGradientEffect() || hasStrokeEffect();
+               hasFourColorGradientEffect() || hasStrokeEffect() ||
+               hasBoxBlurEffect();
     }
     const std::vector<BitmapEffectType> &bitmapEffectOrder() const
     {

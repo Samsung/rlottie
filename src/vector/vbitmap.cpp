@@ -652,6 +652,128 @@ void VBitmap::Impl::generateFourColorGradientMap(const VRect &region,
     }
 }
 
+void VBitmap::Impl::applyBoxBlur(const VRect &region, float radius,
+                                 int iterations, int dimensions)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+    auto dataPtr = data();
+    if (!dataPtr) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    const int blurRadius = std::max(0, int(std::ceil(radius)));
+    if (blurRadius <= 0 || iterations <= 0) return;
+
+    const bool horizontal = dimensions == 1 || dimensions == 2;
+    const bool vertical = dimensions == 1 || dimensions == 3;
+
+    const int width = clipped.width();
+    const int height = clipped.height();
+    std::vector<uint32_t> src(size_t(width) * size_t(height));
+    std::vector<uint32_t> dst(size_t(width) * size_t(height));
+
+    for (int y = 0; y < height; ++y) {
+        auto *row = reinterpret_cast<uint32_t *>(
+            dataPtr + mStride * uint32_t(clipped.top() + y));
+        std::memcpy(src.data() + size_t(y) * size_t(width),
+                    row + clipped.left(), size_t(width) * sizeof(uint32_t));
+    }
+
+    auto blurHorizontal = [&](const std::vector<uint32_t> &input,
+                              std::vector<uint32_t> &output) {
+        std::vector<uint32_t> prefixA(size_t(width) + 1);
+        std::vector<uint32_t> prefixR(size_t(width) + 1);
+        std::vector<uint32_t> prefixG(size_t(width) + 1);
+        std::vector<uint32_t> prefixB(size_t(width) + 1);
+
+        for (int y = 0; y < height; ++y) {
+            prefixA[0] = prefixR[0] = prefixG[0] = prefixB[0] = 0;
+            for (int x = 0; x < width; ++x) {
+                const auto pixel = input[size_t(y) * size_t(width) + size_t(x)];
+                prefixA[size_t(x) + 1] = prefixA[size_t(x)] + vAlpha(pixel);
+                prefixR[size_t(x) + 1] = prefixR[size_t(x)] + vRed(pixel);
+                prefixG[size_t(x) + 1] = prefixG[size_t(x)] + vGreen(pixel);
+                prefixB[size_t(x) + 1] = prefixB[size_t(x)] + vBlue(pixel);
+            }
+
+            for (int x = 0; x < width; ++x) {
+                const auto left = std::max(0, x - blurRadius);
+                const auto right = std::min(width - 1, x + blurRadius);
+                const auto count = uint32_t(right - left + 1);
+                const auto alpha =
+                    (prefixA[size_t(right) + 1] - prefixA[size_t(left)]) / count;
+                const auto red =
+                    (prefixR[size_t(right) + 1] - prefixR[size_t(left)]) / count;
+                const auto green =
+                    (prefixG[size_t(right) + 1] - prefixG[size_t(left)]) / count;
+                const auto blue =
+                    (prefixB[size_t(right) + 1] - prefixB[size_t(left)]) / count;
+                output[size_t(y) * size_t(width) + size_t(x)] =
+                    (alpha << 24) | (red << 16) | (green << 8) | blue;
+            }
+        }
+    };
+
+    auto blurVertical = [&](const std::vector<uint32_t> &input,
+                            std::vector<uint32_t> &output) {
+        std::vector<uint32_t> prefixA(size_t(height) + 1);
+        std::vector<uint32_t> prefixR(size_t(height) + 1);
+        std::vector<uint32_t> prefixG(size_t(height) + 1);
+        std::vector<uint32_t> prefixB(size_t(height) + 1);
+
+        for (int x = 0; x < width; ++x) {
+            prefixA[0] = prefixR[0] = prefixG[0] = prefixB[0] = 0;
+            for (int y = 0; y < height; ++y) {
+                const auto pixel = input[size_t(y) * size_t(width) + size_t(x)];
+                prefixA[size_t(y) + 1] = prefixA[size_t(y)] + vAlpha(pixel);
+                prefixR[size_t(y) + 1] = prefixR[size_t(y)] + vRed(pixel);
+                prefixG[size_t(y) + 1] = prefixG[size_t(y)] + vGreen(pixel);
+                prefixB[size_t(y) + 1] = prefixB[size_t(y)] + vBlue(pixel);
+            }
+
+            for (int y = 0; y < height; ++y) {
+                const auto top = std::max(0, y - blurRadius);
+                const auto bottom = std::min(height - 1, y + blurRadius);
+                const auto count = uint32_t(bottom - top + 1);
+                const auto alpha = (prefixA[size_t(bottom) + 1] -
+                                    prefixA[size_t(top)]) /
+                                   count;
+                const auto red =
+                    (prefixR[size_t(bottom) + 1] - prefixR[size_t(top)]) / count;
+                const auto green =
+                    (prefixG[size_t(bottom) + 1] - prefixG[size_t(top)]) / count;
+                const auto blue =
+                    (prefixB[size_t(bottom) + 1] - prefixB[size_t(top)]) / count;
+                output[size_t(y) * size_t(width) + size_t(x)] =
+                    (alpha << 24) | (red << 16) | (green << 8) | blue;
+            }
+        }
+    };
+
+    for (int iteration = 0; iteration < iterations; ++iteration) {
+        if (horizontal) {
+            blurHorizontal(src, dst);
+        } else {
+            dst = src;
+        }
+
+        if (vertical) {
+            blurVertical(dst, src);
+        } else {
+            src = dst;
+        }
+    }
+
+    for (int y = 0; y < height; ++y) {
+        auto *row = reinterpret_cast<uint32_t *>(
+            dataPtr + mStride * uint32_t(clipped.top() + y));
+        std::memcpy(row + clipped.left(),
+                    src.data() + size_t(y) * size_t(width),
+                    size_t(width) * sizeof(uint32_t));
+    }
+}
+
 void VBitmap::Impl::applyFourColorGradient(const VRect &region,
                                            const VPointF points[4],
                                            const VColor colors[4],
@@ -866,6 +988,12 @@ void VBitmap::applyFourColorGradient(const VRect &region,
                                      const VBitmap &gradientMap, float amount)
 {
     if (mImpl) mImpl->applyFourColorGradient(region, gradientMap, amount);
+}
+
+void VBitmap::applyBoxBlur(const VRect &region, float radius, int iterations,
+                           int dimensions)
+{
+    if (mImpl) mImpl->applyBoxBlur(region, radius, iterations, dimensions);
 }
 
 void VBitmap::generateFourColorGradientMap(const VRect &region,
