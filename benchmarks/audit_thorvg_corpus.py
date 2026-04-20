@@ -84,7 +84,7 @@ def to_float(row, key):
 
 def to_int(row, key):
     value = row.get(key, "")
-    return int(value) if value not in ("", None) else None
+    return int(float(value)) if value not in ("", None) else None
 
 
 def is_loaded(row):

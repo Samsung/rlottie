@@ -31,14 +31,17 @@ def parse_args():
 
 def load_assets(args):
     assets = []
+    base = args.asset_dir.resolve() if args.asset_dir else None
     if args.asset_list:
         for line in args.asset_list.read_text().splitlines():
             value = line.strip()
             if not value or value.startswith("#"):
                 continue
-            assets.append(value)
+            path = Path(value)
+            if base and not path.is_absolute():
+                path = base / path
+            assets.append(str(path))
     elif args.asset_dir:
-        base = args.asset_dir.resolve()
         for path in sorted(base.rglob("*.json")):
             assets.append(str(path.relative_to(base)))
     else:
@@ -97,7 +100,7 @@ def to_float(row, key):
 
 def to_int(row, key):
     value = row.get(key, "")
-    return int(value) if value not in ("", None) else None
+    return int(float(value)) if value not in ("", None) else None
 
 
 def compare_rows(rlottie_row, thorvg_row):
