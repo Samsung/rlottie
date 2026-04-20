@@ -190,13 +190,18 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.504 ms` vs `0.235 ms`
-- `11555.json`: `1.503 ms` vs `1.369 ms`
-- `confetti.json`: `0.191 ms` vs `0.119 ms`
-- `threads.json`: `2.076 ms` vs `2.009 ms`
-- `stroke_dash.json`: `0.175 ms` vs `0.139 ms`
+- `threads.json`: `2.043 ms` vs `1.996 ms`
+- `stroke_dash.json`: `0.169 ms` vs `0.126 ms`
+- `text_anim.json` and `textblock.json` remain larger steady-state losses in
+  the broader corpus and stay in the outlined-scene bucket
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
+
+Representative wins after the latest static drawable-list reuse:
+
+- `expressions/world_locations.json`: `0.059 ms` vs `0.236 ms`
+- `11555.json`: `0.091 ms` vs `1.361 ms`
+- `confetti.json`: `0.089 ms` vs `0.113 ms`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -210,6 +215,9 @@ Recent cold-review note:
   translation-only RLE reuse experiment for `11555.json` /
   `confetti.json` / `threads.json` were rejected because they did not survive
   the benchmark workflow
+- a narrow whole-layer `ADBE 4ColorGradient` approximation for
+  `stroke_dash.json` was also rejected because frame-0 and late-frame
+  adjudication both moved farther away from ThorVG
 - the current surviving `world_locations.json` optimizations are:
   `ShapeLayer` alpha offscreen clip tightening plus direct-alpha matte support
   for single translucent solid-fill sources, and a recursive direct-alpha
@@ -217,6 +225,13 @@ Recent cold-review note:
   nested child-layer walk; the latest path kept first-frame adjudication
   unchanged and beat the same-machine `HEAD` baseline in repeated A/B medians on
   `world_locations`, `11555`, `confetti`, and `threads`
+- the latest surviving transform-bucket optimization is static
+  `ShapeLayer` drawable-list reuse: if `contentStatic` is true, the pointer
+  list built by `renderList()` is reused across frames instead of rebuilt in
+  every `preprocessStage()`. Representative late-frame dumps for
+  `world_locations@120`, `11555@160`, `confetti@90`, `threads@90`,
+  `stroke_dash@12`, and `textrange@120` all stayed exact-match with the
+  `HEAD` baseline while median frame time improved materially
 
 ## Current Lagging Buckets
 
@@ -232,6 +247,10 @@ as one flat ranking:
 
 This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
+After the latest `ShapeLayer` drawable-list reuse, `world_locations.json`,
+`11555.json`, and `confetti.json` are no longer the best desktop steady-state
+targets even though they still matter as Tizen verification assets. The
+remaining active lag in this subset is `threads.json`.
 `stroke_dash.json` and `expressions/layereffect.json` now render again after
 parser hardening. `stroke_dash.json` also has a narrow chars-backed static text
 path now, and frame-0/frame-12 adjudication is already close. That means the

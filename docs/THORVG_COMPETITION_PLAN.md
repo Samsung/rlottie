@@ -146,15 +146,17 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.504 ms` vs `0.235 ms`
-2. `11555.json`: `1.503 ms` vs `1.369 ms`
-3. `threads.json`: `2.076 ms` vs `2.009 ms`
-4. `confetti.json`: `0.191 ms` vs `0.119 ms`
-5. `stroke_dash.json`: `0.175 ms` vs `0.139 ms`
-6. `textrange.json` is no longer a performance priority; it remains a text
+1. `threads.json`: `2.043 ms` vs `1.996 ms`
+2. `stroke_dash.json`: `0.169 ms` vs `0.126 ms`
+3. `text_anim.json`
+4. `textblock.json`
+5. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
-7. `32266.json` remains a correctness and parse target rather than a
+6. `32266.json` remains a correctness and parse target rather than a
    steady-state target
+7. `expressions/world_locations.json`, `11555.json`, and `confetti.json`
+   moved out of the main desktop steady-state loss set after static
+   `ShapeLayer` drawable-list reuse
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
@@ -279,6 +281,13 @@ but it moved both assets farther away from ThorVG at frame 0. The surviving
 result from that line of work is only the new affine bitmap helper and the
 transform-free `contentStatic` metadata; the actual cache path did not meet the
 quality bar.
+
+A later low-risk follow-up did survive: when a `ShapeLayer` is marked
+`contentStatic`, the drawable pointer list produced by `renderList()` is now
+reused across frames instead of rebuilt in every `preprocessStage()`. On the
+local median-of-5 comparison this moved `expressions/world_locations.json`,
+`11555.json`, and `confetti.json` ahead of ThorVG while representative
+late-frame dumps stayed exact-match with the `HEAD` baseline.
 
 Targeted review of the lagging shape-correctness assets further changes the
 priority framing:
