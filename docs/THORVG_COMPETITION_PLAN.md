@@ -580,17 +580,21 @@ turning into one-off asset hacks.
 - Current failure mode: narrow whole-layer `ADBE Fill` / `ADBE Tint`, a
   shape-layer subset of `ADBE Stroke` with `Paint Style 1/2/3`, and a
   `Jitter=0` / `Blending Mode=1` subset of `ADBE 4ColorGradient`, a static
-  `Repeat Edge Pixels=0` subset of `ADBE Box Blur2`, and a narrow
-  `ADBE Bevel Alpha` subset with edge thickness / light angle / light color /
-  light intensity are supported today. `Blend` is accepted as a
+  `Repeat Edge Pixels=0` subset of `ADBE Box Blur2` plus the simple
+  `value * thisComp.layer(...).transform.scale[0] / 100` blur-radius
+  expression subset used by `shutup.json`, and a narrow `ADBE Bevel Alpha`
+  subset with edge thickness / light angle / light color / light intensity
+  are supported today. `Blend` is accepted as a
   `4ColorGradient` intensity control, `stroke_dash.json` now includes its
   static title text again, and the default `ADBE 4ColorGradient` path uses a
   quad bilinear sampler instead of inverse-distance weighting. That improves
   same-machine baseline steady-state, but frame-0/frame-12 adjudication is
   still not strong enough to call the effect bucket solved. `shutup.json`
-  now exercises both `Box Blur2` and `Bevel Alpha`, yet still lands around
-  `0.687` exact match, so the safer read is broader effect coverage,
-  expression controls, and remaining image-level drift.
+  now exercises both `Box Blur2` and `Bevel Alpha`, and the narrow blur-radius
+  expression subset lifts frame-0 exact match from roughly `0.652` to
+  `0.688`, but it still remains slower than ThorVG, so the safer read is
+  broader effect coverage, expression controls, and remaining image-level
+  drift.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front
