@@ -253,6 +253,11 @@ This broad audit changes the interpretation of the current gap:
   `expressions/layereffect.json`. Those assets now load and render, so they
   move from zero-output triage to the partial-support backlog covering real
   text, expression controls, `ADBE 4ColorGradient`, and broader effect stacks.
+- A later hardening pass on unsupported effect parameters with stroke-like
+  names also cleared the old zero-frame failure for `expressions/16447.json`.
+  That asset is no longer in the outright unsupported bucket, but it remains
+  partial support because the wiggle/velocity-style expression on the bend
+  effect is still ignored.
 - A later narrow text pass converts static `chars`-backed text layers into
   shape content. `stroke_dash.json` now carries its title text again, and
   frame-0/frame-12 image adjudication stays fairly close, but animated text,
