@@ -277,6 +277,14 @@ public:
     {
         return mLayerData->fourColorGradientEffect();
     }
+    bool             hasStrokeEffect() const
+    {
+        return mLayerData->hasStrokeEffect();
+    }
+    model::Layer::StrokeEffect *strokeEffect() const
+    {
+        return mLayerData->strokeEffect();
+    }
     FourColorGradientCache &ensureFourColorGradientCache()
     {
         if (!mFourColorGradientCache) {

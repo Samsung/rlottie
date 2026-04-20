@@ -62,6 +62,9 @@ public:
     void    applyTint(const VRect &region, uint8_t blackRed, uint8_t blackGreen,
                       uint8_t blackBlue, uint8_t whiteRed, uint8_t whiteGreen,
                       uint8_t whiteBlue, float amount);
+    void    applyStroke(const VRect &region, uint8_t red, uint8_t green,
+                        uint8_t blue, float opacity, float brushSize,
+                        float brushHardness, int paintStyle);
     void    generateFourColorGradientMap(const VRect &region,
                                          const VPointF points[4],
                                          const VColor colors[4]);
@@ -107,6 +110,9 @@ private:
                        uint8_t blackGreen, uint8_t blackBlue,
                        uint8_t whiteRed, uint8_t whiteGreen,
                        uint8_t whiteBlue, float amount);
+        void applyStroke(const VRect &region, uint8_t red, uint8_t green,
+                         uint8_t blue, float opacity, float brushSize,
+                         float brushHardness, int paintStyle);
         void generateFourColorGradientMap(const VRect &region,
                                           const VPointF points[4],
                                           const VColor colors[4]);

@@ -21,8 +21,10 @@
  */
 
 #include "vbitmap.h"
+#include <algorithm>
 #include <string>
 #include <memory>
+#include <vector>
 #include "vdrawhelper.h"
 #include "vglobal.h"
 
@@ -157,6 +159,33 @@ inline int bilinearChannel(const VColor colors[4], float u, float v,
     return int(std::lround(top + (bottom - top) * v));
 }
 
+inline uint32_t premulPixel(uint8_t red, uint8_t green, uint8_t blue,
+                            uint8_t alpha)
+{
+    const auto premulRed = (uint32_t(red) * alpha + 127) / 255;
+    const auto premulGreen = (uint32_t(green) * alpha + 127) / 255;
+    const auto premulBlue = (uint32_t(blue) * alpha + 127) / 255;
+    return (uint32_t(alpha) << 24) | (premulRed << 16) | (premulGreen << 8) |
+           premulBlue;
+}
+
+inline uint32_t srcOverPixel(uint32_t src, uint32_t dst)
+{
+    const auto srcAlpha = uint32_t(vAlpha(src));
+    if (srcAlpha == 255) return src;
+    if (srcAlpha == 0) return dst;
+
+    const auto invAlpha = 255 - srcAlpha;
+    const auto outAlpha = srcAlpha + (uint32_t(vAlpha(dst)) * invAlpha + 127) / 255;
+    const auto outRed = uint32_t(vRed(src)) +
+                        (uint32_t(vRed(dst)) * invAlpha + 127) / 255;
+    const auto outGreen = uint32_t(vGreen(src)) +
+                          (uint32_t(vGreen(dst)) * invAlpha + 127) / 255;
+    const auto outBlue = uint32_t(vBlue(src)) +
+                         (uint32_t(vBlue(dst)) * invAlpha + 127) / 255;
+    return (outAlpha << 24) | (outRed << 16) | (outGreen << 8) | outBlue;
+}
+
 }  // namespace
 
 void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
@@ -201,9 +230,23 @@ uint8_t VBitmap::Impl::depth(VBitmap::Format format)
     return depth;
 }
 
-void VBitmap::Impl::fill(uint32_t /*pixel*/)
+void VBitmap::Impl::fill(uint32_t pixel)
 {
-    //@TODO
+    auto dataPtr = data();
+    if (!dataPtr) return;
+
+    if (mFormat == VBitmap::Format::Alpha8) {
+        std::memset(dataPtr, uint8_t(pixel & 0xff), size_t(mStride) * mHeight);
+        return;
+    }
+
+    if (mFormat == VBitmap::Format::ARGB32 ||
+        mFormat == VBitmap::Format::ARGB32_Premultiplied) {
+        for (uint32_t y = 0; y < mHeight; ++y) {
+            auto *row = reinterpret_cast<uint32_t *>(dataPtr + mStride * y);
+            std::fill(row, row + mWidth, pixel);
+        }
+    }
 }
 
 void VBitmap::Impl::updateLuma()
@@ -381,6 +424,122 @@ void VBitmap::Impl::applyTint(const VRect &region, uint8_t blackRed,
             *pixel = (uint32_t(alpha) << 24) | (uint32_t(outRed) << 16) |
                      (uint32_t(outGreen) << 8) | uint32_t(outBlue);
             pixel++;
+        }
+    }
+}
+
+void VBitmap::Impl::applyStroke(const VRect &region, uint8_t red,
+                                uint8_t green, uint8_t blue, float opacity,
+                                float brushSize, float brushHardness,
+                                int paintStyle)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    opacity = std::max(0.0f, std::min(1.0f, opacity));
+    if (vIsZero(opacity)) return;
+
+    const auto outerRadius = std::max(0.5f, brushSize * 0.5f);
+    const auto hardness = std::max(0.0f, std::min(1.0f, brushHardness / 100.0f));
+    const auto innerRadius = outerRadius * hardness;
+    const auto outerSq = outerRadius * outerRadius;
+    const auto innerSq = innerRadius * innerRadius;
+    const auto radius = int(std::ceil(outerRadius));
+    const auto width = clipped.width();
+    const auto height = clipped.height();
+    if (width <= 0 || height <= 0) return;
+
+    std::vector<uint32_t> srcPixels(size_t(width) * size_t(height));
+    auto dataPtr = data();
+    for (int y = 0; y < height; ++y) {
+        const auto *srcRow =
+            reinterpret_cast<const uint32_t *>(dataPtr + mStride * (clipped.top() + y)) +
+            clipped.left();
+        std::copy(srcRow, srcRow + width,
+                  srcPixels.begin() + size_t(y) * size_t(width));
+    }
+
+    for (int y = 0; y < height; ++y) {
+        auto *dstRow =
+            reinterpret_cast<uint32_t *>(dataPtr + mStride * (clipped.top() + y)) +
+            clipped.left();
+        for (int x = 0; x < width; ++x) {
+            const auto srcPixel = srcPixels[size_t(y) * size_t(width) + size_t(x)];
+            const auto srcAlpha = float(vAlpha(srcPixel)) / 255.0f;
+
+            float strokeCoverage = 0.0f;
+            const int minY = std::max(0, y - radius);
+            const int maxY = std::min(height - 1, y + radius);
+            const int minX = std::max(0, x - radius);
+            const int maxX = std::min(width - 1, x + radius);
+            for (int sy = minY; sy <= maxY; ++sy) {
+                for (int sx = minX; sx <= maxX; ++sx) {
+                    const auto dx = float(sx - x);
+                    const auto dy = float(sy - y);
+                    const auto distSq = dx * dx + dy * dy;
+                    if (distSq > outerSq) continue;
+
+                    const auto sampleAlpha =
+                        float(vAlpha(srcPixels[size_t(sy) * size_t(width) +
+                                              size_t(sx)])) /
+                        255.0f;
+                    if (vIsZero(sampleAlpha)) continue;
+
+                    float falloff = 1.0f;
+                    if (distSq > innerSq && outerSq > innerSq) {
+                        const auto dist = std::sqrt(distSq);
+                        falloff =
+                            1.0f - ((dist - innerRadius) / (outerRadius - innerRadius));
+                    }
+                    strokeCoverage =
+                        std::max(strokeCoverage, sampleAlpha * falloff);
+                }
+            }
+
+            strokeCoverage = std::max(0.0f, strokeCoverage - srcAlpha);
+            if (vIsZero(strokeCoverage)) {
+                if (paintStyle == 2) dstRow[x] = 0;
+                continue;
+            }
+
+            const auto strokeAlpha =
+                uint8_t(std::lround(std::min(1.0f, strokeCoverage * opacity) * 255.0f));
+            const auto strokePixel = premulPixel(red, green, blue, strokeAlpha);
+
+            switch (paintStyle) {
+            case 1:
+                dstRow[x] = srcOverPixel(strokePixel, srcPixel);
+                break;
+            case 2:
+                dstRow[x] = strokePixel;
+                break;
+            case 3: {
+                const auto revealAlpha =
+                    uint8_t(std::lround(std::min(1.0f, strokeCoverage) *
+                                        float(vAlpha(srcPixel))));
+                if (revealAlpha == 0) {
+                    dstRow[x] = 0;
+                    break;
+                }
+                auto srcRed = int(vRed(srcPixel));
+                auto srcGreen = int(vGreen(srcPixel));
+                auto srcBlue = int(vBlue(srcPixel));
+                const auto srcBaseAlpha = int(vAlpha(srcPixel));
+                if (srcBaseAlpha != 0 && srcBaseAlpha != 255) {
+                    srcRed = (srcRed * 255) / srcBaseAlpha;
+                    srcGreen = (srcGreen * 255) / srcBaseAlpha;
+                    srcBlue = (srcBlue * 255) / srcBaseAlpha;
+                }
+                dstRow[x] = premulPixel(uint8_t(srcRed), uint8_t(srcGreen),
+                                        uint8_t(srcBlue), revealAlpha);
+                break;
+            }
+            default:
+                dstRow[x] = strokePixel;
+                break;
+            }
         }
     }
 }
@@ -690,6 +849,16 @@ void VBitmap::applyTint(const VRect &region, uint8_t blackRed,
     if (mImpl) {
         mImpl->applyTint(region, blackRed, blackGreen, blackBlue, whiteRed,
                          whiteGreen, whiteBlue, amount);
+    }
+}
+
+void VBitmap::applyStroke(const VRect &region, uint8_t red, uint8_t green,
+                          uint8_t blue, float opacity, float brushSize,
+                          float brushHardness, int paintStyle)
+{
+    if (mImpl) {
+        mImpl->applyStroke(region, red, green, blue, opacity, brushSize,
+                           brushHardness, paintStyle);
     }
 }
 

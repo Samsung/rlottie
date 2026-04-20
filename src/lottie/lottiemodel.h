@@ -798,7 +798,44 @@ public:
             return std::max(0.0f, std::min(1.0f, value / 100.0f));
         }
     };
-    enum class BitmapEffectType : uint8_t { Fill, Tint, FourColorGradient };
+    struct StrokeEffect {
+        Property<Color> mColor{{1, 1, 1}};
+        Property<float> mBrushSize{1.0f};
+        Property<float> mBrushHardness{100.0f};
+        Property<float> mOpacity{100.0f};
+        Property<float> mPaintStyle{2.0f};
+        bool            isStatic() const
+        {
+            return mColor.isStatic() && mBrushSize.isStatic() &&
+                   mBrushHardness.isStatic() && mOpacity.isStatic() &&
+                   mPaintStyle.isStatic();
+        }
+        Color color(int frameNo) const { return mColor.value(frameNo); }
+        float brushSize(int frameNo) const
+        {
+            return std::max(0.0f, mBrushSize.value(frameNo));
+        }
+        float brushHardness(int frameNo) const
+        {
+            auto value = mBrushHardness.value(frameNo);
+            return std::max(0.0f, std::min(100.0f, value));
+        }
+        float opacity(int frameNo) const
+        {
+            auto value = mOpacity.value(frameNo);
+            return std::max(0.0f, std::min(1.0f, value / 100.0f));
+        }
+        int paintStyle(int frameNo) const
+        {
+            return int(std::lround(mPaintStyle.value(frameNo)));
+        }
+    };
+    enum class BitmapEffectType : uint8_t {
+        Fill,
+        Tint,
+        FourColorGradient,
+        Stroke
+    };
     struct Extra {
         Color               mSolidColor;
         std::string         mPreCompRefId;
@@ -809,6 +846,7 @@ public:
         std::unique_ptr<FillEffect> mFillEffect;
         std::unique_ptr<TintEffect> mTintEffect;
         std::unique_ptr<FourColorGradientEffect> mFourColorGradientEffect;
+        std::unique_ptr<StrokeEffect> mStrokeEffect;
         std::vector<BitmapEffectType> mBitmapEffectOrder;
     };
 
@@ -843,9 +881,18 @@ public:
                    ? mExtra->mFourColorGradientEffect.get()
                    : nullptr;
     }
+    bool hasStrokeEffect() const
+    {
+        return mExtra && mExtra->mStrokeEffect;
+    }
+    StrokeEffect *strokeEffect() const
+    {
+        return hasStrokeEffect() ? mExtra->mStrokeEffect.get() : nullptr;
+    }
     bool hasBitmapEffect() const
     {
-        return hasFillEffect() || hasTintEffect() || hasFourColorGradientEffect();
+        return hasFillEffect() || hasTintEffect() ||
+               hasFourColorGradientEffect() || hasStrokeEffect();
     }
     const std::vector<BitmapEffectType> &bitmapEffectOrder() const
     {

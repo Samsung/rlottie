@@ -305,6 +305,17 @@ static void applyTintEffect(VBitmap &bitmap,
                      white.g, white.b, effect.amount(frameNo));
 }
 
+static void applyStrokeEffect(VBitmap &bitmap,
+                              const model::Layer::StrokeEffect &effect,
+                              int frameNo)
+{
+    auto color = effect.color(frameNo).toColor();
+    bitmap.applyStroke(bitmap.rect(), color.r, color.g, color.b,
+                       effect.opacity(frameNo), effect.brushSize(frameNo),
+                       effect.brushHardness(frameNo),
+                       effect.paintStyle(frameNo));
+}
+
 static void applyFourColorGradientEffect(
     VBitmap &bitmap, const model::Layer::FourColorGradientEffect &effect,
     renderer::Layer *layer, const VRect &drawRegion)
@@ -382,6 +393,12 @@ static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer,
                     drawRegion);
             }
             break;
+        case model::Layer::BitmapEffectType::Stroke:
+            if (layer->hasStrokeEffect()) {
+                applyStrokeEffect(bitmap, *layer->strokeEffect(),
+                                  layer->currentFrame());
+            }
+            break;
         }
     }
 }
@@ -391,6 +408,7 @@ static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
                               renderer::SurfaceCache &cache,
                               VBitmap &bitmap)
 {
+    bitmap.fill(0);
     VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, bitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
@@ -443,6 +461,32 @@ static VRect tightenClipToBounds(const VRect &clip, const VRect &bounds)
 
     auto tight = clip & bounds;
     return tight.empty() ? clip : tight;
+}
+
+static int bitmapEffectOutset(renderer::Layer *layer)
+{
+    if (!layer || !layer->hasBitmapEffect()) return 0;
+
+    int outset = 0;
+    if (layer->hasStrokeEffect()) {
+        outset = std::max(
+            outset,
+            int(std::ceil(layer->strokeEffect()->brushSize(layer->currentFrame()) *
+                          0.5f)));
+    }
+    return outset;
+}
+
+static VRect expandBitmapEffectClip(renderer::Layer *layer, const VRect &clip,
+                                    const VRect &drawRegion)
+{
+    const auto outset = bitmapEffectOutset(layer);
+    if (outset <= 0) return clip;
+
+    VRect expanded(clip.left() - outset, clip.top() - outset,
+                   clip.width() + outset * 2, clip.height() + outset * 2);
+    auto bounded = expanded & drawRegion;
+    return bounded.empty() ? clip : bounded;
 }
 
 struct InlineLayerAlphaInfo {
@@ -584,9 +628,11 @@ static void renderLayerComposite(VPainter *painter, const VRle &mask,
     auto drawRegion = painter->clipBoundingRect();
     auto clip = drawableBounds(layer->renderList()) & drawRegion;
     if (clip.empty()) clip = drawRegion;
+    clip = expandBitmapEffectClip(layer, clip, drawRegion);
 
     VSize size = clip.size();
     VBitmap layerBitmap = cache.make_surface(size.width(), size.height());
+    layerBitmap.fill(0);
     renderLayerBitmap(layer, clip, mask, matteRle, cache, layerBitmap);
 
     if (layer->hasBlendMode()) {
@@ -1169,12 +1215,14 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
         if (positiveMatte && !srcBounds.empty()) return;
         clip = drawRegion;
     }
+    clip = expandBitmapEffectClip(layer, clip, drawRegion);
     VSize size = clip.size();
     const bool directMatte =
         canRenderMatteDirectly(src, layer->matteType());
 
     // 1. draw layer to layer buffer
     VBitmap  layerBitmap = cache.make_surface(size.width(), size.height());
+    layerBitmap.fill(0);
     VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
@@ -1183,6 +1231,7 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     VBitmap srcBitmap;
     if (!directMatte) {
         srcBitmap = cache.make_surface(size.width(), size.height());
+        srcBitmap.fill(0);
         renderLayerBitmap(src, clip, mask, matteRle, cache, srcBitmap);
     }
 

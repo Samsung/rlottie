@@ -246,6 +246,7 @@ public:
     bool             parseTintEffect(model::Layer::TintEffect &effect);
     bool             parseFourColorGradientEffect(
         model::Layer::FourColorGradientEffect &effect);
+    bool             parseStrokeEffect(model::Layer::StrokeEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1731,6 +1732,9 @@ model::Layer *LottieParserImpl::parseLayer()
     if (layer->hasFourColorGradientEffect()) {
         contentStatic &= layer->fourColorGradientEffect()->isStatic();
     }
+    if (layer->hasStrokeEffect()) {
+        contentStatic &= layer->strokeEffect()->isStatic();
+    }
 
     layer->setContentStatic(contentStatic);
     layer->setStatic(contentStatic && layer->mTransform->isStatic());
@@ -1798,10 +1802,19 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
                                          model::Layer::FillEffect &fillEffect,
                                          bool &fillSupported,
                                          model::Layer::TintEffect &tintEffect,
-                                         bool &tintSupported)
+                                         bool &tintSupported,
+                                         model::Layer::StrokeEffect &strokeEffect,
+                                         bool &strokeSupported)
 {
     fillSupported = true;
     tintSupported = true;
+    strokeSupported = true;
+    model::Property<float> strokeStart{0.0f};
+    model::Property<float> strokeEnd{100.0f};
+    model::Property<float> strokeSpacing{1.0f};
+    model::Property<float> strokeAllMasks{0.0f};
+    model::Property<float> strokeSequentially{0.0f};
+    model::Property<float> strokePath{0.0f};
 
     parser->EnterArray();
     while (parser->NextArrayValue()) {
@@ -1817,32 +1830,92 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
                 if (matchName == "ADBE Fill-0002") {
                     parser->parseProperty(fillEffect.mColor);
                     tintSupported = false;
+                    strokeSupported = false;
                 } else if (matchName == "ADBE Fill-0005") {
                     parser->parseProperty(fillEffect.mOpacity);
                     tintSupported = false;
+                    strokeSupported = false;
                 } else if (matchName == "ADBE Tint-0001" ||
                            name == "Map Black To") {
                     parser->parseProperty(tintEffect.mMapBlackTo);
                     fillSupported = false;
+                    strokeSupported = false;
                 } else if (matchName == "ADBE Tint-0002" ||
                            name == "Map White To") {
                     parser->parseProperty(tintEffect.mMapWhiteTo);
                     fillSupported = false;
+                    strokeSupported = false;
                 } else if (matchName == "ADBE Tint-0003" ||
                            name == "Amount to Tint") {
                     parser->parseProperty(tintEffect.mAmount);
                     fillSupported = false;
+                    strokeSupported = false;
+                } else if (name == "Color") {
+                    parser->parseProperty(strokeEffect.mColor);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Brush Size") {
+                    parser->parseProperty(strokeEffect.mBrushSize);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Brush Hardness") {
+                    parser->parseProperty(strokeEffect.mBrushHardness);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Opacity") {
+                    parser->parseProperty(strokeEffect.mOpacity);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Paint Style") {
+                    parser->parseProperty(strokeEffect.mPaintStyle);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Start") {
+                    parser->parseProperty(strokeStart);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "End") {
+                    parser->parseProperty(strokeEnd);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Spacing") {
+                    parser->parseProperty(strokeSpacing);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "All Masks") {
+                    parser->parseProperty(strokeAllMasks);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Stroke Sequentially") {
+                    parser->parseProperty(strokeSequentially);
+                    fillSupported = false;
+                    tintSupported = false;
+                } else if (name == "Path") {
+                    parser->parseProperty(strokePath);
+                    fillSupported = false;
+                    tintSupported = false;
                 } else {
                     if (!skipStaticZeroEffectValue(parser)) {
                         fillSupported = false;
                     }
                     tintSupported = false;
+                    strokeSupported = false;
                 }
             } else {
                 parser->Skip(key);
             }
         }
     }
+
+    strokeSupported &=
+        strokeStart.isStatic() && vIsZero(strokeStart.value()) &&
+        strokeEnd.isStatic() && vCompare(strokeEnd.value(), 100.0f) &&
+        strokeSpacing.isStatic() && vCompare(strokeSpacing.value(), 1.0f) &&
+        strokeAllMasks.isStatic() && vIsZero(strokeAllMasks.value()) &&
+        strokeSequentially.isStatic() &&
+        vIsZero(strokeSequentially.value()) && strokePath.isStatic() &&
+        vIsZero(strokePath.value()) && strokeEffect.mPaintStyle.isStatic() &&
+        strokeEffect.paintStyle(0) == 2;
 }
 
 void LottieParserImpl::parseLayerEffects(model::Layer *layer)
@@ -1852,6 +1925,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
     std::unique_ptr<model::Layer::TintEffect> parsedTintEffect;
     std::unique_ptr<model::Layer::FourColorGradientEffect>
         parsedFourColorGradientEffect;
+    std::unique_ptr<model::Layer::StrokeEffect> parsedStrokeEffect;
     std::vector<model::Layer::BitmapEffectType> parsedBitmapEffectOrder;
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
@@ -1862,10 +1936,12 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         bool        supported = false;
         bool        fillSupported = false;
         bool        tintSupported = false;
+        bool        strokeSupported = false;
         bool        deferredSupport = false;
         model::Layer::FillEffect candidateFillEffect;
         model::Layer::TintEffect candidateTintEffect;
         model::Layer::FourColorGradientEffect candidateFourColorGradientEffect;
+        model::Layer::StrokeEffect candidateStrokeEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1884,12 +1960,15 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                 } else if (effectMatchName == "ADBE 4ColorGradient") {
                     supported = parseFourColorGradientEffect(
                         candidateFourColorGradientEffect);
+                } else if (effectMatchName == "ADBE Stroke") {
+                    supported = parseStrokeEffect(candidateStrokeEffect);
                 } else {
                     deferredSupport = true;
                     parseNarrowLayerEffectParams(this, candidateFillEffect,
                                                 fillSupported,
-                                                candidateTintEffect,
-                                                tintSupported);
+                                                candidateTintEffect, tintSupported,
+                                                candidateStrokeEffect,
+                                                strokeSupported);
                 }
             } else {
                 Skip(key);
@@ -1942,6 +2021,20 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             continue;
         }
 
+        if (effectMatchName == "ADBE Stroke") {
+            const bool strokeEffectSupported =
+                deferredSupport ? strokeSupported : supported;
+            if (!sawParams || !strokeEffectSupported || parsedStrokeEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedStrokeEffect = std::make_unique<model::Layer::StrokeEffect>(
+                std::move(candidateStrokeEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::Stroke);
+            continue;
+        }
+
         if (!allowNarrowEffectSibling(effectMatchName)) {
             narrowStackSupported = false;
         }
@@ -1953,6 +2046,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         extra->mTintEffect = std::move(parsedTintEffect);
         extra->mFourColorGradientEffect =
             std::move(parsedFourColorGradientEffect);
+        extra->mStrokeEffect = std::move(parsedStrokeEffect);
         extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
 }
@@ -2077,6 +2171,91 @@ bool LottieParserImpl::parseFourColorGradientEffect(
     supported &= blend.isStatic() && vCompare(blend.value(), 100.0f);
     supported &= jitter.isStatic() && vIsZero(jitter.value());
     supported &= blendingMode.isStatic() && vCompare(blendingMode.value(), 1.0f);
+    return supported;
+}
+
+bool LottieParserImpl::parseStrokeEffect(model::Layer::StrokeEffect &effect)
+{
+    bool supported = true;
+    model::Property<float> start{0.0f};
+    model::Property<float> end{100.0f};
+    model::Property<float> spacing{1.0f};
+    model::Property<float> allMasks{0.0f};
+    model::Property<float> strokeSequentially{0.0f};
+    model::Property<float> path{0.0f};
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        std::string name;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "nm")) {
+                name = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (name == "Color") {
+                    parseProperty(effect.mColor);
+                } else if (name == "Brush Size") {
+                    parseProperty(effect.mBrushSize);
+                } else if (name == "Brush Hardness") {
+                    parseProperty(effect.mBrushHardness);
+                } else if (name == "Opacity") {
+                    parseProperty(effect.mOpacity);
+                } else if (name == "Paint Style") {
+                    parseProperty(effect.mPaintStyle);
+                } else if (name == "Start") {
+                    parseProperty(start);
+                } else if (name == "End") {
+                    parseProperty(end);
+                } else if (name == "Spacing") {
+                    parseProperty(spacing);
+                } else if (name == "All Masks") {
+                    parseProperty(allMasks);
+                } else if (name == "Stroke Sequentially") {
+                    parseProperty(strokeSequentially);
+                } else if (name == "Path") {
+                    parseProperty(path);
+                } else if (matchName == "ADBE Stroke-0001") {
+                    parseProperty(effect.mColor);
+                } else if (matchName == "ADBE Stroke-0002") {
+                    parseProperty(effect.mBrushSize);
+                } else if (matchName == "ADBE Stroke-0003") {
+                    parseProperty(effect.mBrushHardness);
+                } else if (matchName == "ADBE Stroke-0004") {
+                    parseProperty(effect.mOpacity);
+                } else if (matchName == "ADBE Stroke-0005") {
+                    parseProperty(start);
+                } else if (matchName == "ADBE Stroke-0006") {
+                    parseProperty(end);
+                } else if (matchName == "ADBE Stroke-0007") {
+                    parseProperty(spacing);
+                } else if (matchName == "ADBE Stroke-0008") {
+                    parseProperty(effect.mPaintStyle);
+                } else if (matchName == "ADBE Stroke-0009") {
+                    parseProperty(allMasks);
+                } else if (matchName == "ADBE Stroke-0010") {
+                    parseProperty(strokeSequentially);
+                } else if (matchName == "ADBE Stroke-0011") {
+                    parseProperty(path);
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    supported &= start.isStatic() && vIsZero(start.value());
+    supported &= end.isStatic() && vCompare(end.value(), 100.0f);
+    supported &= spacing.isStatic() && vCompare(spacing.value(), 1.0f);
+    supported &= allMasks.isStatic() && vIsZero(allMasks.value());
+    supported &= strokeSequentially.isStatic() &&
+                 vIsZero(strokeSequentially.value());
+    supported &= path.isStatic() && vIsZero(path.value());
+    supported &= effect.mPaintStyle.isStatic() && effect.paintStyle(0) == 2;
     return supported;
 }
 
