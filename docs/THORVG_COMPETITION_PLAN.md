@@ -75,6 +75,10 @@ The project is complete only when all of the following are true:
   buffers.
 - Matte composition now uses tight offscreen surfaces, and direct alpha-matte
   cases avoid a full offscreen blend pass when the layer stack qualifies.
+- Single translucent solid-fill matte sources can now also use the direct
+  alpha-matte path, which improves `world_locations.json` in same-machine
+  A/B comparisons against the current `HEAD` baseline while preserving
+  first-frame adjudication.
 - Positive alpha/luma matte pairs now preprocess against tighter current-frame
   source bounds, while skipping layers whose mask semantics depend on the full
   clip rectangle.
@@ -132,11 +136,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.487 ms` vs `0.232 ms`
-2. `11555.json`: `1.454 ms` vs `1.307 ms`
-3. `confetti.json`: `0.168 ms` vs `0.111 ms`
-4. `threads.json`: `1.985 ms` vs `1.924 ms`
-5. `stroke_dash.json`: `0.157 ms` vs `0.136 ms`
+1. `expressions/world_locations.json`: `0.514 ms` vs `0.239 ms`
+2. `11555.json`: `1.541 ms` vs `1.409 ms`
+3. `confetti.json`: `0.209 ms` vs `0.109 ms`
+4. `stroke_dash.json`: `0.159 ms` vs `0.126 ms`
+5. `threads.json` is now effectively a tie in the current run: `2.013 ms` vs `2.017 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a

@@ -190,11 +190,11 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.487 ms` vs `0.232 ms`
-- `11555.json`: `1.454 ms` vs `1.307 ms`
-- `confetti.json`: `0.168 ms` vs `0.111 ms`
-- `threads.json`: `1.985 ms` vs `1.924 ms`
-- `stroke_dash.json`: `0.157 ms` vs `0.136 ms`
+- `expressions/world_locations.json`: `0.514 ms` vs `0.239 ms`
+- `11555.json`: `1.541 ms` vs `1.409 ms`
+- `confetti.json`: `0.209 ms` vs `0.109 ms`
+- `threads.json`: `2.013 ms` vs `2.017 ms`
+- `stroke_dash.json`: `0.159 ms` vs `0.126 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
@@ -206,14 +206,15 @@ It is parse-heavy and still needs correctness adjudication:
 
 Recent cold-review note:
 
-- a wider direct-alpha matte experiment for `world_locations.json` and a
+- recursive precomp `coverageBounds()`, broad `contentStatic` skipping, and a
   translation-only RLE reuse experiment for `11555.json` /
-  `confetti.json` / `threads.json` were both rejected because they did not
-  survive the median-of-5 comparison workflow
-- the current surviving `world_locations.json` optimization is narrower:
-  `ShapeLayer` alpha offscreen rendering now clips its scratch surface to the
-  inherited mask and matte bounding rectangles, which keeps first-frame
-  adjudication unchanged while shaving a small amount off the steady-state gap
+  `confetti.json` / `threads.json` were rejected because they did not survive
+  the benchmark workflow
+- the current surviving `world_locations.json` optimizations are:
+  `ShapeLayer` alpha offscreen clip tightening plus direct-alpha matte support
+  for single translucent solid-fill sources; the latter kept first-frame
+  adjudication unchanged and beat the same-machine `HEAD` baseline in repeated
+  A/B medians on `world_locations`, `11555`, and `threads`
 
 ## Current Lagging Buckets
 
