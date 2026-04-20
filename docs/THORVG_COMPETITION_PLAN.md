@@ -571,18 +571,20 @@ turning into one-off asset hacks.
 
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
   `stroke_dash.json`
-- Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
-  subsets are supported today. `stroke_dash.json` now includes its static title
-  text again, and the default static `ADBE 4ColorGradient` path now uses a
-  quad bilinear sampler instead of inverse-distance weighting. That improves
+- Current failure mode: narrow whole-layer `ADBE Fill` / `ADBE Tint`, a
+  shape-layer subset of `ADBE Stroke`, and the default static
+  `ADBE 4ColorGradient` path are supported today, but broader effect coverage
+  is still missing. `stroke_dash.json` now includes its static title text
+  again, and the default static `ADBE 4ColorGradient` path uses a quad
+  bilinear sampler instead of inverse-distance weighting. That improves
   same-machine baseline steady-state, but frame-0/frame-12 adjudication is
-  still not strong enough to call `ADBE 4ColorGradient` solved. The safer read
-  is broader effect coverage, expression controls, and remaining image-level
+  still not strong enough to call the effect bucket solved. The safer read is
+  broader effect coverage, expression controls, and remaining image-level
   drift.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front
-  2. land `Stroke` next
+  2. widen `Stroke` parameter coverage and real-asset validation next
   3. only after single-effect fixtures are stable, handle mixed enabled stacks
      with an explicit allowlist and adjudicated output
 
