@@ -2123,7 +2123,6 @@ bool LottieParserImpl::parseFourColorGradientEffect(
     model::Layer::FourColorGradientEffect &effect)
 {
     bool supported = true;
-    model::Property<float> blend{100.0f};
     model::Property<float> jitter{0.0f};
     model::Property<float> blendingMode{1.0f};
 
@@ -2152,7 +2151,7 @@ bool LottieParserImpl::parseFourColorGradientEffect(
                 } else if (matchName == "ADBE 4ColorGradient-0008") {
                     parseProperty(effect.mColor4);
                 } else if (matchName == "ADBE 4ColorGradient-0009") {
-                    parseProperty(blend);
+                    parseProperty(effect.mBlend);
                 } else if (matchName == "ADBE 4ColorGradient-0010") {
                     parseProperty(jitter);
                 } else if (matchName == "ADBE 4ColorGradient-0013") {
@@ -2168,7 +2167,6 @@ bool LottieParserImpl::parseFourColorGradientEffect(
         }
     }
 
-    supported &= blend.isStatic() && vCompare(blend.value(), 100.0f);
     supported &= jitter.isStatic() && vIsZero(jitter.value());
     supported &= blendingMode.isStatic() && vCompare(blendingMode.value(), 1.0f);
     return supported;

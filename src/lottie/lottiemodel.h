@@ -775,6 +775,7 @@ public:
         Property<Color>   mColor2{{1, 1, 1}};
         Property<Color>   mColor3{{1, 1, 1}};
         Property<Color>   mColor4{{1, 1, 1}};
+        Property<float>   mBlend{100.0f};
         Property<float>   mOpacity{100.0f};
         bool              isStatic() const
         {
@@ -782,7 +783,7 @@ public:
                    mPoint3.isStatic() && mPoint4.isStatic() &&
                    mColor1.isStatic() && mColor2.isStatic() &&
                    mColor3.isStatic() && mColor4.isStatic() &&
-                   mOpacity.isStatic();
+                   mBlend.isStatic() && mOpacity.isStatic();
         }
         VPointF point1(int frameNo) const { return mPoint1.value(frameNo); }
         VPointF point2(int frameNo) const { return mPoint2.value(frameNo); }
@@ -794,8 +795,10 @@ public:
         Color color4(int frameNo) const { return mColor4.value(frameNo); }
         float opacity(int frameNo) const
         {
-            auto value = mOpacity.value(frameNo);
-            return std::max(0.0f, std::min(1.0f, value / 100.0f));
+            auto opacityValue = mOpacity.value(frameNo);
+            auto blendValue = mBlend.value(frameNo);
+            auto amount = (opacityValue / 100.0f) * (blendValue / 100.0f);
+            return std::max(0.0f, std::min(1.0f, amount));
         }
     };
     struct StrokeEffect {
