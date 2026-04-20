@@ -22,6 +22,8 @@
 
 #include "vpainter.h"
 #include <algorithm>
+#include "vpath.h"
+#include "vraster.h"
 
 
 V_BEGIN_NAMESPACE
@@ -93,6 +95,29 @@ void VPainter::drawBitmapUntransform(const VRect &  target,
     fillRect(target, &mSpanData);
 }
 
+void VPainter::drawBitmapTransform(const VMatrix &sourceToTarget,
+                                   const VBitmap &bitmap,
+                                   const VRect &source,
+                                   uint8_t const_alpha)
+{
+    if (!bitmap.valid() || source.empty()) return;
+
+    mSpanData.initTexture(&bitmap, const_alpha, source);
+    mSpanData.setupMatrix(sourceToTarget);
+    mSpanData.updateSpanFunc();
+    if (!mSpanData.mUnclippedBlendFunc) return;
+
+    VPath path;
+    path.addRect(VRectF(float(source.x()), float(source.y()),
+                        float(source.width()), float(source.height())));
+    path.transform(sourceToTarget);
+
+    VRasterizer rasterizer;
+    rasterizer.rasterize(std::move(path), FillRule::Winding,
+                         mSpanData.clipRect());
+    drawRle(VPoint(), rasterizer.rle());
+}
+
 VPainter::VPainter(VBitmap *buffer)
 {
     begin(buffer);
@@ -152,7 +177,12 @@ void VPainter::drawBitmap(const VRect &target, const VBitmap &bitmap,
     if (target.size() == source.size()) {
         drawBitmapUntransform(target, bitmap, source, const_alpha);
     } else {
-        // @TODO scaling
+        VMatrix sourceToTarget;
+        sourceToTarget.translate(float(target.x()), float(target.y()));
+        sourceToTarget.scale(float(target.width()) / source.width(),
+                             float(target.height()) / source.height());
+        sourceToTarget.translate(float(-source.x()), float(-source.y()));
+        drawBitmapTransform(sourceToTarget, bitmap, source, const_alpha);
     }
 }
 
@@ -173,6 +203,24 @@ void VPainter::drawBitmap(const VRect &rect, const VBitmap &bitmap,
 
     drawBitmap(rect, bitmap, bitmap.rect(),
                const_alpha);
+}
+
+void VPainter::drawBitmap(const VBitmap &bitmap,
+                          const VMatrix &sourceToTarget,
+                          const VRect &source, uint8_t const_alpha)
+{
+    if (!bitmap.valid()) return;
+
+    drawBitmapTransform(sourceToTarget, bitmap, source, const_alpha);
+}
+
+void VPainter::drawBitmap(const VBitmap &bitmap,
+                          const VMatrix &sourceToTarget,
+                          uint8_t const_alpha)
+{
+    if (!bitmap.valid()) return;
+
+    drawBitmapTransform(sourceToTarget, bitmap, bitmap.rect(), const_alpha);
 }
 
 V_END_NAMESPACE

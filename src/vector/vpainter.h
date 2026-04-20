@@ -49,9 +49,16 @@ public:
     void  drawBitmap(const VRect &target, const VBitmap &bitmap, const VRect &source, uint8_t const_alpha = 255);
     void  drawBitmap(const VPoint &point, const VBitmap &bitmap, uint8_t const_alpha = 255);
     void  drawBitmap(const VRect &rect, const VBitmap &bitmap, uint8_t const_alpha = 255);
+    void  drawBitmap(const VBitmap &bitmap, const VMatrix &sourceToTarget,
+                     const VRect &source, uint8_t const_alpha = 255);
+    void  drawBitmap(const VBitmap &bitmap, const VMatrix &sourceToTarget,
+                     uint8_t const_alpha = 255);
 private:
     void drawBitmapUntransform(const VRect &target, const VBitmap &bitmap,
                                const VRect &source, uint8_t const_alpha);
+    void drawBitmapTransform(const VMatrix &sourceToTarget,
+                             const VBitmap &bitmap, const VRect &source,
+                             uint8_t const_alpha);
     VRasterBuffer mBuffer;
     VSpanData     mSpanData;
 };
