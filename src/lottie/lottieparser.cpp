@@ -1915,7 +1915,7 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
         strokeSequentially.isStatic() &&
         vIsZero(strokeSequentially.value()) && strokePath.isStatic() &&
         vIsZero(strokePath.value()) && strokeEffect.mPaintStyle.isStatic() &&
-        strokeEffect.paintStyle(0) == 2;
+        strokeEffect.paintStyle(0) >= 1 && strokeEffect.paintStyle(0) <= 3;
 }
 
 void LottieParserImpl::parseLayerEffects(model::Layer *layer)
@@ -2255,7 +2255,8 @@ bool LottieParserImpl::parseStrokeEffect(model::Layer::StrokeEffect &effect)
     supported &= strokeSequentially.isStatic() &&
                  vIsZero(strokeSequentially.value());
     supported &= path.isStatic() && vIsZero(path.value());
-    supported &= effect.mPaintStyle.isStatic() && effect.paintStyle(0) == 2;
+    supported &= effect.mPaintStyle.isStatic() && effect.paintStyle(0) >= 1 &&
+                 effect.paintStyle(0) <= 3;
     return supported;
 }
 
