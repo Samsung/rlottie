@@ -333,6 +333,10 @@ private:
         int          justify{0};
         bool         valid{false};
     };
+    struct ParsedTextKeyframe {
+        float              time{0.0f};
+        ParsedTextDocument document;
+    };
     model::ColorFilter mColorFilter;
     struct {
         std::vector<VPointF> mInPoint;  /* "i" */
@@ -415,7 +419,7 @@ protected:
     std::vector<model::Layer *>                      mLayersToUpdate;
     std::unordered_map<std::string, ParsedFont>      mFonts;
     std::vector<ParsedGlyph>                         mTextGlyphs;
-    std::unordered_map<model::Layer *, ParsedTextDocument>
+    std::unordered_map<model::Layer *, std::vector<ParsedTextKeyframe>>
         mTextLayers;
     std::string                                      mDirPath;
     void                                             SkipOut(int depth);
@@ -791,159 +795,271 @@ void LottieParserImpl::resolveTextLayers()
 {
     for (const auto &entry : mTextLayers) {
         auto *layer = entry.first;
-        const auto &doc = entry.second;
+        auto docs = entry.second;
+        if (docs.empty()) continue;
 
-        std::string family = doc.fontName;
-        std::string style;
-        auto fontIt = mFonts.find(doc.fontName);
-        if (fontIt != mFonts.end()) {
-            if (!fontIt->second.family.empty()) family = fontIt->second.family;
-            style = fontIt->second.style;
-        }
+        std::sort(docs.begin(), docs.end(),
+                  [](const ParsedTextKeyframe &lhs,
+                     const ParsedTextKeyframe &rhs) {
+                      return lhs.time < rhs.time;
+                  });
 
-        auto findGlyph = [&](const std::string &codepoint,
-                             float &scale) -> const ParsedGlyph * {
-            const ParsedGlyph *best = nullptr;
-            int                bestRank = std::numeric_limits<int>::max();
-            float              bestDelta = std::numeric_limits<float>::max();
-
-            for (const auto &glyph : mTextGlyphs) {
-                if (glyph.ch != codepoint) continue;
-
-                int rank = 0;
-                if (glyph.family != family && glyph.family != doc.fontName)
-                    rank += 4;
-                if (!style.empty() && !glyph.style.empty() &&
-                    glyph.style != style)
-                    rank += 1;
-
-                auto delta = std::fabs(glyph.size - doc.size);
-                if (!best || rank < bestRank ||
-                    (rank == bestRank && delta < bestDelta)) {
-                    best = &glyph;
-                    bestRank = rank;
-                    bestDelta = delta;
-                }
-            }
-
-            if (!best || vIsZero(best->size)) return nullptr;
-            scale = doc.size / best->size;
-            return best;
+        auto sameTextDocument = [](const ParsedTextDocument &lhs,
+                                   const ParsedTextDocument &rhs) {
+            return lhs.text == rhs.text && lhs.fontName == rhs.fontName &&
+                   vCompare(lhs.fillColor.r, rhs.fillColor.r) &&
+                   vCompare(lhs.fillColor.g, rhs.fillColor.g) &&
+                   vCompare(lhs.fillColor.b, rhs.fillColor.b) &&
+                   vCompare(lhs.size, rhs.size) &&
+                   vCompare(lhs.lineHeight, rhs.lineHeight) &&
+                   vCompare(lhs.tracking, rhs.tracking) &&
+                   lhs.justify == rhs.justify;
         };
 
-        auto glyphAdvance = [&](const std::string &codepoint,
-                                float &advance,
-                                const ParsedGlyph **glyph,
-                                float &scale) -> bool {
-            *glyph = nullptr;
-            scale = 1.0f;
+        std::vector<ParsedTextKeyframe> compactDocs;
+        compactDocs.reserve(docs.size());
+        for (const auto &doc : docs) {
+            if (!compactDocs.empty() &&
+                sameTextDocument(compactDocs.back().document, doc.document)) {
+                continue;
+            }
+            compactDocs.push_back(doc);
+        }
+        docs.swap(compactDocs);
 
-            if (codepoint == " ") {
-                advance = doc.size * 0.3f;
+        auto buildTextGroup =
+            [&](const ParsedTextDocument &doc,
+                bool &staticFlag) -> model::Group * {
+            std::string family = doc.fontName;
+            std::string style;
+            auto fontIt = mFonts.find(doc.fontName);
+            if (fontIt != mFonts.end()) {
+                if (!fontIt->second.family.empty())
+                    family = fontIt->second.family;
+                style = fontIt->second.style;
+            }
+
+            auto findGlyph = [&](const std::string &codepoint,
+                                 float &scale) -> const ParsedGlyph * {
+                const ParsedGlyph *best = nullptr;
+                int                bestRank = std::numeric_limits<int>::max();
+                float              bestDelta = std::numeric_limits<float>::max();
+
+                for (const auto &glyph : mTextGlyphs) {
+                    if (glyph.ch != codepoint) continue;
+
+                    int rank = 0;
+                    if (glyph.family != family && glyph.family != doc.fontName)
+                        rank += 4;
+                    if (!style.empty() && !glyph.style.empty() &&
+                        glyph.style != style)
+                        rank += 1;
+
+                    auto delta = std::fabs(glyph.size - doc.size);
+                    if (!best || rank < bestRank ||
+                        (rank == bestRank && delta < bestDelta)) {
+                        best = &glyph;
+                        bestRank = rank;
+                        bestDelta = delta;
+                    }
+                }
+
+                if (!best || vIsZero(best->size)) return nullptr;
+                scale = doc.size / best->size;
+                return best;
+            };
+
+            auto glyphAdvance = [&](const std::string &codepoint,
+                                    float &advance,
+                                    const ParsedGlyph **glyph,
+                                    float &scale) -> bool {
+                *glyph = nullptr;
+                scale = 1.0f;
+
+                if (codepoint == " ") {
+                    advance = doc.size * 0.3f;
+                    return true;
+                }
+
+                *glyph = findGlyph(codepoint, scale);
+                if (!*glyph) return false;
+
+                advance = (*glyph)->advance * scale;
                 return true;
+            };
+
+            auto *textGroup = allocator().make<model::Group>();
+            textGroup->setName("__text");
+            staticFlag = true;
+            bool hadUnsupportedGlyph = false;
+            auto trackingAdvance = doc.tracking * doc.size / 1000.0f;
+            auto lines = splitLines(doc.text);
+
+            for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+                auto codepoints = splitUtf8Codepoints(lines[lineIndex]);
+                float lineWidth = 0.0f;
+
+                for (size_t i = 0; i < codepoints.size(); ++i) {
+                    float              advance = 0.0f;
+                    const ParsedGlyph *glyph = nullptr;
+                    float              scale = 1.0f;
+                    if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
+                        staticFlag = false;
+                        lineWidth = -1.0f;
+                        hadUnsupportedGlyph = true;
+                        break;
+                    }
+                    lineWidth += advance;
+                    if (i + 1 < codepoints.size()) lineWidth += trackingAdvance;
+                }
+
+                if (lineWidth < 0.0f) return nullptr;
+
+                float cursorX = 0.0f;
+                if (doc.justify == 1) {
+                    cursorX = -lineWidth;
+                } else if (doc.justify == 2) {
+                    cursorX = -lineWidth * 0.5f;
+                }
+
+                auto baselineY = static_cast<float>(lineIndex) * doc.lineHeight;
+                for (size_t i = 0; i < codepoints.size(); ++i) {
+                    float              advance = 0.0f;
+                    const ParsedGlyph *glyph = nullptr;
+                    float              scale = 1.0f;
+                    if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
+                        staticFlag = false;
+                        hadUnsupportedGlyph = true;
+                        return nullptr;
+                    }
+
+                    if (glyph) {
+                        auto *wrapper = allocator().make<model::Group>();
+                        wrapper->setName("__glyph");
+                        wrapper->mChildren = glyph->shapes;
+
+                        auto *transformData =
+                            allocator().make<model::Transform::Data>();
+                        transformData->mPosition.value() =
+                            VPointF(cursorX, baselineY);
+                        if (!vCompare(scale, 1.0f)) {
+                            transformData->mScale.value() =
+                                VPointF(scale * 100.0f, scale * 100.0f);
+                        }
+
+                        auto *transform = allocator().make<model::Transform>();
+                        transform->set(transformData, true);
+                        wrapper->mTransform = transform;
+                        wrapper->setStatic(true);
+
+                        for (const auto *shape : wrapper->mChildren) {
+                            wrapper->setStatic(wrapper->isStatic() &&
+                                               shape->isStatic());
+                        }
+                        textGroup->mChildren.push_back(wrapper);
+                        staticFlag = staticFlag && wrapper->isStatic();
+                    }
+
+                    cursorX += advance;
+                    if (i + 1 < codepoints.size())
+                        cursorX += trackingAdvance;
+                }
             }
 
-            *glyph = findGlyph(codepoint, scale);
-            if (!*glyph) return false;
+            if (textGroup->mChildren.empty()) {
+                if (hadUnsupportedGlyph || !doc.text.empty()) return nullptr;
+                textGroup->setStatic(true);
+                return textGroup;
+            }
 
-            advance = (*glyph)->advance * scale;
-            return true;
+            auto *fill = allocator().make<model::Fill>();
+            fill->setName("__fill");
+            fill->mColor.value() = doc.fillColor;
+            fill->mOpacity.value() = 100.0f;
+            fill->setStatic(true);
+            textGroup->mChildren.push_back(fill);
+            textGroup->setStatic(staticFlag && fill->isStatic());
+            return textGroup;
         };
 
-        auto *textGroup = allocator().make<model::Group>();
-        textGroup->setName("__text");
-        bool staticFlag = true;
-        auto trackingAdvance = doc.tracking * doc.size / 1000.0f;
-        auto lines = splitLines(doc.text);
+        auto addHoldOpacitySegment =
+            [](model::Property<float> &property, float start, float end,
+               float value) {
+                if (end <= start) return;
+                model::KeyFrames<float, void>::Frame frame;
+                frame.start_ = start;
+                frame.end_ = end;
+                frame.value_.start_ = value;
+                frame.value_.end_ = value;
+                property.animation().frames_.push_back(std::move(frame));
+            };
 
-        for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
-            auto codepoints = splitUtf8Codepoints(lines[lineIndex]);
-            float lineWidth = 0.0f;
+        model::Group *textRoot = nullptr;
+        bool          contentStatic = true;
 
-            for (size_t i = 0; i < codepoints.size(); ++i) {
-                float              advance = 0.0f;
-                const ParsedGlyph *glyph = nullptr;
-                float              scale = 1.0f;
-                if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
-                    staticFlag = false;
-                    lineWidth = -1.0f;
-                    break;
-                }
-                lineWidth += advance;
-                if (i + 1 < codepoints.size()) lineWidth += trackingAdvance;
-            }
+        if (docs.size() == 1) {
+            bool staticFlag = true;
+            textRoot = buildTextGroup(docs.front().document, staticFlag);
+            contentStatic = textRoot && textRoot->isStatic();
+        } else {
+            auto *animatedRoot = allocator().make<model::Group>();
+            animatedRoot->setName("__text");
 
-            if (lineWidth < 0.0f) {
-                textGroup = nullptr;
-                break;
-            }
+            const auto layerStart = static_cast<float>(layer->inFrame());
+            const auto layerEnd = static_cast<float>(layer->outFrame());
 
-            float cursorX = 0.0f;
-            if (doc.justify == 1) {
-                cursorX = -lineWidth;
-            } else if (doc.justify == 2) {
-                cursorX = -lineWidth * 0.5f;
-            }
-
-            auto baselineY = static_cast<float>(lineIndex) * doc.lineHeight;
-            for (size_t i = 0; i < codepoints.size(); ++i) {
-                float              advance = 0.0f;
-                const ParsedGlyph *glyph = nullptr;
-                float              scale = 1.0f;
-                if (!glyphAdvance(codepoints[i], advance, &glyph, scale)) {
-                    staticFlag = false;
-                    textGroup = nullptr;
+            for (size_t index = 0; index < docs.size(); ++index) {
+                bool staticFlag = true;
+                auto *docGroup = buildTextGroup(docs[index].document,
+                                                staticFlag);
+                if (!docGroup) {
+                    animatedRoot = nullptr;
                     break;
                 }
 
-                if (glyph) {
-                    auto *wrapper = allocator().make<model::Group>();
-                    wrapper->setName("__glyph");
-                    wrapper->mChildren = glyph->shapes;
+                if (docGroup->mChildren.empty()) continue;
 
-                    auto *transformData =
-                        allocator().make<model::Transform::Data>();
-                    transformData->mPosition.value() =
-                        VPointF(cursorX, baselineY);
-                    if (!vCompare(scale, 1.0f)) {
-                        transformData->mScale.value() =
-                            VPointF(scale * 100.0f, scale * 100.0f);
-                    }
+                auto activeStart =
+                    index == 0 ? layerStart
+                               : std::max(layerStart, docs[index].time);
+                auto activeEnd = (index + 1 < docs.size())
+                                     ? std::min(layerEnd, docs[index + 1].time)
+                                     : layerEnd;
 
-                    auto *transform = allocator().make<model::Transform>();
-                    transform->set(transformData, true);
-                    wrapper->mTransform = transform;
-                    wrapper->setStatic(true);
+                auto *wrapper = allocator().make<model::Group>();
+                wrapper->setName("__text_doc");
+                if (!docGroup->mChildren.empty()) wrapper->mChildren.push_back(docGroup);
 
-                    for (const auto *shape : wrapper->mChildren) {
-                        wrapper->setStatic(wrapper->isStatic() &&
-                                           shape->isStatic());
-                    }
-                    textGroup->mChildren.push_back(wrapper);
-                    staticFlag = staticFlag && wrapper->isStatic();
-                }
+                auto *transformData =
+                    allocator().make<model::Transform::Data>();
+                addHoldOpacitySegment(transformData->mOpacity, layerStart,
+                                      activeStart, 0.0f);
+                addHoldOpacitySegment(transformData->mOpacity, activeStart,
+                                      activeEnd, 100.0f);
+                addHoldOpacitySegment(transformData->mOpacity, activeEnd,
+                                      layerEnd, 0.0f);
 
-                cursorX += advance;
-                if (i + 1 < codepoints.size()) cursorX += trackingAdvance;
+                auto *transform = allocator().make<model::Transform>();
+                transform->set(transformData, false);
+                wrapper->mTransform = transform;
+                wrapper->setStatic(false);
+                animatedRoot->mChildren.push_back(wrapper);
             }
 
-            if (!textGroup) break;
+            if (animatedRoot && !animatedRoot->mChildren.empty()) {
+                animatedRoot->setStatic(false);
+                textRoot = animatedRoot;
+                contentStatic = false;
+            }
         }
 
-        if (!textGroup || textGroup->mChildren.empty()) continue;
-
-        auto *fill = allocator().make<model::Fill>();
-        fill->setName("__fill");
-        fill->mColor.value() = doc.fillColor;
-        fill->mOpacity.value() = 100.0f;
-        fill->setStatic(true);
-        textGroup->mChildren.push_back(fill);
-        textGroup->setStatic(staticFlag && fill->isStatic());
+        if (!textRoot) continue;
 
         layer->mLayerType = model::Layer::Type::Shape;
         layer->mChildren.clear();
-        layer->mChildren.push_back(textGroup);
-        layer->setContentStatic(textGroup->isStatic());
+        layer->mChildren.push_back(textRoot);
+        layer->setContentStatic(contentStatic);
+        layer->setStatic(contentStatic && layer->mTransform->isStatic());
     }
     mTextLayers.clear();
 }
@@ -1128,8 +1244,8 @@ void LottieParserImpl::parseChars()
 
 bool LottieParserImpl::parseText(model::Layer *layer)
 {
-    ParsedTextDocument doc;
-    bool               supported = true;
+    std::vector<ParsedTextKeyframe> docs;
+    bool                            supported = true;
 
     EnterObject();
     while (const char *key = NextObjectKey()) {
@@ -1137,12 +1253,11 @@ bool LottieParserImpl::parseText(model::Layer *layer)
             EnterObject();
             while (const char *docKey = NextObjectKey()) {
                 if (0 == strcmp(docKey, "k")) {
-                    size_t entryCount = 0;
                     EnterArray();
                     while (NextArrayValue()) {
                         ParsedTextDocument candidate;
                         bool               hasState = false;
-                        double             time = 0.0;
+                        float              time = 0.0f;
 
                         EnterObject();
                         while (const char *entryKey = NextObjectKey()) {
@@ -1169,21 +1284,20 @@ bool LottieParserImpl::parseText(model::Layer *layer)
                                     }
                                 }
                             } else if (0 == strcmp(entryKey, "t")) {
-                                time = GetDouble();
+                                time = static_cast<float>(GetDouble());
                             } else {
                                 Skip(entryKey);
                             }
                         }
 
-                        if (entryCount == 0 && time <= 0.0 && hasState &&
-                            !candidate.text.empty() &&
-                            !candidate.fontName.empty()) {
+                        if (hasState && !candidate.fontName.empty()) {
                             candidate.valid = true;
-                            doc = std::move(candidate);
+                            if (vIsZero(candidate.lineHeight))
+                                candidate.lineHeight = candidate.size;
+                            docs.push_back({time, std::move(candidate)});
                         } else {
                             supported = false;
                         }
-                        entryCount++;
                     }
                 } else {
                     Skip(docKey);
@@ -1210,11 +1324,14 @@ bool LottieParserImpl::parseText(model::Layer *layer)
         }
     }
 
-    if (!supported || !doc.valid) return false;
-    if (vIsZero(doc.size)) return false;
-    if (vIsZero(doc.lineHeight)) doc.lineHeight = doc.size;
+    if (!supported || docs.empty()) return false;
+    for (const auto &entry : docs) {
+        if (!entry.document.valid || vIsZero(entry.document.size)) {
+            return false;
+        }
+    }
 
-    mTextLayers[layer] = std::move(doc);
+    mTextLayers[layer] = std::move(docs);
     return true;
 }
 
