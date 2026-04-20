@@ -190,18 +190,22 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `threads.json`: `2.043 ms` vs `1.996 ms`
-- `stroke_dash.json`: `0.169 ms` vs `0.126 ms`
+- `threads.json`: `2.016 ms` vs `1.890 ms`
+- `confetti.json`: `0.654 ms` vs `0.512 ms`
+- `stroke_dash.json`: `0.160 ms` vs `0.127 ms`
 - `text_anim.json` and `textblock.json` remain larger steady-state losses in
   the broader corpus and stay in the outlined-scene bucket
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
-Representative wins after the latest static drawable-list reuse:
+Representative wins after the latest static drawable-list reuse and cached
+path-bounds raster clips:
 
 - `expressions/world_locations.json`: `0.059 ms` vs `0.236 ms`
-- `11555.json`: `0.091 ms` vs `1.361 ms`
-- `confetti.json`: `0.089 ms` vs `0.113 ms`
+- `11555.json`: `0.087 ms` vs `1.291 ms`
+- same-machine `HEAD` baseline late-frame adjudication stayed exact-match for
+  `threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`, and
+  `confetti@30`
 
 The same run confirms that `32266.json` is not a performance problem first.
 It is parse-heavy and still needs correctness adjudication:
@@ -232,6 +236,12 @@ Recent cold-review note:
   `world_locations@120`, `11555@160`, `confetti@90`, `threads@90`,
   `stroke_dash@12`, and `textrange@120` all stayed exact-match with the
   `HEAD` baseline while median frame time improved materially
+- the current surviving low-level raster optimization is cached path-bounds
+  clipping in `VDrawable`: bounds are computed once in `setPath()` and reused
+  at raster time. On the current comparison host this moved
+  `threads.json` into the `2.016 ms` range and kept representative late-frame
+  dumps exact-match with the `HEAD` baseline on `threads`, `text_anim`,
+  `11555`, `stroke_dash`, and `confetti`
 
 ## Current Lagging Buckets
 
@@ -247,10 +257,11 @@ as one flat ranking:
 
 This grouping matters because the fix strategy is different for each family.
 Do not treat all full-corpus losses as generic render slowness.
-After the latest `ShapeLayer` drawable-list reuse, `world_locations.json`,
-`11555.json`, and `confetti.json` are no longer the best desktop steady-state
-targets even though they still matter as Tizen verification assets. The
-remaining active lag in this subset is `threads.json`.
+After the latest `ShapeLayer` drawable-list reuse and cached path-bounds clip
+work, `world_locations.json` and `11555.json` are no longer the best desktop
+steady-state targets even though they still matter as Tizen verification
+assets. The remaining active transform-bucket lag in this subset is
+`threads.json`, with `confetti.json` back in the active loss set on this host.
 `stroke_dash.json` and `expressions/layereffect.json` now render again after
 parser hardening. `stroke_dash.json` also has a narrow chars-backed static text
 path now, and frame-0/frame-12 adjudication is already close. That means the

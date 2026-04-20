@@ -92,6 +92,12 @@ The project is complete only when all of the following are true:
 - Positive alpha/luma matte pairs now preprocess against tighter current-frame
   source bounds, while skipping layers whose mask semantics depend on the full
   clip rectangle.
+- `VDrawable` now caches path bounds at `setPath()` time and uses those bounds
+  to tighten raster clips instead of always rasterizing against the caller's
+  full clip. On the current comparison host that keeps representative
+  late-frame dumps exact-match with the `HEAD` baseline on `threads`,
+  `text_anim`, `11555`, `stroke_dash`, and `confetti` while materially
+  reducing the `threads.json` steady-state gap.
 - `thorvg_example_smoke.txt` now defines a repeatable smoke subset from
   `thorvg.example/res/lottie` for functional, performance, and memory checks.
 
@@ -146,17 +152,18 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `threads.json`: `2.043 ms` vs `1.996 ms`
-2. `stroke_dash.json`: `0.169 ms` vs `0.126 ms`
-3. `text_anim.json`
-4. `textblock.json`
-5. `textrange.json` is no longer a performance priority; it remains a text
+1. `threads.json`: `2.016 ms` vs `1.890 ms`
+2. `confetti.json`: `0.654 ms` vs `0.512 ms`
+3. `stroke_dash.json`: `0.160 ms` vs `0.127 ms`
+4. `text_anim.json`
+5. `textblock.json`
+6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
-6. `32266.json` remains a correctness and parse target rather than a
+7. `32266.json` remains a correctness and parse target rather than a
    steady-state target
-7. `expressions/world_locations.json`, `11555.json`, and `confetti.json`
-   moved out of the main desktop steady-state loss set after static
-   `ShapeLayer` drawable-list reuse
+8. `expressions/world_locations.json` and `11555.json`
+   remain desktop wins; `confetti.json` moved back into the active loss set on
+   the current hardened comparison host
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
@@ -286,8 +293,8 @@ A later low-risk follow-up did survive: when a `ShapeLayer` is marked
 `contentStatic`, the drawable pointer list produced by `renderList()` is now
 reused across frames instead of rebuilt in every `preprocessStage()`. On the
 local median-of-5 comparison this moved `expressions/world_locations.json`,
-`11555.json`, and `confetti.json` ahead of ThorVG while representative
-late-frame dumps stayed exact-match with the `HEAD` baseline.
+`11555.json` ahead of ThorVG and materially reduced `confetti.json` while
+representative late-frame dumps stayed exact-match with the `HEAD` baseline.
 
 Targeted review of the lagging shape-correctness assets further changes the
 priority framing:
