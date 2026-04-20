@@ -22,6 +22,8 @@
 | `ADBE 4ColorGradient` | narrow whole-layer bitmap postprocess를 추가했다. 현재 지원 범위는 static point/color/opacity + `Blend=100`, `Jitter=0`, `Blending Mode=1` 기본값 케이스뿐이다. synthetic fixture `layer_effect_4color_gradient_solid.json`의 코너 샘플은 `blue / white / red / green`으로 분리된다 |
 | `ADBE 4ColorGradient` 수학 교체 | default-case `4ColorGradient`의 색 필드를 inverse-distance 가중치에서 quad bilinear sampler로 바꿨다. `stroke_dash.json` same-machine baseline 대비 median steady-state는 `0.265 ms -> 0.194 ms`로 줄었지만, ThorVG 대비 frame 0 exact match는 `0.951435 -> 0.951381`, frame 12 exact match는 `0.949159 -> 0.949066`으로 아주 미세하게만 나빠졌다 |
 | `ADBE 4ColorGradient` Blend 지원 | narrow `4ColorGradient` 경로가 이제 `Blend=100`만 허용하지 않고 Blend 값을 effect intensity에 반영한다. 새 fixture `layer_effect_4color_gradient_blend50.json`은 top-left가 `150/139/240`, center가 `189/190/189`로 full-strength fixture보다 옅은 혼합색을 만든다 |
+| `ADBE Box Blur2` | narrow whole-layer bitmap postprocess로 추가했다. 현재는 static radius/iterations/dimensions와 `Repeat Edge Pixels=0` subset만 지원한다. synthetic fixture `layer_effect_box_blur_solid.json`은 nonzero pixels를 `400 -> 784`로 넓힌다 |
+| `ADBE Bevel Alpha` | narrow whole-layer bitmap postprocess로 추가했다. 현재는 `Edge Thickness`, `Light Angle`, `Light Color`, `Light Intensity`만 처리한다. synthetic fixture `layer_effect_bevel_alpha_solid.json`은 plain gray square의 `73152/73152/73152` rgb 합에서 벗어나 bevel lighting이 실제로 적용된다 |
 | stroke/effect hot-path profiling | `threads.json`과 `stroke_dash.json`을 위해 내부 profile counter를 `rasterStrokeSetup`, `rasterRender`, `drawRleSolid`, `drawRleGradient`, `drawRleTexture`까지 확장했다. 최신 profile상 `threads`는 `trim`이 아니라 `raster_render`가 절대 다수이고, `stroke_dash`는 `raster_stroke > bitmap_effect > dash_apply` 순으로 비용이 갈린다 |
 | static `4ColorGradient` color-map cache | 정적인 `4ColorGradient` point/color 레이어는 bilinear field를 매 프레임 다시 풀지 않고 color map을 캐시해 재사용하도록 바꿨다. `stroke_dash.json` same-machine profile run은 `avg_frame_ms 0.451 -> 0.232`까지 줄었고, hardened median-of-5도 `0.272 ms`까지 내려왔다. 다만 ThorVG `0.126 ms`보다는 아직 느리다 |
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 이번 배치에서 single solid-fill shape layer는 layer alpha를 drawable 쪽으로 접고 offscreen을 생략하도록 바꿨다. exact match는 여전히 `0`이지만 full-frame compositing drift는 확실히 줄었다 |
@@ -49,6 +51,8 @@
 | 구현 | fractional size parser | 지원 | 지원 관찰 | text-heavy asset 로드 복구 | 추가 회귀 자산 확대 |
 | 구현 | module image loading | 지원 | 지원 관찰 | 32266 zero-output 복구 기여 | correctness drift 추가 수정 |
 | 부분 지원 | ADBE 4ColorGradient | 좁은 지원 | 지원 관찰 | 현재는 whole-layer bitmap postprocess 기반의 default-case만 처리한다. points/colors/opacity와 `Blend`는 이제 동작하지만 `Jitter=0`, `Blending Mode=1` 기본값 제약은 그대로다 | true effect semantics, broader stack, animated params 확장 |
+| 부분 지원 | ADBE Box Blur2 | 좁은 지원 | 지원 관찰 | static radius/iterations/dimensions와 `Repeat Edge Pixels=0` subset은 synthetic fixture에서 실제 coverage를 넓힌다 | broader parameter coverage와 mixed stack 검증 |
+| 부분 지원 | ADBE Bevel Alpha | 좁은 지원 | 지원 관찰 | `Edge Thickness`, `Light Angle`, `Light Color`, `Light Intensity` subset은 synthetic fixture에서 lighting을 만든다 | mixed real-asset semantics와 stack 검증 |
 | 부분 지원 | Layer Effect Stroke | 좁은 지원 | 지원 관찰 | static color/brush/opacity와 `Paint Style=1/2/3`, 기본 `Start/End/Spacing/All Masks/Stroke Sequentially/Path`만 허용하는 whole-layer bitmap postprocess가 shape-layer fixture 기준으로 동작한다 | parameter coverage와 image-level adjudication 확대 |
 | 부분 지원 | Merge Paths Stroke | 미지원 | 지원 관찰 | fill은 되지만 stroke semantics 부족 | stroke outline 후 boolean 또는 path boolean backend |
 | 부분 지원 | Animated text document (t.d.k) | 좁은 지원 | 지원 관찰 | hold-style document switch는 chars-backed 경로에서 지원되지만 text animator/path는 아직 없다 | animated document 범위 확대와 runtime text 경로 분리 |
@@ -65,6 +69,7 @@
 | 항목 | 현재 결론 |
 | --- | --- |
 | `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 bilinear sampler + 정적 color-map cache로 돈다. same-machine baseline 대비 steady-state는 크게 줄었지만 ThorVG 대비 frame 12 exact match는 여전히 `0.949066` 수준이고, hardened median-of-5도 `0.272 ms vs 0.126 ms`라 아직 느리다. 즉 성능은 더 좋아졌지만 effect semantics와 broader stack은 아직 미완이다. |
+| `shutup.json` | `Box Blur2`와 `Bevel Alpha` effect path는 둘 다 실제로 돈다. profile상 `bitmap_effect_calls=21`이고 frame 0 adjudication은 약 `0.687`이다. 즉 이제 pure unsupported effect asset은 아니지만, mixed layer-effect semantics는 아직 ThorVG와 꽤 다르다. |
 | `27746-joypixels-partying-face-emoji-animation.json` | 더 이상 unsupported로 보면 안 된다. 현재 rlottie는 frame을 정상 렌더하고 local sample에서는 ThorVG보다 빠르다. 다만 frame 0 exact match ratio가 약 `0.617`이라 pseudo-control/expression backlog가 아니라 correctness bucket에 두는 게 맞다. |
 | `Layer Effect Stroke` | synthetic precomp fixture는 rlottie가 읽는 최소 유효 케이스로는 부적합해서 버렸고, 현재 검증 기준은 valid shape-layer ellipse fixture다. 이 경로에서 좁은 `Stroke`와 `Stroke -> Tint` stack은 물론 `Paint Style 1/2/3`도 실제로 그려진다. `layer_effect_stroke_solid.json`은 gold ring, `layer_effect_stroke_tint_stack.json`은 cyan ring, `layer_effect_stroke_all_original.json`은 white ellipse 보존, `layer_effect_stroke_reveal_original.json`은 stroke coverage 안에서만 원본을 드러낸다. 다만 ThorVG는 이 synthetic `ADBE Stroke` JSON을 여전히 `Invalid JSON`으로 취급해 reference adjudication에는 쓰기 어렵다. |
 | `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` 전체가 아니라 runtime text 경로의 range-selector opacity animator와 layout/baseline 정합성이다. |
@@ -135,6 +140,7 @@
 - narrow `ShapeLayer` snapshot cache는 baseline steady-state를 일부 줄였지만 `11555.json`과 `threads.json`에서 baseline 대비 frame 0 drift가 커졌다. 그래서 코드에는 남기지 않고, affine bitmap draw helper와 `contentStatic` 메타데이터만 선행 작업으로 유지했다.
 - 이번 path-bounds raster clip 계열은 representative late-frame dump 여섯 개(`threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`, `confetti@30`, `world_locations@120`)에서 모두 baseline exact match를 유지한 채, bounds 밖 drawables는 empty RLE로 조기 종료하도록 더 좁혀 same-machine `HEAD` baseline 대비 `world_locations 0.085 -> 0.080 ms`, `11555 0.190 -> 0.093 ms`, `confetti 0.085 -> 0.081 ms`, `threads 2.072 -> 2.006 ms`, `stroke_dash 0.216 -> 0.196 ms`, `text_anim 0.162 -> 0.122 ms`, `textrange 0.030 -> 0.007 ms`까지 줄였다.
 - `stroke_dash.json`은 bilinear `4ColorGradient`에 정적 color-map cache까지 더해 steady-state는 더 줄었지만, frame 12 판정은 여전히 `0.949066` 수준이다. 지금은 “성능 개선은 됐지만 effect semantics는 아직 틀리다”로 보는 게 맞다.
+- `shutup.json`은 이제 `Box Blur2`만 있는 asset이 아니라 `Bevel Alpha` 경로까지 실제로 돈다. 다만 frame 0 exact match가 여전히 `0.687` 수준이라, narrow effect 추가를 곧바로 “실자산 해결”로 해석하면 안 된다.
 - `threads.json`은 trim 최적화를 더 파는 방향이 틀렸다는 게 계측으로 확인됐다. 현재는 `raster_render`와 stroke geometry reuse를 직접 건드려야 한다.
 - `R_QPKIVi.json`은 이제 blank도 아니고 catastrophic miss도 아니다. single solid-fill layer alpha를 inline한 뒤에도 exact match는 `0`이지만, 이건 여전히 전면적인 작은 compositing drift 문제라는 뜻이다.
 - `43391.json`은 parser fallback 문제가 아니라 merge-path chain semantics 문제였다. 다만 이번 수정으로도 exact match가 `0.779` 수준이라, 남은 drift를 과소평가하면 안 된다.
