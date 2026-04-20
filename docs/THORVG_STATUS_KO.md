@@ -21,6 +21,7 @@
 | 회귀 fixture | `example/resource/shape_group_ty_last.json` 추가. `100x100` 기준 `nonzero_pixels=1600`으로 정상 렌더 확인 |
 | `ADBE 4ColorGradient` | narrow whole-layer bitmap postprocess를 추가했다. 현재 지원 범위는 static point/color/opacity + `Blend=100`, `Jitter=0`, `Blending Mode=1` 기본값 케이스뿐이다. synthetic fixture `layer_effect_4color_gradient_solid.json`의 코너 샘플은 `blue / white / red / green`으로 분리된다 |
 | `ADBE 4ColorGradient` 수학 교체 | default-case `4ColorGradient`의 색 필드를 inverse-distance 가중치에서 quad bilinear sampler로 바꿨다. `stroke_dash.json` same-machine baseline 대비 median steady-state는 `0.265 ms -> 0.194 ms`로 줄었지만, ThorVG 대비 frame 0 exact match는 `0.951435 -> 0.951381`, frame 12 exact match는 `0.949159 -> 0.949066`으로 아주 미세하게만 나빠졌다 |
+| `ADBE 4ColorGradient` Blend 지원 | narrow `4ColorGradient` 경로가 이제 `Blend=100`만 허용하지 않고 Blend 값을 effect intensity에 반영한다. 새 fixture `layer_effect_4color_gradient_blend50.json`은 top-left가 `150/139/240`, center가 `189/190/189`로 full-strength fixture보다 옅은 혼합색을 만든다 |
 | stroke/effect hot-path profiling | `threads.json`과 `stroke_dash.json`을 위해 내부 profile counter를 `rasterStrokeSetup`, `rasterRender`, `drawRleSolid`, `drawRleGradient`, `drawRleTexture`까지 확장했다. 최신 profile상 `threads`는 `trim`이 아니라 `raster_render`가 절대 다수이고, `stroke_dash`는 `raster_stroke > bitmap_effect > dash_apply` 순으로 비용이 갈린다 |
 | static `4ColorGradient` color-map cache | 정적인 `4ColorGradient` point/color 레이어는 bilinear field를 매 프레임 다시 풀지 않고 color map을 캐시해 재사용하도록 바꿨다. `stroke_dash.json` same-machine profile run은 `avg_frame_ms 0.451 -> 0.232`까지 줄었고, hardened median-of-5도 `0.272 ms`까지 내려왔다. 다만 ThorVG `0.126 ms`보다는 아직 느리다 |
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 이번 배치에서 single solid-fill shape layer는 layer alpha를 drawable 쪽으로 접고 offscreen을 생략하도록 바꿨다. exact match는 여전히 `0`이지만 full-frame compositing drift는 확실히 줄었다 |
@@ -47,7 +48,7 @@
 | 구현 | .lottie manifest 경로 선택 | 지원 | 지원 관찰 | archive 선택 호환성 확보 | 브로드 코퍼스 확대 |
 | 구현 | fractional size parser | 지원 | 지원 관찰 | text-heavy asset 로드 복구 | 추가 회귀 자산 확대 |
 | 구현 | module image loading | 지원 | 지원 관찰 | 32266 zero-output 복구 기여 | correctness drift 추가 수정 |
-| 부분 지원 | ADBE 4ColorGradient | 좁은 지원 | 지원 관찰 | 현재는 whole-layer bitmap postprocess 기반의 default-case만 처리한다. static point/color/opacity와 `Blend=100`, `Jitter=0`, `Blending Mode=1`만 허용한다 | true effect semantics, broader stack, animated params 확장 |
+| 부분 지원 | ADBE 4ColorGradient | 좁은 지원 | 지원 관찰 | 현재는 whole-layer bitmap postprocess 기반의 default-case만 처리한다. points/colors/opacity와 `Blend`는 이제 동작하지만 `Jitter=0`, `Blending Mode=1` 기본값 제약은 그대로다 | true effect semantics, broader stack, animated params 확장 |
 | 부분 지원 | Layer Effect Stroke | 좁은 지원 | 지원 관찰 | static color/brush/opacity와 `Paint Style=1/2/3`, 기본 `Start/End/Spacing/All Masks/Stroke Sequentially/Path`만 허용하는 whole-layer bitmap postprocess가 shape-layer fixture 기준으로 동작한다 | parameter coverage와 image-level adjudication 확대 |
 | 부분 지원 | Merge Paths Stroke | 미지원 | 지원 관찰 | fill은 되지만 stroke semantics 부족 | stroke outline 후 boolean 또는 path boolean backend |
 | 부분 지원 | Animated text document (t.d.k) | 좁은 지원 | 지원 관찰 | hold-style document switch는 chars-backed 경로에서 지원되지만 text animator/path는 아직 없다 | animated document 범위 확대와 runtime text 경로 분리 |
@@ -64,6 +65,7 @@
 | 항목 | 현재 결론 |
 | --- | --- |
 | `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 bilinear sampler + 정적 color-map cache로 돈다. same-machine baseline 대비 steady-state는 크게 줄었지만 ThorVG 대비 frame 12 exact match는 여전히 `0.949066` 수준이고, hardened median-of-5도 `0.272 ms vs 0.126 ms`라 아직 느리다. 즉 성능은 더 좋아졌지만 effect semantics와 broader stack은 아직 미완이다. |
+| `27746-joypixels-partying-face-emoji-animation.json` | 더 이상 unsupported로 보면 안 된다. 현재 rlottie는 frame을 정상 렌더하고 local sample에서는 ThorVG보다 빠르다. 다만 frame 0 exact match ratio가 약 `0.617`이라 pseudo-control/expression backlog가 아니라 correctness bucket에 두는 게 맞다. |
 | `Layer Effect Stroke` | synthetic precomp fixture는 rlottie가 읽는 최소 유효 케이스로는 부적합해서 버렸고, 현재 검증 기준은 valid shape-layer ellipse fixture다. 이 경로에서 좁은 `Stroke`와 `Stroke -> Tint` stack은 물론 `Paint Style 1/2/3`도 실제로 그려진다. `layer_effect_stroke_solid.json`은 gold ring, `layer_effect_stroke_tint_stack.json`은 cyan ring, `layer_effect_stroke_all_original.json`은 white ellipse 보존, `layer_effect_stroke_reveal_original.json`은 stroke coverage 안에서만 원본을 드러낸다. 다만 ThorVG는 이 synthetic `ADBE Stroke` JSON을 여전히 `Invalid JSON`으로 취급해 reference adjudication에는 쓰기 어렵다. |
 | `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` 전체가 아니라 runtime text 경로의 range-selector opacity animator와 layout/baseline 정합성이다. |
 | `text_document_switch.json` | narrow hold-style `t.d.k` 회귀 fixture다. chars-backed glyph path만으로 frame switch가 실제로 일어나고 baseline blank-output을 벗어났지만, 이건 text animator/path가 없는 subset에만 해당한다. |

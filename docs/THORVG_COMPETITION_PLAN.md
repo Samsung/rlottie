@@ -60,11 +60,12 @@ The project is complete only when all of the following are true:
 - Narrow whole-layer `ADBE Fill` / `ADBE Tint` parsing is now hardened against
   JSON key-order variance, disabled-effect ordering, unsupported enabled
   sibling effects, and missing explicit opacity parameters.
-- Narrow whole-layer `ADBE 4ColorGradient` now exists for the default static
-  case (`Blend=100`, `Jitter=0`, `Blending Mode=1`) as a bitmap postprocess.
-  This widens feature coverage beyond the previous `stroke_dash.json` gap, but
-  it is still only an approximation and currently regresses ThorVG image
-  adjudication on that asset.
+- Narrow whole-layer `ADBE 4ColorGradient` now exists as a bitmap
+  postprocess for the static default case, and the narrow path now also
+  accepts `Blend` values instead of rejecting anything below `100`.
+  `Jitter=0` and `Blending Mode=1` remain required, so this is still an
+  approximation rather than full effect coverage and it still regresses
+  ThorVG image adjudication on `stroke_dash.json`.
 - Narrow static `chars`-backed text layers now convert into ordinary shape
   content at parse time, which restores assets such as `stroke_dash.json`
   without adding a separate renderer-side text layer implementation.
@@ -572,15 +573,15 @@ turning into one-off asset hacks.
 - Representative assets: `expressions/layereffect.json`, `shutup.json`,
   `stroke_dash.json`
 - Current failure mode: narrow whole-layer `ADBE Fill` / `ADBE Tint`, a
-  shape-layer subset of `ADBE Stroke` with `Paint Style 1/2/3`, and the default static
-  `ADBE 4ColorGradient` path are supported today, but broader effect coverage
-  is still missing. `stroke_dash.json` now includes its static title text
-  again, and the default static `ADBE 4ColorGradient` path uses a quad
-  bilinear sampler instead of inverse-distance weighting. That improves
-  same-machine baseline steady-state, but frame-0/frame-12 adjudication is
-  still not strong enough to call the effect bucket solved. The safer read is
-  broader effect coverage, expression controls, and remaining image-level
-  drift.
+  shape-layer subset of `ADBE Stroke` with `Paint Style 1/2/3`, and a
+  `Jitter=0` / `Blending Mode=1` subset of `ADBE 4ColorGradient` are
+  supported today, with `Blend` now accepted as an effect intensity control.
+  `stroke_dash.json` now includes its static title text again, and the
+  default `ADBE 4ColorGradient` path uses a quad bilinear sampler instead of
+  inverse-distance weighting. That improves same-machine baseline
+  steady-state, but frame-0/frame-12 adjudication is still not strong enough
+  to call the effect bucket solved. The safer read is broader effect
+  coverage, expression controls, and remaining image-level drift.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front
