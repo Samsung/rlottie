@@ -1820,10 +1820,12 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
     while (parser->NextArrayValue()) {
         std::string matchName;
         std::string name;
+        bool        strokeParam = false;
         parser->EnterObject();
         while (const char *key = parser->NextObjectKey()) {
             if (0 == strcmp(key, "mn")) {
                 matchName = parser->GetStringObject();
+                strokeParam = matchName.rfind("ADBE Stroke-", 0) == 0;
             } else if (0 == strcmp(key, "nm")) {
                 name = parser->GetStringObject();
             } else if (0 == strcmp(key, "v")) {
@@ -1850,54 +1852,53 @@ static void parseNarrowLayerEffectParams(LottieParserImpl *parser,
                     parser->parseProperty(tintEffect.mAmount);
                     fillSupported = false;
                     strokeSupported = false;
-                } else if (name == "Color") {
+                } else if (strokeParam && name == "Color") {
                     parser->parseProperty(strokeEffect.mColor);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Brush Size") {
+                } else if (strokeParam && name == "Brush Size") {
                     parser->parseProperty(strokeEffect.mBrushSize);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Brush Hardness") {
+                } else if (strokeParam && name == "Brush Hardness") {
                     parser->parseProperty(strokeEffect.mBrushHardness);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Opacity") {
+                } else if (strokeParam && name == "Opacity") {
                     parser->parseProperty(strokeEffect.mOpacity);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Paint Style") {
+                } else if (strokeParam && name == "Paint Style") {
                     parser->parseProperty(strokeEffect.mPaintStyle);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Start") {
+                } else if (strokeParam && name == "Start") {
                     parser->parseProperty(strokeStart);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "End") {
+                } else if (strokeParam && name == "End") {
                     parser->parseProperty(strokeEnd);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Spacing") {
+                } else if (strokeParam && name == "Spacing") {
                     parser->parseProperty(strokeSpacing);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "All Masks") {
+                } else if (strokeParam && name == "All Masks") {
                     parser->parseProperty(strokeAllMasks);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Stroke Sequentially") {
+                } else if (strokeParam && name == "Stroke Sequentially") {
                     parser->parseProperty(strokeSequentially);
                     fillSupported = false;
                     tintSupported = false;
-                } else if (name == "Path") {
+                } else if (strokeParam && name == "Path") {
                     parser->parseProperty(strokePath);
                     fillSupported = false;
                     tintSupported = false;
                 } else {
-                    if (!skipStaticZeroEffectValue(parser)) {
-                        fillSupported = false;
-                    }
+                    parser->SkipValue();
+                    fillSupported = false;
                     tintSupported = false;
                     strokeSupported = false;
                 }
