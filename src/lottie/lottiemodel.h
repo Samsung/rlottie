@@ -766,7 +766,39 @@ public:
             return std::max(0.0f, std::min(1.0f, value / 100.0f));
         }
     };
-    enum class BitmapEffectType : uint8_t { Fill, Tint };
+    struct FourColorGradientEffect {
+        Property<VPointF> mPoint1;
+        Property<VPointF> mPoint2;
+        Property<VPointF> mPoint3;
+        Property<VPointF> mPoint4;
+        Property<Color>   mColor1{{1, 1, 1}};
+        Property<Color>   mColor2{{1, 1, 1}};
+        Property<Color>   mColor3{{1, 1, 1}};
+        Property<Color>   mColor4{{1, 1, 1}};
+        Property<float>   mOpacity{100.0f};
+        bool              isStatic() const
+        {
+            return mPoint1.isStatic() && mPoint2.isStatic() &&
+                   mPoint3.isStatic() && mPoint4.isStatic() &&
+                   mColor1.isStatic() && mColor2.isStatic() &&
+                   mColor3.isStatic() && mColor4.isStatic() &&
+                   mOpacity.isStatic();
+        }
+        VPointF point1(int frameNo) const { return mPoint1.value(frameNo); }
+        VPointF point2(int frameNo) const { return mPoint2.value(frameNo); }
+        VPointF point3(int frameNo) const { return mPoint3.value(frameNo); }
+        VPointF point4(int frameNo) const { return mPoint4.value(frameNo); }
+        Color color1(int frameNo) const { return mColor1.value(frameNo); }
+        Color color2(int frameNo) const { return mColor2.value(frameNo); }
+        Color color3(int frameNo) const { return mColor3.value(frameNo); }
+        Color color4(int frameNo) const { return mColor4.value(frameNo); }
+        float opacity(int frameNo) const
+        {
+            auto value = mOpacity.value(frameNo);
+            return std::max(0.0f, std::min(1.0f, value / 100.0f));
+        }
+    };
+    enum class BitmapEffectType : uint8_t { Fill, Tint, FourColorGradient };
     struct Extra {
         Color               mSolidColor;
         std::string         mPreCompRefId;
@@ -776,6 +808,7 @@ public:
         std::vector<Mask *> mMasks;
         std::unique_ptr<FillEffect> mFillEffect;
         std::unique_ptr<TintEffect> mTintEffect;
+        std::unique_ptr<FourColorGradientEffect> mFourColorGradientEffect;
         std::vector<BitmapEffectType> mBitmapEffectOrder;
     };
 
@@ -800,9 +833,19 @@ public:
     {
         return hasTintEffect() ? mExtra->mTintEffect.get() : nullptr;
     }
+    bool hasFourColorGradientEffect() const
+    {
+        return mExtra && mExtra->mFourColorGradientEffect;
+    }
+    FourColorGradientEffect *fourColorGradientEffect() const
+    {
+        return hasFourColorGradientEffect()
+                   ? mExtra->mFourColorGradientEffect.get()
+                   : nullptr;
+    }
     bool hasBitmapEffect() const
     {
-        return hasFillEffect() || hasTintEffect();
+        return hasFillEffect() || hasTintEffect() || hasFourColorGradientEffect();
     }
     const std::vector<BitmapEffectType> &bitmapEffectOrder() const
     {

@@ -244,6 +244,8 @@ public:
     void             parseLayerEffects(model::Layer *layer);
     bool             parseFillEffect(model::Layer::FillEffect &effect);
     bool             parseTintEffect(model::Layer::TintEffect &effect);
+    bool             parseFourColorGradientEffect(
+        model::Layer::FourColorGradientEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1609,6 +1611,9 @@ model::Layer *LottieParserImpl::parseLayer()
     if (layer->hasTintEffect()) {
         contentStatic &= layer->tintEffect()->isStatic();
     }
+    if (layer->hasFourColorGradientEffect()) {
+        contentStatic &= layer->fourColorGradientEffect()->isStatic();
+    }
 
     layer->setContentStatic(contentStatic);
     layer->setStatic(contentStatic && layer->mTransform->isStatic());
@@ -1728,6 +1733,8 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
     EnterArray();
     std::unique_ptr<model::Layer::FillEffect> parsedFillEffect;
     std::unique_ptr<model::Layer::TintEffect> parsedTintEffect;
+    std::unique_ptr<model::Layer::FourColorGradientEffect>
+        parsedFourColorGradientEffect;
     std::vector<model::Layer::BitmapEffectType> parsedBitmapEffectOrder;
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
@@ -1741,6 +1748,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         bool        deferredSupport = false;
         model::Layer::FillEffect candidateFillEffect;
         model::Layer::TintEffect candidateTintEffect;
+        model::Layer::FourColorGradientEffect candidateFourColorGradientEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1756,6 +1764,9 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                     supported = parseFillEffect(candidateFillEffect);
                 } else if (effectMatchName == "ADBE Tint") {
                     supported = parseTintEffect(candidateTintEffect);
+                } else if (effectMatchName == "ADBE 4ColorGradient") {
+                    supported = parseFourColorGradientEffect(
+                        candidateFourColorGradientEffect);
                 } else {
                     deferredSupport = true;
                     parseNarrowLayerEffectParams(this, candidateFillEffect,
@@ -1801,6 +1812,19 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             continue;
         }
 
+        if (effectMatchName == "ADBE 4ColorGradient") {
+            if (!sawParams || !supported || parsedFourColorGradientEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedFourColorGradientEffect =
+                std::make_unique<model::Layer::FourColorGradientEffect>(
+                    std::move(candidateFourColorGradientEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::FourColorGradient);
+            continue;
+        }
+
         if (!allowNarrowEffectSibling(effectMatchName)) {
             narrowStackSupported = false;
         }
@@ -1810,6 +1834,8 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         auto extra = layer->extra();
         extra->mFillEffect = std::move(parsedFillEffect);
         extra->mTintEffect = std::move(parsedTintEffect);
+        extra->mFourColorGradientEffect =
+            std::move(parsedFourColorGradientEffect);
         extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
 }
@@ -1879,6 +1905,61 @@ bool LottieParserImpl::parseTintEffect(model::Layer::TintEffect &effect)
         }
     }
 
+    return supported;
+}
+
+bool LottieParserImpl::parseFourColorGradientEffect(
+    model::Layer::FourColorGradientEffect &effect)
+{
+    bool supported = true;
+    model::Property<float> blend{100.0f};
+    model::Property<float> jitter{0.0f};
+    model::Property<float> blendingMode{1.0f};
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE 4ColorGradient-0001") {
+                    parseProperty(effect.mPoint1);
+                } else if (matchName == "ADBE 4ColorGradient-0002") {
+                    parseProperty(effect.mColor1);
+                } else if (matchName == "ADBE 4ColorGradient-0003") {
+                    parseProperty(effect.mPoint2);
+                } else if (matchName == "ADBE 4ColorGradient-0004") {
+                    parseProperty(effect.mColor2);
+                } else if (matchName == "ADBE 4ColorGradient-0005") {
+                    parseProperty(effect.mPoint3);
+                } else if (matchName == "ADBE 4ColorGradient-0006") {
+                    parseProperty(effect.mColor3);
+                } else if (matchName == "ADBE 4ColorGradient-0007") {
+                    parseProperty(effect.mPoint4);
+                } else if (matchName == "ADBE 4ColorGradient-0008") {
+                    parseProperty(effect.mColor4);
+                } else if (matchName == "ADBE 4ColorGradient-0009") {
+                    parseProperty(blend);
+                } else if (matchName == "ADBE 4ColorGradient-0010") {
+                    parseProperty(jitter);
+                } else if (matchName == "ADBE 4ColorGradient-0013") {
+                    parseProperty(effect.mOpacity);
+                } else if (matchName == "ADBE 4ColorGradient-0014") {
+                    parseProperty(blendingMode);
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    supported &= blend.isStatic() && vCompare(blend.value(), 100.0f);
+    supported &= jitter.isStatic() && vIsZero(jitter.value());
+    supported &= blendingMode.isStatic() && vCompare(blendingMode.value(), 1.0f);
     return supported;
 }
 

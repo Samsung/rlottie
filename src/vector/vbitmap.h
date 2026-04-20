@@ -62,6 +62,8 @@ public:
     void    applyTint(const VRect &region, uint8_t blackRed, uint8_t blackGreen,
                       uint8_t blackBlue, uint8_t whiteRed, uint8_t whiteGreen,
                       uint8_t whiteBlue, float amount);
+    void    applyFourColorGradient(const VRect &region, const VPointF points[4],
+                                   const VColor colors[4], float amount);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -100,6 +102,8 @@ private:
                        uint8_t blackGreen, uint8_t blackBlue,
                        uint8_t whiteRed, uint8_t whiteGreen,
                        uint8_t whiteBlue, float amount);
+        void applyFourColorGradient(const VRect &region, const VPointF points[4],
+                                    const VColor colors[4], float amount);
     };
 
     rc_ptr<Impl> mImpl;

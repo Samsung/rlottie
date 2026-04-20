@@ -315,7 +315,28 @@ static void applyTintEffect(VBitmap &bitmap,
                      white.g, white.b, effect.amount(frameNo));
 }
 
-static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer)
+static void applyFourColorGradientEffect(
+    VBitmap &bitmap, const model::Layer::FourColorGradientEffect &effect,
+    renderer::Layer *layer, const VRect &drawRegion)
+{
+    const auto frameNo = layer->currentFrame();
+    const auto matrix = layer->matrix(frameNo);
+    const auto origin = VPointF(float(drawRegion.left()), float(drawRegion.top()));
+
+    VPointF points[4] = {matrix.map(effect.point1(frameNo)) - origin,
+                         matrix.map(effect.point2(frameNo)) - origin,
+                         matrix.map(effect.point3(frameNo)) - origin,
+                         matrix.map(effect.point4(frameNo)) - origin};
+    VColor colors[4] = {effect.color1(frameNo).toColor(),
+                        effect.color2(frameNo).toColor(),
+                        effect.color3(frameNo).toColor(),
+                        effect.color4(frameNo).toColor()};
+    bitmap.applyFourColorGradient(bitmap.rect(), points, colors,
+                                  effect.opacity(frameNo));
+}
+
+static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer,
+                               const VRect &drawRegion)
 {
     if (!layer->hasBitmapEffect()) return;
 
@@ -333,6 +354,13 @@ static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer)
                                 layer->currentFrame());
             }
             break;
+        case model::Layer::BitmapEffectType::FourColorGradient:
+            if (layer->hasFourColorGradientEffect()) {
+                applyFourColorGradientEffect(
+                    bitmap, *layer->fourColorGradientEffect(), layer,
+                    drawRegion);
+            }
+            break;
         }
     }
 }
@@ -346,7 +374,7 @@ static void renderLayerBitmap(renderer::Layer *layer, const VRect &clip,
     beginOffscreenPainter(&layerPainter, bitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
     layerPainter.end();
-    applyBitmapEffects(bitmap, layer);
+    applyBitmapEffects(bitmap, layer, clip);
 }
 
 static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
@@ -1129,7 +1157,7 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     VPainter layerPainter;
     beginOffscreenPainter(&layerPainter, layerBitmap, clip);
     layer->render(&layerPainter, mask, matteRle, cache);
-    applyBitmapEffects(layerBitmap, layer);
+    applyBitmapEffects(layerBitmap, layer, clip);
 
     VBitmap srcBitmap;
     if (!directMatte) {

@@ -260,6 +260,14 @@ public:
     {
         return mLayerData->tintEffect();
     }
+    bool             hasFourColorGradientEffect() const
+    {
+        return mLayerData->hasFourColorGradientEffect();
+    }
+    model::Layer::FourColorGradientEffect *fourColorGradientEffect() const
+    {
+        return mLayerData->fourColorGradientEffect();
+    }
     bool             hasBitmapEffect() const
     {
         return mLayerData->hasBitmapEffect();
