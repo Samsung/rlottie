@@ -1447,7 +1447,9 @@ void renderer::ShapeLayer::updateContent()
 
     mRoot->update(frameNo(), combinedMatrix(),
                   mInlineLayerAlpha ? combinedAlpha() : 1.0f, flag());
-    mDrawableListValid = false;
+    if (!mLayerData->contentStatic()) {
+        mDrawableListValid = false;
+    }
 
     if (mLayerData->hasPathOperator()) {
         mRoot->applyTrim();
@@ -1456,9 +1458,11 @@ void renderer::ShapeLayer::updateContent()
 
 void renderer::ShapeLayer::preprocessStage(const VRect &clip)
 {
-    mDrawableList.clear();
-    mRoot->renderList(mDrawableList);
-    mDrawableListValid = true;
+    if (!mDrawableListValid) {
+        mDrawableList.clear();
+        mRoot->renderList(mDrawableList);
+        mDrawableListValid = true;
+    }
 
     for (auto &drawable : mDrawableList) drawable->preprocess(clip);
 }
