@@ -105,6 +105,32 @@ bool parsePolystarInnerRadiusMulExpression(const std::string &expr,
     return true;
 }
 
+bool parseColorControlExpression(const std::string &expr,
+                                 std::string       &layerName,
+                                 std::string       &effectName)
+{
+    static const std::regex colorControlPattern(
+        R"(\s*var \$bm_rt;\s*\$bm_rt = thisComp\.layer\((['"])(.*?)\1\)\.effect\((['"])(.*?)\3\)\('Color'\);\s*)");
+    std::smatch match;
+    if (!std::regex_match(expr, match, colorControlPattern)) return false;
+    layerName = match[2].str();
+    effectName = match[4].str();
+    return true;
+}
+
+bool parseSliderScaleExpression(const std::string &expr, std::string &layerName,
+                                std::string &effectName, float &multiplier)
+{
+    static const std::regex sliderPattern(
+        R"(\s*var \$bm_rt;\s*\$bm_rt = \$bm_mul\(\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*/\s*100\s*,\s*thisComp\.layer\((['"])(.*?)\2\)\.effect\((['"])(.*?)\4\)\('Slider'\)\s*\);\s*)");
+    std::smatch match;
+    if (!std::regex_match(expr, match, sliderPattern)) return false;
+    multiplier = std::strtof(match[1].str().c_str(), nullptr) / 100.0f;
+    layerName = match[3].str();
+    effectName = match[5].str();
+    return true;
+}
+
 template <typename T>
 void replaceProperty(model::Property<T> &dst, model::Property<T> &&src)
 {
@@ -306,6 +332,8 @@ public:
     bool             parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect);
     bool             parseBevelAlphaEffect(
         model::Layer::BevelAlphaEffect &effect);
+    bool             parseColorControlEffect(model::Color &color);
+    bool             parseSliderControlEffect(float &value);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -370,6 +398,10 @@ public:
     void parsePathInfo();
 
 private:
+    struct ParsedEffectControllers {
+        std::unordered_map<std::string, model::Color> colors;
+        std::unordered_map<std::string, float>        sliders;
+    };
     struct ParsedFont {
         std::string family;
         std::string style;
@@ -482,6 +514,9 @@ protected:
     std::unordered_map<model::Composition *,
                        std::unordered_map<std::string, model::Transform::Data *>>
         mLayerTransforms;
+    std::unordered_map<model::Composition *,
+                       std::unordered_map<std::string, ParsedEffectControllers>>
+        mEffectControllers;
     std::unordered_map<std::string, ParsedFont>      mFonts;
     std::vector<ParsedGlyph>                         mTextGlyphs;
     std::unordered_map<model::Layer *, std::vector<ParsedTextKeyframe>>
@@ -2003,6 +2038,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
         std::string effectMatchName;
+        std::string effectName;
         int         effectType = -1;
         bool        effectEnabled = true;
         bool        sawParams = false;
@@ -2011,6 +2047,10 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         bool        tintSupported = false;
         bool        strokeSupported = false;
         bool        deferredSupport = false;
+        bool        colorControlSupported = false;
+        bool        sliderControlSupported = false;
+        model::Color candidateColorControl{0.0f, 0.0f, 0.0f};
+        float        candidateSliderControl = 0.0f;
         model::Layer::FillEffect candidateFillEffect;
         model::Layer::TintEffect candidateTintEffect;
         model::Layer::FourColorGradientEffect candidateFourColorGradientEffect;
@@ -2022,6 +2062,8 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         while (const char *key = NextObjectKey()) {
             if (0 == strcmp(key, "mn")) {
                 effectMatchName = GetStringObject();
+            } else if (0 == strcmp(key, "nm")) {
+                effectName = GetStringObject();
             } else if (0 == strcmp(key, "ty")) {
                 effectType = GetInt();
             } else if (0 == strcmp(key, "en")) {
@@ -2042,6 +2084,14 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                 } else if (effectMatchName == "ADBE Bevel Alpha") {
                     supported = parseBevelAlphaEffect(
                         candidateBevelAlphaEffect);
+                } else if (effectMatchName == "ADBE Color Control") {
+                    colorControlSupported =
+                        parseColorControlEffect(candidateColorControl);
+                    supported = colorControlSupported;
+                } else if (effectMatchName == "ADBE Slider Control") {
+                    sliderControlSupported =
+                        parseSliderControlEffect(candidateSliderControl);
+                    supported = sliderControlSupported;
                 } else {
                     deferredSupport = true;
                     parseNarrowLayerEffectParams(this, candidateFillEffect,
@@ -2056,6 +2106,22 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         }
 
         if (!effectEnabled) continue;
+
+        if (effectMatchName == "ADBE Color Control") {
+            if (sawParams && colorControlSupported) {
+                mEffectControllers[compRef][layer->name()].colors[effectName] =
+                    candidateColorControl;
+            }
+            continue;
+        }
+
+        if (effectMatchName == "ADBE Slider Control") {
+            if (sawParams && sliderControlSupported) {
+                mEffectControllers[compRef][layer->name()].sliders[effectName] =
+                    candidateSliderControl;
+            }
+            continue;
+        }
 
         const bool isFillEffect =
             (effectType == 21 || effectMatchName == "ADBE Fill");
@@ -2156,6 +2222,70 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         extra->mBevelAlphaEffect = std::move(parsedBevelAlphaEffect);
         extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
+}
+
+bool LottieParserImpl::parseColorControlEffect(model::Color &color)
+{
+    bool supported = true;
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Color Control-0001") {
+                    model::Property<model::Color> property;
+                    parseProperty(property);
+                    if (property.isStatic()) {
+                        color = property.value();
+                    } else {
+                        supported = false;
+                    }
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    return supported;
+}
+
+bool LottieParserImpl::parseSliderControlEffect(float &value)
+{
+    bool supported = true;
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Slider Control-0001") {
+                    model::Property<float> property;
+                    parseProperty(property);
+                    if (property.isStatic()) {
+                        value = property.value();
+                    } else {
+                        supported = false;
+                    }
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
+    return supported;
 }
 
 bool LottieParserImpl::parseFillEffect(model::Layer::FillEffect &effect)
@@ -3363,15 +3493,67 @@ model::Stroke *LottieParserImpl::parseStrokeObject()
 {
     auto obj = allocator().make<model::Stroke>();
 
+    auto applyColorController = [&](const std::string &expression) {
+        std::string layerName;
+        std::string effectName;
+        if (!parseColorControlExpression(expression, layerName, effectName))
+            return;
+        auto compIt = mEffectControllers.find(compRef);
+        if (compIt == mEffectControllers.end()) return;
+        auto layerIt = compIt->second.find(layerName);
+        if (layerIt == compIt->second.end()) return;
+        auto effectIt = layerIt->second.colors.find(effectName);
+        if (effectIt == layerIt->second.colors.end()) return;
+        obj->mColor.value() = effectIt->second;
+    };
+
+    auto applySliderController = [&](const std::string &expression) {
+        std::string layerName;
+        std::string effectName;
+        float       multiplier = 0.0f;
+        if (!parseSliderScaleExpression(expression, layerName, effectName,
+                                        multiplier))
+            return;
+        auto compIt = mEffectControllers.find(compRef);
+        if (compIt == mEffectControllers.end()) return;
+        auto layerIt = compIt->second.find(layerName);
+        if (layerIt == compIt->second.end()) return;
+        auto effectIt = layerIt->second.sliders.find(effectName);
+        if (effectIt == layerIt->second.sliders.end()) return;
+        obj->mWidth.value() = effectIt->second * multiplier;
+    };
+
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
             obj->setName(GetString());
         } else if (0 == strcmp(key, "c")) {
-            parseProperty(obj->mColor);
+            EnterObject();
+            std::string colorExpression;
+            while (const char *colorKey = NextObjectKey()) {
+                if (0 == strcmp(colorKey, "k")) {
+                    parsePropertyHelper(obj->mColor);
+                } else if (0 == strcmp(colorKey, "x")) {
+                    colorExpression = GetStringObject();
+                } else {
+                    Skip(colorKey);
+                }
+            }
+            if (!colorExpression.empty()) applyColorController(colorExpression);
         } else if (0 == strcmp(key, "o")) {
             parseProperty(obj->mOpacity);
         } else if (0 == strcmp(key, "w")) {
-            parseProperty(obj->mWidth);
+            EnterObject();
+            std::string widthExpression;
+            while (const char *widthKey = NextObjectKey()) {
+                if (0 == strcmp(widthKey, "k")) {
+                    parsePropertyHelper(obj->mWidth);
+                } else if (0 == strcmp(widthKey, "x")) {
+                    widthExpression = GetStringObject();
+                } else {
+                    Skip(widthKey);
+                }
+            }
+            if (!widthExpression.empty()) applySliderController(widthExpression);
         } else if (0 == strcmp(key, "fillEnabled")) {
             obj->mEnabled = GetBool();
         } else if (0 == strcmp(key, "lc")) {
