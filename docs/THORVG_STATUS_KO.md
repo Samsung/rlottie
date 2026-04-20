@@ -50,7 +50,7 @@
 | 부분 지원 | ADBE 4ColorGradient | 좁은 지원 | 지원 관찰 | 현재는 whole-layer bitmap postprocess 기반의 default-case만 처리한다. static point/color/opacity와 `Blend=100`, `Jitter=0`, `Blending Mode=1`만 허용한다 | true effect semantics, broader stack, animated params 확장 |
 | 부분 지원 | Layer Effect Stroke | 미지원 | 지원 관찰 | Fill/Tint 이후 다음 단계 | alpha silhouette 기반 narrow path |
 | 부분 지원 | Merge Paths Stroke | 미지원 | 지원 관찰 | fill은 되지만 stroke semantics 부족 | stroke outline 후 boolean 또는 path boolean backend |
-| 부분 지원 | Animated text document (t.d.k) | 미지원 | 지원 관찰 | textrange가 대표 gap | document keyframe/glyph regeneration |
+| 부분 지원 | Animated text document (t.d.k) | 좁은 지원 | 지원 관찰 | hold-style document switch는 chars-backed 경로에서 지원되지만 text animator/path는 아직 없다 | animated document 범위 확대와 runtime text 경로 분리 |
 | 부분 지원 | Text Animator / Range Selector | 미지원 | 지원 관찰 | textrange opacity animator 미구현 | selector subset evaluator |
 | 부분 지원 | 전용 Text Renderer / Glyph Cache | 미지원 | 지원 관찰 | 현재는 parser-time lowering만 존재 | Layer::Type::Text 경로 필요 |
 | 부분 지원 | Layer Effect Stack | 제한적 | 지원 관찰 | enabled narrow siblings만 허용 | mixed enabled stack allowlist |
@@ -64,7 +64,8 @@
 | 항목 | 현재 결론 |
 | --- | --- |
 | `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 bilinear sampler + 정적 color-map cache로 돈다. same-machine baseline 대비 steady-state는 크게 줄었지만 ThorVG 대비 frame 12 exact match는 여전히 `0.949066` 수준이고, hardened median-of-5도 `0.272 ms vs 0.126 ms`라 아직 느리다. 즉 성능은 더 좋아졌지만 effect semantics와 broader stack은 아직 미완이다. |
-| `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` document와 range-selector opacity animator다. |
+| `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` 전체가 아니라 runtime text 경로의 range-selector opacity animator와 layout/baseline 정합성이다. |
+| `text_document_switch.json` | narrow hold-style `t.d.k` 회귀 fixture다. chars-backed glyph path만으로 frame switch가 실제로 일어나고 baseline blank-output을 벗어났지만, 이건 text animator/path가 없는 subset에만 해당한다. |
 | `text_anim.json` | runtime text가 아니라 outlined shape scene이다. real text 완성의 근거로 쓰면 안 된다. |
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
 | `world_locations.json` | correctness 문제는 사실상 아니다. matte/direct-alpha 경로와 drawable-list 재사용 위에, 이번에는 raster bounds 바깥 drawables를 실제 rasterize하지 않도록 줄여서 current desktop median이 더 내려갔다. 다만 Tizen 실기기에서도 같은 결과가 유지되는지는 아직 검증이 필요하다. |
@@ -119,7 +120,7 @@
 | 1 | `threads.json` | 최신 audit 기준 trim + animated-path + stroke raster 병목이 남아 있다. 이번 low-level raster skip으로도 아직 ThorVG보다 느리다 | trim/stroke geometry reuse seam을 다시 찾고 raster backend 측 재사용 지점을 확인 |
 | 2 | `stroke_dash.json` | bilinear `4ColorGradient`로 baseline 대비 성능은 줄였지만 ThorVG보다 아직 느리고 exact match도 더 좋지 않다 | true `4ColorGradient` semantics와 broader effect stack을 분리해서 다시 설계 |
 | 3 | expression bucket (`10444`, `10416`, `11272`, `16447`) | full engine 없이도 direct alias / path alias / simple math / loop류 subset을 먼저 닫을 수 있다 | subset evaluator와 unsupported diagnostics를 분리해서 좁게 넣기 |
-| 4 | `text_anim.json`, `textblock.json`, `textrange.json` | outlined scene와 runtime text correctness가 아직 섞여 있다 | outlined bucket 최적화와 `t.d.k` / selector subset을 분리 |
+| 4 | `text_anim.json`, `textblock.json`, `textrange.json` | outlined scene와 runtime text correctness가 아직 섞여 있다 | outlined bucket 최적화와 runtime selector subset을 분리하고, hold-style `t.d.k`에서 animated document subset을 더 넓힌다 |
 | 5 | `32266.json`, `R_QPKIVi.json`, `43391.json`, `27746-joypixels-partying-face-emoji-animation.json` | 성능보다 correctness drift가 더 큰 축이다 | image-precomp drift, non-opaque compositing, chained merge semantics, pseudo-control rig를 각각 분리 |
 
 ## 주의할 점

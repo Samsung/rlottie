@@ -376,10 +376,11 @@ active engineering work rather than vague backlog items:
 - `Text` support is still structurally incomplete. Some assets such as
   `text_anim.json`, `textblock.json`, and `textrange.json` render today, but
   `textblock.json` is outlined shape content rather than proof of a real
-  runtime text pipeline. A narrow static `chars`-backed conversion path now
-  consumes some `fonts`, `chars`, and layer `t` payloads, but the renderer
+  runtime text pipeline. A narrow `chars`-backed conversion path now consumes
+  some `fonts`, `chars`, and layer `t` payloads, including hold-style
+  `t.d.k` document switches without animators or text paths, but the renderer
   still has no dedicated `Layer::Type::Text` execution path and broad text
-  features such as animators and animated documents remain unsupported.
+  features such as animators and animated-path text remain unsupported.
 - `Merge Paths` now has fixture-backed fill/gradient-fill support for boolean
   modes, and static merge RLE no longer gets recomputed every frame, but stroke
   semantics still fall back to path concatenation and need a real path-boolean
@@ -554,10 +555,11 @@ turning into one-off asset hacks.
 ### Text Layers, Fonts, And Chars
 
 - Representative assets: `text_anim.json`, `textrange.json`
-- Current failure mode: some outlined-shape text assets render, and static
-  `chars`-backed text layers now convert into shape content, but real text
-  payload coverage is still structurally incomplete and the current text path
-  still trails ThorVG on steady-state.
+- Current failure mode: some outlined-shape text assets render, and narrow
+  `chars`-backed text layers now convert into shape content, including simple
+  hold-style document switches, but real text payload coverage is still
+  structurally incomplete and the current text path still trails ThorVG on
+  steady-state.
 - Improvement strategy:
   1. parse `fonts`, `chars`, and layer `t` payloads for a real
      `Layer::Type::Text` path
