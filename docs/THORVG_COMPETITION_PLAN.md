@@ -60,6 +60,11 @@ The project is complete only when all of the following are true:
 - Narrow whole-layer `ADBE Fill` / `ADBE Tint` parsing is now hardened against
   JSON key-order variance, disabled-effect ordering, unsupported enabled
   sibling effects, and missing explicit opacity parameters.
+- Narrow whole-layer `ADBE 4ColorGradient` now exists for the default static
+  case (`Blend=100`, `Jitter=0`, `Blending Mode=1`) as a bitmap postprocess.
+  This widens feature coverage beyond the previous `stroke_dash.json` gap, but
+  it is still only an approximation and currently regresses ThorVG image
+  adjudication on that asset.
 - Narrow static `chars`-backed text layers now convert into ordinary shape
   content at parse time, which restores assets such as `stroke_dash.json`
   without adding a separate renderer-side text layer implementation.
