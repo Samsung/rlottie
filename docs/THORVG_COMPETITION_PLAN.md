@@ -235,8 +235,8 @@ This broad audit changes the interpretation of the current gap:
   still diverges heavily from ThorVG and remains a top structural correctness
   task.
 - The biggest full-corpus steady-state losses extend beyond the smoke subset
-  and now include `balloons_with_string.json`, `expressions/11272.json`,
-  `threads.json`, and `43391.json` in addition to `11555.json`.
+  and now include `balloons_with_string.json`, `threads.json`, and
+  `43391.json` in addition to `11555.json`.
 - The biggest parse and memory losses also identify separate backlogs:
   `page_slide.json`, `starburst.json`, `gradient_background.json`,
   `32266.json`, `new_design.json`, `holdanimation.json`,
@@ -513,7 +513,6 @@ The full-corpus audit adds a second ring of performance targets behind the
 smoke subset:
 
 - `balloons_with_string.json`
-- `expressions/11272.json`
 - `threads.json`
 - `43391.json`
 - `holdanimation.json` for parse/RSS rather than steady-state alone
@@ -641,9 +640,12 @@ turning into one-off asset hacks.
 ### Expressions
 
 - Representative assets: `balloons_with_string.json`,
-  `expressions/11272.json`, `holdanimation.json`
-- Current failure mode: expression payloads still sit outside the supported
-  runtime and create large visible mismatches.
+  `expressions/10444.json`, `expressions/10416.json`,
+  `expressions/16447.json`
+- Current failure mode: broad expression payloads still sit outside the
+  supported runtime and create large visible mismatches. The narrow
+  same-layer `content(...).content(...).innerRadius * constant` subset used by
+  `expressions/11272.json` is no longer part of this unresolved bucket.
 - Improvement strategy:
   1. do not build a general expression engine first
   2. identify the smallest recurring expression subset on the Samsung/Tizen

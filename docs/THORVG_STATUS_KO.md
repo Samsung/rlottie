@@ -59,7 +59,7 @@
 | 부분 지원 | Text Animator / Range Selector | 미지원 | 지원 관찰 | textrange opacity animator 미구현 | selector subset evaluator |
 | 부분 지원 | 전용 Text Renderer / Glyph Cache | 미지원 | 지원 관찰 | 현재는 parser-time lowering만 존재 | Layer::Type::Text 경로 필요 |
 | 부분 지원 | Layer Effect Stack | 제한적 | 지원 관찰 | enabled narrow siblings만 허용 | mixed enabled stack allowlist |
-| 미지원 | Expressions Subset | 미지원 | 부분 지원 관찰 | balloons_with_string, expressions/11272 backlog | subset evaluator + unsupported diagnostics |
+| 부분 지원 | Expressions Subset | 좁은 지원 | 지원 관찰 | `11272`의 same-layer `content(...).content(...).innerRadius * constant`와 `shutup`의 scale-driven `Box Blur2` radius subset은 이제 동작하지만 `10444`, `10416`, `balloons_with_string` 같은 broader expression/rig bucket은 여전히 남아 있다 | subset evaluator + unsupported diagnostics |
 | 미지원 | Soft Mask Feather / Expansion | 미지원 | 지원 관찰 | hard mask 중심 | mask family 확장 |
 | 미지원 | Transform-only Snapshot Cache | 미구현 | 구현 존재 | 11555/confetti/threads의 성능 gap 원인 | content/transform dirty 분리 후 local-space cache |
 | 미지원 | Matte 재사용 / bounds 전파 완성 | 부분 구현 | 구현 존재 | world_locations의 성능 gap 원인 | inherited bounds / matte reuse 추가 |
@@ -79,7 +79,7 @@
 | `world_locations.json` | correctness 문제는 사실상 아니다. matte/direct-alpha 경로와 drawable-list 재사용 위에, 이번에는 raster bounds 바깥 drawables를 실제 rasterize하지 않도록 줄여서 current desktop median이 더 내려갔다. 다만 Tizen 실기기에서도 같은 결과가 유지되는지는 아직 검증이 필요하다. |
 | `11555/confetti` | reusable subgraph / transform 계열 진단은 여전히 유효하다. `11555`는 여전히 크게 앞서고 `confetti`도 desktop median에서 rlottie 우세다. 이번 low-level raster skip도 두 자산에서 baseline 대비 추가 이득을 보였다. |
 | `threads.json` | pure transform bucket으로 보기 어렵다. 최신 hot-path profile 기준 steady 30-frame 누적이 `trim_update_ms=2.17`, `raster_stroke_setup_ms=6.05`, `raster_render_ms=59.75`라서 실제 병목은 trim이 아니라 stroke raster render 자체다. gradient brush 도색은 `draw_rle_gradient_ms=2.31` 수준이라 주원인이 아니다. |
-| expression bucket | `10444`는 direct layer transform alias, `10416`은 transform alias + path alias + `loopOut()`, `11272`는 `content(...).innerRadius` 참조, `16447`는 direct alias + wiggle류 effect expression으로 갈린다. 최근 parser hardening으로 `16447`는 더 이상 zero-frame asset이 아니고 frame 60 exact match도 약 `0.978`까지 올라왔지만, wiggle/velocity effect expression 자체는 아직 계산하지 않는다. 반면 `balloons_with_string.json`은 명시적 `x` expression string이 없어, 실제로는 pseudo-control/rig 계열 correctness backlog에 더 가깝다. |
+| expression bucket | `11272`의 same-layer `content(...).content(...).innerRadius * constant`는 이번 배치에서 parse-time alias로 닫혔다. rlottie 출력은 equivalent static-expanded reference와 frame 0/30에서 byte-identical이고, 실자산도 same-layer polystar alias를 제대로 탄다. 다만 ThorVG는 `--threads 1`에서 expression evaluation을 끄므로, 이 자산의 cross-engine adjudication은 `threads=0` 또는 static-expanded reference로 봐야 한다. 남은 expression bucket은 `10444`의 direct transform alias, `10416`의 alias + `loopOut()`, `16447`의 wiggle/velocity effect expression, 그리고 명시적 `x`가 없는 pseudo-control/rig 성격의 `balloons_with_string.json`이다. |
 | transform-cache 프로토타입 | world-space snapshot 재투영만으로는 충분하지 않았다. `11555.json`과 `threads.json`은 baseline보다 빨라졌지만 ThorVG image adjudication에서는 오히려 더 멀어졌다. 현재 남겨둔 건 affine bitmap helper와 `contentStatic` 메타데이터뿐이고, 다음 시도도 pure transform 자산에 한정해야 한다. |
 | `R_QPKIVi.json` | `ty`가 마지막인 shape object parser blank는 닫혔다. 이번 배치에서 single solid-fill shape layer alpha를 drawable 쪽으로 접으면서 frame 0 drift가 더 줄었다. exact match는 여전히 `0`이지만 mean abs diff RGB는 `[0.1539, 1.1118, 0.1537] -> [0.0960, 0.9815, 0.0505]`로 개선됐다. |
 | `43391.json` | chained `Merge Paths` semantics 수정으로 큰 빈 구멍은 줄었지만 아직 틀린 영역이 남는다. 현재는 추가 merge-path chain semantics와 stroke semantics를 같이 봐야 한다. |
@@ -127,7 +127,7 @@
 | --- | --- | --- | --- |
 | 1 | `threads.json` | 최신 audit 기준 trim + animated-path + stroke raster 병목이 남아 있다. 이번 low-level raster skip으로도 아직 ThorVG보다 느리다 | trim/stroke geometry reuse seam을 다시 찾고 raster backend 측 재사용 지점을 확인 |
 | 2 | `stroke_dash.json` | bilinear `4ColorGradient`로 baseline 대비 성능은 줄였지만 ThorVG보다 아직 느리고 exact match도 더 좋지 않다 | true `4ColorGradient` semantics와 broader effect stack을 분리해서 다시 설계 |
-| 3 | expression bucket (`10444`, `10416`, `11272`, `16447`) | full engine 없이도 direct alias / path alias / simple math / loop류 subset을 먼저 닫을 수 있다 | subset evaluator와 unsupported diagnostics를 분리해서 좁게 넣기 |
+| 3 | expression bucket (`10444`, `10416`, `16447`, `balloons_with_string`) | full engine 없이도 direct alias / path alias / simple math / loop류 subset을 먼저 닫을 수 있다 | subset evaluator와 unsupported diagnostics를 분리해서 좁게 넣기 |
 | 4 | `text_anim.json`, `textblock.json`, `textrange.json` | outlined scene와 runtime text correctness가 아직 섞여 있다 | outlined bucket 최적화와 runtime selector subset을 분리하고, hold-style `t.d.k`에서 animated document subset을 더 넓힌다 |
 | 5 | `32266.json`, `R_QPKIVi.json`, `43391.json`, `27746-joypixels-partying-face-emoji-animation.json` | 성능보다 correctness drift가 더 큰 축이다 | image-precomp drift, non-opaque compositing, chained merge semantics, pseudo-control rig를 각각 분리 |
 
