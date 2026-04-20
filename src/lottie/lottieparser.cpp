@@ -55,6 +55,7 @@
 
 #include <array>
 #include <limits>
+#include <regex>
 
 #include "lottiemodel.h"
 #include "rapidjson/document.h"
@@ -78,6 +79,20 @@ RAPIDJSON_DIAG_OFF(effc++)
 using namespace rapidjson;
 
 using namespace rlottie::internal;
+
+namespace {
+
+bool parseScalarScaleExpression(const std::string &expr, std::string &layerName)
+{
+    static const std::regex scalePattern(
+        R"(\$bm_div\(\$bm_mul\(value,\s*thisComp\.layer\((['"])(.*?)\1\)\.transform\.scale\[0\]\),\s*100\))");
+    std::smatch match;
+    if (!std::regex_search(expr, match, scalePattern)) return false;
+    layerName = match[2].str();
+    return true;
+}
+
+}  // namespace
 
 class LookaheadParserHandler {
 public:
@@ -420,7 +435,12 @@ protected:
     std::shared_ptr<model::Composition>              mComposition;
     model::Composition *                             compRef{nullptr};
     model::Layer *                                   curLayerRef{nullptr};
+    model::Transform::Data *                         mLastParsedTransformData{
+        nullptr};
     std::vector<model::Layer *>                      mLayersToUpdate;
+    std::unordered_map<model::Composition *,
+                       std::unordered_map<std::string, model::Transform::Data *>>
+        mLayerTransforms;
     std::unordered_map<std::string, ParsedFont>      mFonts;
     std::vector<ParsedGlyph>                         mTextGlyphs;
     std::unordered_map<model::Layer *, std::vector<ParsedTextKeyframe>>
@@ -1626,6 +1646,7 @@ model::Layer *LottieParserImpl::parseLayer()
     model::Layer *layer = allocator().make<model::Layer>();
     curLayerRef = layer;
     bool ddd = true;
+    model::Transform::Data *layerTransformData = nullptr;
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ty")) { /* Type of layer*/
@@ -1660,6 +1681,7 @@ model::Layer *LottieParserImpl::parseLayer()
         } else if (0 == strcmp(key, "ks")) {
             EnterObject();
             layer->mTransform = parseTransformObject(ddd);
+            layerTransformData = mLastParsedTransformData;
         } else if (0 == strcmp(key, "shapes")) {
             parseShapesAttr(layer);
         } else if (0 == strcmp(key, "w")) {
@@ -1697,6 +1719,10 @@ model::Layer *LottieParserImpl::parseLayer()
     if (!layer->mTransform) {
         // not a valid layer
         return nullptr;
+    }
+
+    if (layer->name() && layer->name()[0] != '\0' && layerTransformData) {
+        mLayerTransforms[compRef][layer->name()] = layerTransformData;
     }
 
     // make sure layer data is not corrupted.
@@ -2312,7 +2338,42 @@ bool LottieParserImpl::parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect)
                 matchName = GetStringObject();
             } else if (0 == strcmp(key, "v")) {
                 if (matchName == "ADBE Box Blur2-0001") {
-                    parseProperty(effect.mRadius);
+                    EnterObject();
+                    while (const char *valueKey = NextObjectKey()) {
+                        if (0 == strcmp(valueKey, "k")) {
+                            parsePropertyHelper(effect.mRadius);
+                        } else if (0 == strcmp(valueKey, "x")) {
+                            std::string sourceLayerName;
+                            if (parseScalarScaleExpression(GetStringObject(),
+                                                           sourceLayerName)) {
+                                auto compIt = mLayerTransforms.find(compRef);
+                                if (compIt != mLayerTransforms.end()) {
+                                    auto layerIt =
+                                        compIt->second.find(sourceLayerName);
+                                    if (layerIt != compIt->second.end() &&
+                                        layerIt->second &&
+                                        layerIt->second->mScale.isStatic()) {
+                                        auto scale =
+                                            layerIt->second->mScale.value().x();
+                                        if (effect.mRadius.isStatic()) {
+                                            effect.mRadius.value() *=
+                                                scale / 100.0f;
+                                        } else {
+                                            supported = false;
+                                        }
+                                    } else {
+                                        supported = false;
+                                    }
+                                } else {
+                                    supported = false;
+                                }
+                            } else {
+                                supported = false;
+                            }
+                        } else {
+                            Skip(valueKey);
+                        }
+                    }
                 } else if (matchName == "ADBE Box Blur2-0002") {
                     parseProperty(effect.mIterations);
                 } else if (matchName == "ADBE Box Blur2-0003") {
@@ -3038,6 +3099,7 @@ model::Transform *LottieParserImpl::parseTransformObject(bool ddd)
     auto objT = allocator().make<model::Transform>();
 
     auto obj = allocator().make<model::Transform::Data>();
+    mLastParsedTransformData = obj;
     if (ddd) {
         obj->createExtraData();
         obj->mExtra->m3DData = true;
