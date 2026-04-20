@@ -356,8 +356,20 @@ static bool isDirectAlphaMatteDrawable(const VDrawable *drawable)
         drawable->mType != VDrawable::Type::StrokeWithDash) {
         return false;
     }
-    if (drawable->mBrush.type() != VBrush::Type::Solid) return false;
-    return drawable->mBrush.mColor.isOpaque();
+    return drawable->mBrush.type() == VBrush::Type::Solid;
+}
+
+static bool isDirectAlphaMatteOpaqueDrawable(const VDrawable *drawable)
+{
+    return isDirectAlphaMatteDrawable(drawable) &&
+           drawable->mBrush.mColor.isOpaque();
+}
+
+static bool isDirectAlphaMatteSingleAlphaFill(const VDrawable *drawable)
+{
+    return drawable->mType == VDrawable::Type::Fill &&
+           isDirectAlphaMatteDrawable(drawable) &&
+           !drawable->mBrush.mColor.isTransparent();
 }
 
 static bool isPositiveMatte(model::MatteType type)
@@ -428,8 +440,13 @@ static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
     if (src->hasLayerMask() || src->hasBlendMode()) return false;
     if (drawables.empty()) return false;
 
+    if (drawables.size() == 1) {
+        return isDirectAlphaMatteOpaqueDrawable(drawables[0]) ||
+               isDirectAlphaMatteSingleAlphaFill(drawables[0]);
+    }
+
     for (auto *drawable : drawables) {
-        if (!isDirectAlphaMatteDrawable(drawable)) return false;
+        if (!isDirectAlphaMatteOpaqueDrawable(drawable)) return false;
     }
     return true;
 }
@@ -437,6 +454,17 @@ static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
 static bool directAlphaMatteRle(renderer::DrawableList drawables,
                                 const VRle &clipMask, VRle &result)
 {
+    if (drawables.size() == 1) {
+        auto *drawable = drawables[0];
+        if (!isDirectAlphaMatteDrawable(drawable)) return false;
+        result = drawable->rle();
+        if (result.empty()) return false;
+        auto alpha = drawable->mBrush.mColor.alpha();
+        if (alpha != 255) result *= alpha;
+        if (!clipMask.empty()) result &= clipMask;
+        return !result.empty();
+    }
+
     bool haveResult = false;
     for (auto *drawable : drawables) {
         auto current = drawable->rle();
