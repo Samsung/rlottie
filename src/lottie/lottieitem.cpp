@@ -430,27 +430,6 @@ static void collectInlineLayerAlphaInfo(model::Object *object,
     }
 }
 
-static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
-                                   renderer::DrawableList drawables)
-{
-    if (layer->matteType() != model::MatteType::Alpha &&
-        layer->matteType() != model::MatteType::AlphaInv) {
-        return false;
-    }
-    if (src->hasLayerMask() || src->hasBlendMode()) return false;
-    if (drawables.empty()) return false;
-
-    if (drawables.size() == 1) {
-        return isDirectAlphaMatteOpaqueDrawable(drawables[0]) ||
-               isDirectAlphaMatteSingleAlphaFill(drawables[0]);
-    }
-
-    for (auto *drawable : drawables) {
-        if (!isDirectAlphaMatteOpaqueDrawable(drawable)) return false;
-    }
-    return true;
-}
-
 static bool directAlphaMatteRle(renderer::DrawableList drawables,
                                 const VRle &clipMask, VRle &result)
 {
@@ -480,6 +459,68 @@ static bool directAlphaMatteRle(renderer::DrawableList drawables,
     if (!haveResult) return false;
     if (!clipMask.empty()) result &= clipMask;
     return !result.empty();
+}
+
+static bool recursiveDirectAlphaMatteRle(renderer::DrawableList drawables,
+                                         uint8_t layerAlpha,
+                                         const VRle &clipMask, VRle &result)
+{
+    if (drawables.empty()) return false;
+
+    if (drawables.size() == 1) {
+        auto *drawable = drawables[0];
+        if (!isDirectAlphaMatteDrawable(drawable)) return false;
+        if (!isDirectAlphaMatteOpaqueDrawable(drawable) &&
+            !isDirectAlphaMatteSingleAlphaFill(drawable)) {
+            return false;
+        }
+        result = drawable->rle();
+        if (result.empty()) return false;
+        auto alpha = drawable->mBrush.mColor.alpha();
+        if (alpha != 255) result *= alpha;
+        if (layerAlpha != 255) result *= layerAlpha;
+        if (!clipMask.empty()) result &= clipMask;
+        return !result.empty();
+    }
+
+    bool haveResult = false;
+    for (auto *drawable : drawables) {
+        if (!isDirectAlphaMatteOpaqueDrawable(drawable)) return false;
+        auto current = drawable->rle();
+        if (current.empty()) continue;
+        if (!haveResult) {
+            result = current;
+            haveResult = true;
+        } else {
+            result = result + current;
+        }
+    }
+
+    if (!haveResult) return false;
+    if (layerAlpha != 255) result *= layerAlpha;
+    if (!clipMask.empty()) result &= clipMask;
+    return !result.empty();
+}
+
+static bool canUseDirectAlphaMatte(renderer::Layer *layer, renderer::Layer *src,
+                                   renderer::DrawableList drawables)
+{
+    if (layer->matteType() != model::MatteType::Alpha &&
+        layer->matteType() != model::MatteType::AlphaInv) {
+        return false;
+    }
+    if (src->hasLayerMask() || src->hasBlendMode()) return false;
+    if (drawables.empty()) return false;
+
+    if (drawables.size() == 1) {
+        return isDirectAlphaMatteOpaqueDrawable(drawables[0]) ||
+               isDirectAlphaMatteSingleAlphaFill(drawables[0]);
+    }
+
+    for (auto *drawable : drawables) {
+        if (!isDirectAlphaMatteOpaqueDrawable(drawable)) return false;
+    }
+    return true;
 }
 
 static void renderLayerComposite(VPainter *painter, const VRle &mask,
@@ -957,6 +998,40 @@ void renderer::CompLayer::render(VPainter *painter, const VRle &inheritMask,
     }
 }
 
+bool renderer::CompLayer::directAlphaMatte(const VRle &clipMask, VRle &result)
+{
+    if (skipRendering() || hasLayerMask() || hasBlendMode() ||
+        hasBitmapEffect() || hasMatte()) {
+        return false;
+    }
+
+    bool haveResult = false;
+    for (const auto &layer : mLayers) {
+        if (!layer->visible()) continue;
+
+        VRle current;
+        if (!layer->directAlphaMatte({}, current)) {
+            return false;
+        }
+        if (current.empty()) continue;
+
+        if (!haveResult) {
+            result = current;
+            haveResult = true;
+        } else {
+            result = result + current;
+        }
+    }
+
+    if (!haveResult) return false;
+    if (mClipper) result &= mClipper->rle({});
+    if (!vCompare(combinedAlpha(), 1.0f)) {
+        result *= uint8_t(combinedAlpha() * 255.0f);
+    }
+    if (!clipMask.empty()) result &= clipMask;
+    return !result.empty();
+}
+
 void renderer::CompLayer::renderHelper(VPainter *    painter,
                                        const VRle &  inheritMask,
                                        const VRle &  matteRle,
@@ -1006,21 +1081,27 @@ void renderer::CompLayer::renderMatteLayer(VPainter *painter, const VRle &mask,
     ScopedProfileEvent profile(ProfileEvent::RenderMatteLayer);
 
     auto srcDrawables = src->renderList();
-    if (canUseDirectAlphaMatte(layer, src, srcDrawables)) {
-        VRle clipMask = mask;
-        if (!matteRle.empty()) {
-            clipMask = clipMask.empty() ? matteRle : (clipMask & matteRle);
-        }
+    VRle clipMask = mask;
+    if (!matteRle.empty()) {
+        clipMask = clipMask.empty() ? matteRle : (clipMask & matteRle);
+    }
 
-        VRle directMatte;
-        if (directAlphaMatteRle(srcDrawables, clipMask, directMatte)) {
-            renderLayerComposite(painter, clipMask, directMatte, layer, cache);
+    VRle directMatteRle;
+    if (canUseDirectAlphaMatte(layer, src, srcDrawables)) {
+        if (directAlphaMatteRle(srcDrawables, clipMask, directMatteRle)) {
+            renderLayerComposite(painter, clipMask, directMatteRle, layer,
+                                 cache);
             return;
         }
         if (layer->matteType() == model::MatteType::AlphaInv) {
             renderLayerComposite(painter, clipMask, {}, layer, cache);
             return;
         }
+        return;
+    }
+
+    if (srcDrawables.empty() && src->directAlphaMatte(clipMask, directMatteRle)) {
+        renderLayerComposite(painter, clipMask, directMatteRle, layer, cache);
         return;
     }
 
@@ -1212,6 +1293,16 @@ void renderer::SolidLayer::preprocessStage(const VRect &clip)
     mRenderNode.preprocess(clip);
 }
 
+bool renderer::SolidLayer::directAlphaMatte(const VRle &clipMask, VRle &result)
+{
+    if (skipRendering() || hasLayerMask() || hasBlendMode() ||
+        hasBitmapEffect() || hasMatte()) {
+        return false;
+    }
+
+    return recursiveDirectAlphaMatteRle(renderList(), 255, clipMask, result);
+}
+
 renderer::DrawableList renderer::SolidLayer::renderList()
 {
     if (skipRendering()) return {};
@@ -1370,6 +1461,19 @@ void renderer::ShapeLayer::preprocessStage(const VRect &clip)
     mDrawableListValid = true;
 
     for (auto &drawable : mDrawableList) drawable->preprocess(clip);
+}
+
+bool renderer::ShapeLayer::directAlphaMatte(const VRle &clipMask, VRle &result)
+{
+    if (skipRendering() || hasLayerMask() || hasBlendMode() ||
+        hasBitmapEffect() || hasMatte()) {
+        return false;
+    }
+
+    auto layerAlpha =
+        mInlineLayerAlpha ? uint8_t(255) : uint8_t(combinedAlpha() * 255.0f);
+    return recursiveDirectAlphaMatteRle(renderList(), layerAlpha, clipMask,
+                                        result);
 }
 
 renderer::DrawableList renderer::ShapeLayer::renderList()

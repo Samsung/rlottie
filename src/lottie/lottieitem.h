@@ -225,6 +225,12 @@ public:
     VMatrix      matrix(int frameNo) const;
     void         preprocess(const VRect &clip);
     virtual DrawableList renderList() { return {}; }
+    virtual bool         directAlphaMatte(const VRle &clipMask, VRle &result)
+    {
+        (void)clipMask;
+        (void)result;
+        return false;
+    }
     virtual void         render(VPainter *painter, const VRle &mask,
                                 const VRle &matteRle, SurfaceCache &cache);
     bool                 hasMatte()
@@ -304,6 +310,7 @@ class CompLayer final : public Layer {
 public:
     explicit CompLayer(model::Layer *layerData, VArenaAlloc *allocator);
 
+    bool directAlphaMatte(const VRle &clipMask, VRle &result) final;
     void render(VPainter *painter, const VRle &mask, const VRle &matteRle,
                 SurfaceCache &cache) final;
     void buildLayerNode() final;
@@ -329,6 +336,7 @@ private:
 class SolidLayer final : public Layer {
 public:
     explicit SolidLayer(model::Layer *layerData);
+    bool         directAlphaMatte(const VRle &clipMask, VRle &result) final;
     void         buildLayerNode() final;
     DrawableList renderList() final;
 
@@ -347,6 +355,7 @@ class Group;
 class ShapeLayer final : public Layer {
 public:
     explicit ShapeLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    bool         directAlphaMatte(const VRle &clipMask, VRle &result) final;
     DrawableList renderList() final;
     void         buildLayerNode() final;
     bool         resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
