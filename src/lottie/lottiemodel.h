@@ -709,6 +709,8 @@ public:
     bool    hasGradient() const noexcept { return mHasGradient; }
     bool    hasMask() const noexcept { return mHasMask; }
     bool    hasRepeater() const noexcept { return mHasRepeater; }
+    bool    contentStatic() const noexcept { return mContentStatic; }
+    void    setContentStatic(bool value) noexcept { mContentStatic = value; }
     int     id() const noexcept { return mId; }
     int     parentId() const noexcept { return mParentId; }
     bool    hasParent() const noexcept { return mParentId != -1; }
@@ -817,6 +819,7 @@ public:
     bool      mHasMask{false};
     bool      mHasRepeater{false};
     bool      mHasGradient{false};
+    bool      mContentStatic{true};
     bool      mAutoOrient{false};
     VSize     mLayerSize;
     int       mParentId{-1};  // Lottie the id of the parent in the composition

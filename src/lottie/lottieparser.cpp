@@ -777,6 +777,7 @@ void LottieParserImpl::resolveLayerRefs()
                 layer->extra()->mAsset = search->second;
             } else if (layer->mLayerType == model::Layer::Type::Precomp) {
                 layer->mChildren = search->second->mLayers;
+                layer->setContentStatic(search->second->isStatic());
                 layer->setStatic(layer->isStatic() &&
                                  search->second->isStatic());
             }
@@ -940,6 +941,7 @@ void LottieParserImpl::resolveTextLayers()
         layer->mLayerType = model::Layer::Type::Shape;
         layer->mChildren.clear();
         layer->mChildren.push_back(textGroup);
+        layer->setContentStatic(textGroup->isStatic());
     }
     mTextLayers.clear();
 }
@@ -1591,24 +1593,25 @@ model::Layer *LottieParserImpl::parseLayer()
     }
 
     // update the static property of layer
-    bool staticFlag = true;
+    bool contentStatic = true;
     for (const auto &child : layer->mChildren) {
-        staticFlag &= child->isStatic();
+        contentStatic &= child->isStatic();
     }
 
     if (layer->hasMask() && layer->mExtra) {
         for (const auto &mask : layer->mExtra->mMasks) {
-            staticFlag &= mask->isStatic();
+            contentStatic &= mask->isStatic();
         }
     }
     if (layer->hasFillEffect()) {
-        staticFlag &= layer->fillEffect()->isStatic();
+        contentStatic &= layer->fillEffect()->isStatic();
     }
     if (layer->hasTintEffect()) {
-        staticFlag &= layer->tintEffect()->isStatic();
+        contentStatic &= layer->tintEffect()->isStatic();
     }
 
-    layer->setStatic(staticFlag && layer->mTransform->isStatic());
+    layer->setContentStatic(contentStatic);
+    layer->setStatic(contentStatic && layer->mTransform->isStatic());
 
     return layer;
 }
