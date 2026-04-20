@@ -23,6 +23,50 @@
 #include "vdrawable.h"
 #include "vdasher.h"
 #include "vraster.h"
+#include <cmath>
+
+static VRect pathBounds(const VPath &path)
+{
+    const auto &points = path.points();
+    if (points.empty()) return {};
+
+    float left = points.front().x();
+    float top = points.front().y();
+    float right = left;
+    float bottom = top;
+
+    for (const auto &point : points) {
+        left = std::min(left, point.x());
+        top = std::min(top, point.y());
+        right = std::max(right, point.x());
+        bottom = std::max(bottom, point.y());
+    }
+
+    const int x = int(std::floor(left));
+    const int y = int(std::floor(top));
+    return {x, y, int(std::ceil(right)) - x, int(std::ceil(bottom)) - y};
+}
+
+static VRect tightClipFromBounds(const VRect &clip, const VRect &pathBounds,
+                                 VDrawable::Type type,
+                                 const VDrawable::StrokeInfo *strokeInfo)
+{
+    if (pathBounds.empty()) return clip;
+
+    VRect bounds = pathBounds;
+    if (type != VDrawable::Type::Fill && strokeInfo) {
+        const int pad = int(std::ceil(strokeInfo->width * 0.5f)) + 2;
+        bounds.setLeft(bounds.left() - pad);
+        bounds.setTop(bounds.top() - pad);
+        bounds.setRight(bounds.right() + pad);
+        bounds.setBottom(bounds.bottom() + pad);
+    }
+
+    if (clip.empty()) return bounds;
+
+    auto result = clip & bounds;
+    return result.empty() ? clip : result;
+}
 
 VDrawable::VDrawable(VDrawable::Type type)
 {
@@ -66,12 +110,15 @@ void VDrawable::preprocess(const VRect &clip)
     if (mUseCustomRle) return;
 
     if (mFlag & (DirtyState::Path)) {
+        auto rasterClip = tightClipFromBounds(clip, mPathBounds, mType,
+                                              mStrokeInfo);
         if (mType == Type::Fill) {
-            mRasterizer.rasterize(std::move(mPath), mFillRule, clip);
+            mRasterizer.rasterize(std::move(mPath), mFillRule, rasterClip);
         } else {
             applyDashOp();
             mRasterizer.rasterize(std::move(mPath), mStrokeInfo->cap, mStrokeInfo->join,
-                                  mStrokeInfo->width, mStrokeInfo->miterLimit, clip);
+                                  mStrokeInfo->width, mStrokeInfo->miterLimit,
+                                  rasterClip);
         }
         mPath = {};
         mFlag &= ~DirtyFlag(DirtyState::Path);
@@ -129,6 +176,7 @@ void VDrawable::setPath(const VPath &path)
 {
     mUseCustomRle = false;
     mPath = path;
+    mPathBounds = pathBounds(mPath);
     mFlag |= DirtyState::Path;
 }
 
@@ -140,6 +188,7 @@ void VDrawable::setRle(const VRle &rle)
     } else {
         mRle = rle;
     }
+    mPathBounds = rle.boundingRect();
     mPath = {};
     mFlag &= ~DirtyFlag(DirtyState::Path);
 }

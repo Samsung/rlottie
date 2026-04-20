@@ -83,6 +83,7 @@ public:
     VBrush                   mBrush;
     VRasterizer              mRasterizer;
     VRle                     mRle;
+    VRect                    mPathBounds;
     StrokeInfo              *mStrokeInfo{nullptr};
 
     DirtyFlag                mFlag{DirtyState::All};
