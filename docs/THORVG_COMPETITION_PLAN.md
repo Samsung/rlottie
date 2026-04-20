@@ -157,18 +157,17 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `threads.json`: `2.016 ms` vs `1.890 ms`
-2. `confetti.json`: `0.654 ms` vs `0.512 ms`
-3. `stroke_dash.json`: `0.160 ms` vs `0.127 ms`
-4. `text_anim.json`
-5. `textblock.json`
-6. `textrange.json` is no longer a performance priority; it remains a text
+1. `threads.json`: `1.905 ms` vs `1.831 ms`
+2. `stroke_dash.json`: `0.213 ms` vs `0.131 ms`
+3. `text_anim.json`: `0.114 ms` vs `0.083 ms`
+4. `textblock.json`
+5. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
-7. `32266.json` remains a correctness and parse target rather than a
+6. `32266.json` remains a correctness and parse target rather than a
    steady-state target
-8. `expressions/world_locations.json` and `11555.json`
-   remain desktop wins; `confetti.json` moved back into the active loss set on
-   the current hardened comparison host
+7. `expressions/world_locations.json` and `11555.json`
+   remain desktop wins; `confetti.json` is back on the `rlottie`-leading side
+   on the current hardened comparison host
 
 Near-parity or noise-range assets should not dominate priority decisions.
 
@@ -566,9 +565,12 @@ turning into one-off asset hacks.
   `stroke_dash.json`
 - Current failure mode: only narrow whole-layer `ADBE Fill` / `ADBE Tint`
   subsets are supported today. `stroke_dash.json` now includes its static title
-  text again, but frame-0/frame-12 adjudication is not strong enough to call
-  `ADBE 4ColorGradient` the sole remaining gap. The safer read is broader
-  effect coverage, expression controls, and remaining image-level drift.
+  text again, and the default static `ADBE 4ColorGradient` path now uses a
+  quad bilinear sampler instead of inverse-distance weighting. That improves
+  same-machine baseline steady-state, but frame-0/frame-12 adjudication is
+  still not strong enough to call `ADBE 4ColorGradient` solved. The safer read
+  is broader effect coverage, expression controls, and remaining image-level
+  drift.
 - Improvement strategy:
   1. keep using bitmap postprocess effects first instead of designing a generic
      effect graph up front

@@ -190,19 +190,21 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `threads.json`: `2.016 ms` vs `1.890 ms`
-- `confetti.json`: `0.654 ms` vs `0.512 ms`
-- `stroke_dash.json`: `0.160 ms` vs `0.127 ms`
-- `text_anim.json` and `textblock.json` remain larger steady-state losses in
-  the broader corpus and stay in the outlined-scene bucket
+- `threads.json`: `1.905 ms` vs `1.831 ms`
+- `stroke_dash.json`: `0.213 ms` vs `0.131 ms`
+- `text_anim.json`: `0.114 ms` vs `0.083 ms`
+- `textblock.json` remains part of the broader outlined-scene bucket
+- `confetti.json` is back on the `rlottie`-leading side on this host:
+  `0.080 ms` vs `0.098 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
 Representative wins after the latest static drawable-list reuse and cached
 path-bounds raster clips:
 
-- `expressions/world_locations.json`: `0.059 ms` vs `0.236 ms`
+- `expressions/world_locations.json`: `0.060 ms` vs `0.219 ms`
 - `11555.json`: `0.087 ms` vs `1.291 ms`
+- `confetti.json`: `0.080 ms` vs `0.098 ms`
 - same-machine `HEAD` baseline late-frame adjudication stayed exact-match for
   `threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`, and
   `confetti@30`
@@ -219,9 +221,11 @@ Recent cold-review note:
   translation-only RLE reuse experiment for `11555.json` /
   `confetti.json` / `threads.json` were rejected because they did not survive
   the benchmark workflow
-- a narrow whole-layer `ADBE 4ColorGradient` approximation for
-  `stroke_dash.json` was also rejected because frame-0 and late-frame
-  adjudication both moved farther away from ThorVG
+- the current `stroke_dash.json` path uses a quad bilinear `ADBE 4ColorGradient`
+  sampler. It beats the same-machine `ab561b4` baseline on steady-state
+  (`0.265 ms -> 0.194 ms`) but still trails ThorVG and slightly worsens frame-0
+  and frame-12 adjudication, so it should be treated as a bounded performance
+  win rather than a semantics-complete fix
 - the current surviving `world_locations.json` optimizations are:
   `ShapeLayer` alpha offscreen clip tightening plus direct-alpha matte support
   for single translucent solid-fill sources, and a recursive direct-alpha
@@ -249,7 +253,9 @@ The full-corpus audit should now be interpreted by feature bucket rather than
 as one flat ranking:
 
 - mattes and offscreen compositing: `expressions/world_locations.json`
-- transform-only rerasterization: `11555.json`, `confetti.json`, `threads.json`
+- transform-only or reusable-subgraph rerasterization: `11555.json`,
+  `confetti.json`
+- trim plus animated-path stroke rasterization: `threads.json`
 - text/runtime text payloads: `text_anim.json`, `textrange.json`
 - layer effects beyond narrow `ADBE Fill` / `ADBE Tint`: `stroke_dash.json`,
   `shutup.json`, `expressions/layereffect.json`

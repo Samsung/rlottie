@@ -28,6 +28,137 @@
 
 V_BEGIN_NAMESPACE
 
+namespace
+{
+
+inline float cross2d(const VPointF &lhs, const VPointF &rhs)
+{
+    return lhs.x() * rhs.y() - lhs.y() * rhs.x();
+}
+
+inline VPointF pointSub(const VPointF &lhs, const VPointF &rhs)
+{
+    return {lhs.x() - rhs.x(), lhs.y() - rhs.y()};
+}
+
+inline VPointF pointAdd(const VPointF &lhs, const VPointF &rhs)
+{
+    return {lhs.x() + rhs.x(), lhs.y() + rhs.y()};
+}
+
+inline VPointF pointScale(const VPointF &point, float scalar)
+{
+    return {point.x() * scalar, point.y() * scalar};
+}
+
+inline float lengthSquared(const VPointF &point)
+{
+    return point.x() * point.x() + point.y() * point.y();
+}
+
+inline float clampUnit(float value)
+{
+    return std::max(0.0f, std::min(1.0f, value));
+}
+
+struct FourColorGradientQuad {
+    VPointF tl;
+    VPointF tr;
+    VPointF bl;
+    VPointF br;
+    VPointF affineU;
+    VPointF affineV;
+    VPointF bilinearU;
+    VPointF bilinearV;
+    VPointF bilinearUV;
+    bool    preferAffine{true};
+
+    explicit FourColorGradientQuad(const VPointF points[4])
+        : tl(points[2]),
+          tr(points[3]),
+          bl(points[0]),
+          br(points[1]),
+          affineU(pointScale(pointAdd(pointSub(tr, tl), pointSub(br, bl)),
+                             0.5f)),
+          affineV(pointScale(pointAdd(pointSub(bl, tl), pointSub(br, tr)),
+                             0.5f)),
+          bilinearU(pointSub(tr, tl)),
+          bilinearV(pointSub(bl, tl)),
+          bilinearUV(pointAdd(pointSub(pointSub(tl, tr), bl), br))
+    {
+        const auto affineScale =
+            std::max(lengthSquared(affineU) + lengthSquared(affineV), 1.0f);
+        preferAffine = lengthSquared(bilinearUV) <= affineScale * 0.0f;
+    }
+
+    bool affineCoords(const VPointF &point, float &u, float &v) const
+    {
+        const auto q = pointSub(point, tl);
+        const auto det = cross2d(affineU, affineV);
+        if (std::fabs(det) < 1e-5f) return false;
+
+        u = clampUnit(cross2d(q, affineV) / det);
+        v = clampUnit(cross2d(affineU, q) / det);
+        return true;
+    }
+
+    bool bilinearCoords(const VPointF &point, float &u, float &v) const
+    {
+        if (preferAffine) return affineCoords(point, u, v);
+
+        const auto q = pointSub(point, tl);
+        const auto a = cross2d(bilinearV, bilinearUV);
+        const auto b = cross2d(bilinearUV, q) - cross2d(bilinearU, bilinearV);
+        const auto c = cross2d(bilinearU, q);
+
+        if (std::fabs(a) < 1e-5f) {
+            if (std::fabs(b) < 1e-5f) return affineCoords(point, u, v);
+            v = -c / b;
+        } else {
+            const auto disc = std::max(0.0f, b * b - 4.0f * a * c);
+            const auto sqrtDisc = std::sqrt(disc);
+            const auto v0 = (-b - sqrtDisc) / (2.0f * a);
+            const auto v1 = (-b + sqrtDisc) / (2.0f * a);
+
+            const bool v0Valid = v0 >= -1e-3f && v0 <= 1.001f;
+            const bool v1Valid = v1 >= -1e-3f && v1 <= 1.001f;
+            if (v0Valid && !v1Valid) {
+                v = v0;
+            } else if (!v0Valid && v1Valid) {
+                v = v1;
+            } else {
+                v = std::fabs(v0 - 0.5f) < std::fabs(v1 - 0.5f) ? v0 : v1;
+            }
+        }
+
+        const auto denomX = bilinearU.x() + bilinearUV.x() * v;
+        const auto denomY = bilinearU.y() + bilinearUV.y() * v;
+        if (std::fabs(denomX) > std::fabs(denomY)) {
+            if (std::fabs(denomX) < 1e-5f) return affineCoords(point, u, v);
+            u = (q.x() - bilinearV.x() * v) / denomX;
+        } else {
+            if (std::fabs(denomY) < 1e-5f) return affineCoords(point, u, v);
+            u = (q.y() - bilinearV.y() * v) / denomY;
+        }
+
+        u = clampUnit(u);
+        v = clampUnit(v);
+        return true;
+    }
+};
+
+inline int bilinearChannel(const VColor colors[4], float u, float v,
+                           uint8_t (VColor::*getter)() const)
+{
+    const auto top = (colors[2].*getter)() +
+                     ((colors[3].*getter)() - (colors[2].*getter)()) * u;
+    const auto bottom = (colors[0].*getter)() +
+                        ((colors[1].*getter)() - (colors[0].*getter)()) * u;
+    return int(std::lround(top + (bottom - top) * v));
+}
+
+}  // namespace
+
 void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
 {
     mRoData = nullptr;
@@ -267,7 +398,7 @@ void VBitmap::Impl::applyFourColorGradient(const VRect &region,
     amount = std::max(0.0f, std::min(1.0f, amount));
     if (vIsZero(amount)) return;
 
-    constexpr float kMinDistance = 1e-4f;
+    const FourColorGradientQuad quad(points);
     auto dataPtr = data();
     for (int y = clipped.top(); y < clipped.bottom(); ++y) {
         uint32_t *pixel =
@@ -290,30 +421,18 @@ void VBitmap::Impl::applyFourColorGradient(const VRect &region,
 
             const float fx = x + 0.5f;
             const float fy = y + 0.5f;
-            float totalWeight = 0.0f;
-            float red = 0.0f;
-            float green = 0.0f;
-            float blue = 0.0f;
-
-            for (int i = 0; i < 4; ++i) {
-                const float dx = fx - points[i].x();
-                const float dy = fy - points[i].y();
-                const float weight =
-                    1.0f / std::max(dx * dx + dy * dy, kMinDistance);
-                totalWeight += weight;
-                red += weight * colors[i].red();
-                green += weight * colors[i].green();
-                blue += weight * colors[i].blue();
-            }
-
-            if (totalWeight <= 0.0f) {
+            float u = 0.0f;
+            float v = 0.0f;
+            if (!quad.bilinearCoords({fx, fy}, u, v)) {
                 pixel++;
                 continue;
             }
 
-            const auto effectRed = int(std::lround(red / totalWeight));
-            const auto effectGreen = int(std::lround(green / totalWeight));
-            const auto effectBlue = int(std::lround(blue / totalWeight));
+            const auto effectRed = bilinearChannel(colors, u, v, &VColor::red);
+            const auto effectGreen =
+                bilinearChannel(colors, u, v, &VColor::green);
+            const auto effectBlue =
+                bilinearChannel(colors, u, v, &VColor::blue);
 
             auto outRed =
                 int(std::lround(srcRed + (effectRed - srcRed) * amount));
