@@ -92,6 +92,47 @@ bool parseScalarScaleExpression(const std::string &expr, std::string &layerName)
     return true;
 }
 
+bool parsePolystarInnerRadiusMulExpression(const std::string &expr,
+                                           std::string       &pathName,
+                                           float             &multiplier)
+{
+    static const std::regex innerRadiusPattern(
+        R"(\$bm_mul\(content\((['"])(.*?)\1\)\.content\((['"])(.*?)\3\)\.innerRadius,\s*([-+]?(?:\d+\.?\d*|\.\d+))\))");
+    std::smatch match;
+    if (!std::regex_search(expr, match, innerRadiusPattern)) return false;
+    pathName = match[4].str();
+    multiplier = std::strtof(match[5].str().c_str(), nullptr);
+    return true;
+}
+
+template <typename T>
+void replaceProperty(model::Property<T> &dst, model::Property<T> &&src)
+{
+    dst.~Property<T>();
+    new (&dst) model::Property<T>(std::move(src));
+}
+
+model::Property<float> scaledFloatProperty(const model::Property<float> &src,
+                                           float                         scale)
+{
+    model::Property<float> scaled{0.0f};
+    if (src.isStatic()) {
+        scaled.value() = src.value() * scale;
+        return scaled;
+    }
+
+    auto &anim = scaled.animation();
+    anim.frames_.reserve(src.animation().frames_.size());
+    for (const auto &srcFrame : src.animation().frames_) {
+        auto frame = srcFrame;
+        frame.value_.start_ *= scale;
+        frame.value_.end_ *= scale;
+        anim.frames_.push_back(std::move(frame));
+    }
+    scaled.cache();
+    return scaled;
+}
+
 }  // namespace
 
 class LookaheadParserHandler {
@@ -2931,6 +2972,11 @@ model::Path *LottieParserImpl::parseShapeObject()
 model::Polystar *LottieParserImpl::parsePolystarObject()
 {
     auto obj = allocator().make<model::Polystar>();
+    model::Property<float> parsedOuterRadius{0.0f};
+    bool                   sawOuterRadius = false;
+    bool                   outerRadiusFromInner = false;
+    std::string            outerRadiusPathName;
+    float                  outerRadiusMultiplier = 1.0f;
 
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
@@ -2944,7 +2990,19 @@ model::Polystar *LottieParserImpl::parsePolystarObject()
         } else if (0 == strcmp(key, "is")) {
             parseProperty(obj->mInnerRoundness);
         } else if (0 == strcmp(key, "or")) {
-            parseProperty(obj->mOuterRadius);
+            sawOuterRadius = true;
+            EnterObject();
+            while (const char *outerKey = NextObjectKey()) {
+                if (0 == strcmp(outerKey, "k")) {
+                    parsePropertyHelper(parsedOuterRadius);
+                } else if (0 == strcmp(outerKey, "x")) {
+                    outerRadiusFromInner = parsePolystarInnerRadiusMulExpression(
+                        GetStringObject(), outerRadiusPathName,
+                        outerRadiusMultiplier);
+                } else {
+                    Skip(outerKey);
+                }
+            }
         } else if (0 == strcmp(key, "os")) {
             parseProperty(obj->mOuterRoundness);
         } else if (0 == strcmp(key, "r")) {
@@ -2963,6 +3021,16 @@ model::Polystar *LottieParserImpl::parsePolystarObject()
             vDebug << "Polystar property ignored :" << key;
 #endif
             Skip(key);
+        }
+    }
+    if (sawOuterRadius) {
+        if (outerRadiusFromInner && obj->name() &&
+            outerRadiusPathName == obj->name()) {
+            replaceProperty(obj->mOuterRadius,
+                            scaledFloatProperty(obj->mInnerRadius,
+                                                outerRadiusMultiplier));
+        } else {
+            replaceProperty(obj->mOuterRadius, std::move(parsedOuterRadius));
         }
     }
     obj->setStatic(
