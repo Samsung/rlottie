@@ -59,7 +59,7 @@
 | 부분 지원 | Text Animator / Range Selector | 미지원 | 지원 관찰 | textrange opacity animator 미구현 | selector subset evaluator |
 | 부분 지원 | 전용 Text Renderer / Glyph Cache | 미지원 | 지원 관찰 | 현재는 parser-time lowering만 존재 | Layer::Type::Text 경로 필요 |
 | 부분 지원 | Layer Effect Stack | 제한적 | 지원 관찰 | enabled narrow siblings만 허용 | mixed enabled stack allowlist |
-| 부분 지원 | Expressions Subset | 좁은 지원 | 지원 관찰 | `11272`의 same-layer `content(...).content(...).innerRadius * constant`, `shutup`의 scale-driven `Box Blur2` radius와 `Bevel Alpha` edge-thickness subset은 이제 동작하지만 `10444`, `10416`, `balloons_with_string` 같은 broader expression/rig bucket은 여전히 남아 있다 | subset evaluator + unsupported diagnostics |
+| 부분 지원 | Expressions Subset | 좁은 지원 | 지원 관찰 | `11272`의 same-layer `content(...).content(...).innerRadius * constant`, `shutup`의 scale-driven `Box Blur2` radius와 `Bevel Alpha` edge-thickness subset, 그리고 `expressions/layereffect`에서 쓰이는 stroke `Color Control`/`Slider Control` alias subset은 이제 동작하지만 `10444`, `10416`, `balloons_with_string` 같은 broader expression/rig bucket은 여전히 남아 있다 | subset evaluator + unsupported diagnostics |
 | 미지원 | Soft Mask Feather / Expansion | 미지원 | 지원 관찰 | hard mask 중심 | mask family 확장 |
 | 미지원 | Transform-only Snapshot Cache | 미구현 | 구현 존재 | 11555/confetti/threads의 성능 gap 원인 | content/transform dirty 분리 후 local-space cache |
 | 미지원 | Matte 재사용 / bounds 전파 완성 | 부분 구현 | 구현 존재 | world_locations의 성능 gap 원인 | inherited bounds / matte reuse 추가 |
@@ -70,6 +70,7 @@
 | --- | --- |
 | `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 bilinear sampler + 정적 color-map cache로 돈다. same-machine baseline 대비 steady-state는 크게 줄었지만 ThorVG 대비 frame 12 exact match는 여전히 `0.949066` 수준이고, hardened median-of-5도 `0.272 ms vs 0.126 ms`라 아직 느리다. 즉 성능은 더 좋아졌지만 effect semantics와 broader stack은 아직 미완이다. |
 | `shutup.json` | `Box Blur2`와 `Bevel Alpha` effect path는 둘 다 실제로 돈다. `Box Blur2` radius와 `Bevel Alpha` edge thickness 모두 이제 `thisComp.layer('SIZE').transform.scale[0]`를 따르는 좁은 expression subset까지 읽는다. 다만 실자산 frame 0 adjudication은 여전히 약 `0.688` 수준이라, 현재 gap의 본질은 더 이상 단일 size-parameter 공백이 아니라 mixed layer-effect semantics와 effect stack 상호작용이다. |
+| `expressions/layereffect.json` | stroke `Color Control`/`Slider Control` alias는 이제 parse-time에 풀린다. repo 안의 축소 regression fixture는 equivalent static-expanded reference와 frame 0에서 `diff_pixels=0`이고, full asset도 static-expanded reference와 first frame이 일치한다. 다만 ThorVG frame-0 adjudication은 약 `0.784`라서, 남은 문제는 controller alias 자체보다 broader layer-effect semantics다. |
 | `27746-joypixels-partying-face-emoji-animation.json` | 더 이상 unsupported로 보면 안 된다. 현재 rlottie는 frame을 정상 렌더하고 local sample에서는 ThorVG보다 빠르다. 다만 frame 0 exact match ratio가 약 `0.617`이라 pseudo-control/expression backlog가 아니라 correctness bucket에 두는 게 맞다. |
 | `Layer Effect Stroke` | synthetic precomp fixture는 rlottie가 읽는 최소 유효 케이스로는 부적합해서 버렸고, 현재 검증 기준은 valid shape-layer ellipse fixture다. 이 경로에서 좁은 `Stroke`와 `Stroke -> Tint` stack은 물론 `Paint Style 1/2/3`도 실제로 그려진다. `layer_effect_stroke_solid.json`은 gold ring, `layer_effect_stroke_tint_stack.json`은 cyan ring, `layer_effect_stroke_all_original.json`은 white ellipse 보존, `layer_effect_stroke_reveal_original.json`은 stroke coverage 안에서만 원본을 드러낸다. 다만 ThorVG는 이 synthetic `ADBE Stroke` JSON을 여전히 `Invalid JSON`으로 취급해 reference adjudication에는 쓰기 어렵다. |
 | `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` 전체가 아니라 runtime text 경로의 range-selector opacity animator와 layout/baseline 정합성이다. |
@@ -79,7 +80,7 @@
 | `world_locations.json` | correctness 문제는 사실상 아니다. matte/direct-alpha 경로와 drawable-list 재사용 위에, 이번에는 raster bounds 바깥 drawables를 실제 rasterize하지 않도록 줄여서 current desktop median이 더 내려갔다. 다만 Tizen 실기기에서도 같은 결과가 유지되는지는 아직 검증이 필요하다. |
 | `11555/confetti` | reusable subgraph / transform 계열 진단은 여전히 유효하다. `11555`는 여전히 크게 앞서고 `confetti`도 desktop median에서 rlottie 우세다. 이번 low-level raster skip도 두 자산에서 baseline 대비 추가 이득을 보였다. |
 | `threads.json` | pure transform bucket으로 보기 어렵다. 최신 hot-path profile 기준 steady 30-frame 누적이 `trim_update_ms=2.17`, `raster_stroke_setup_ms=6.05`, `raster_render_ms=59.75`라서 실제 병목은 trim이 아니라 stroke raster render 자체다. gradient brush 도색은 `draw_rle_gradient_ms=2.31` 수준이라 주원인이 아니다. |
-| expression bucket | `11272`의 same-layer `content(...).content(...).innerRadius * constant`는 이번 배치에서 parse-time alias로 닫혔다. rlottie 출력은 equivalent static-expanded reference와 frame 0/30에서 byte-identical이고, 실자산도 same-layer polystar alias를 제대로 탄다. 다만 ThorVG는 `--threads 1`에서 expression evaluation을 끄므로, 이 자산의 cross-engine adjudication은 `threads=0` 또는 static-expanded reference로 봐야 한다. 남은 expression bucket은 `10444`의 direct transform alias, `10416`의 alias + `loopOut()`, `16447`의 wiggle/velocity effect expression, 그리고 명시적 `x`가 없는 pseudo-control/rig 성격의 `balloons_with_string.json`이다. |
+| expression bucket | `11272`의 same-layer `content(...).content(...).innerRadius * constant`와 `expressions/layereffect`의 stroke `Color Control`/`Slider Control` alias subset은 parse-time alias로 닫혔다. 둘 다 static-expanded reference와 frame 0 기준 byte-identical로 검증됐다. 다만 후자는 실자산이 여전히 broader layer-effect semantics 때문에 ThorVG와 벌어지므로, 남은 expression/effect backlog는 `10444`의 direct transform alias, `10416`의 alias + `loopOut()`, `16447`의 wiggle/velocity effect expression, 그리고 명시적 `x`가 없는 pseudo-control/rig 성격의 `balloons_with_string.json`이다. |
 | transform-cache 프로토타입 | world-space snapshot 재투영만으로는 충분하지 않았다. `11555.json`과 `threads.json`은 baseline보다 빨라졌지만 ThorVG image adjudication에서는 오히려 더 멀어졌다. 현재 남겨둔 건 affine bitmap helper와 `contentStatic` 메타데이터뿐이고, 다음 시도도 pure transform 자산에 한정해야 한다. |
 | `R_QPKIVi.json` | `ty`가 마지막인 shape object parser blank는 닫혔다. 이번 배치에서 single solid-fill shape layer alpha를 drawable 쪽으로 접으면서 frame 0 drift가 더 줄었다. exact match는 여전히 `0`이지만 mean abs diff RGB는 `[0.1539, 1.1118, 0.1537] -> [0.0960, 0.9815, 0.0505]`로 개선됐다. |
 | `43391.json` | chained `Merge Paths` semantics 수정으로 큰 빈 구멍은 줄었지만 아직 틀린 영역이 남는다. 현재는 추가 merge-path chain semantics와 stroke semantics를 같이 봐야 한다. |
@@ -97,7 +98,7 @@
 | textrange.json | real text animator | 0.113 | 0.338 | 0.009 | 0.022 | 0.39x | 2784 | 3344 | rlottie 우세 |
 | textblock.json | outlined shape text | 4.496 | 1.040 | 0.849 | 0.318 | 2.67x | 8592 | 7584 | ThorVG 우세 |
 | 32266.json | correctness + parse | 14.192 | 0.796 | 0.174 | 0.392 | 0.44x | 22608 | 15904 | rlottie 우세 |
-| layereffect.json | layer effect | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
+| layereffect.json | layer effect | 0.199 | 0.488 | 0.119 | 0.208 | 0.57x | 3872 | 3808 | rlottie 우세, 다만 controller alias를 읽어도 broader layer-effect semantics는 아직 남는다 |
 | abstract_circle.json | basic shape | 0.072 | 0.415 | 0.136 | 0.379 | 0.36x | 3888 | 3952 | rlottie 우세 |
 | glow_loading.json | fill/opacity | 0.130 | 0.404 | 0.011 | 0.033 | 0.32x | 3056 | 3184 | rlottie 우세 |
 | gradient_sleepy_loader.json | gradient | 0.075 | 0.408 | 0.126 | 0.118 | 1.06x | 3040 | 3264 | ThorVG 우세 |
@@ -116,7 +117,7 @@
 | trim + stroke raster | threads.json | 0.105 | 0.429 | 1.903 | 1.837 | 1.04x | 5200 | 3648 | 현재 desktop steady-state 열세의 핵심. trim보다 `raster_render`가 본체다 |
 | outlined text scene | text_anim.json, textblock.json | 2.787 | 0.771 | 0.482 | 0.201 | 2.40x | 6264 | 5872 | ThorVG 우세 |
 | real text / text animator | stroke_dash.json, textrange.json | 0.117 | 0.368 | 0.141 | 0.076 | 1.86x | 3520 | 3368 | ThorVG 우세, `stroke_dash`는 캐시로 빨라졌지만 여전히 effect semantics와 stack coverage가 부족하다 |
-| layer effect | layereffect.json | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
+| layer effect | layereffect.json | 0.199 | 0.488 | 0.119 | 0.208 | 0.57x | 3872 | 3808 | rlottie 우세, 하지만 `expressions/layereffect`는 controller alias를 읽어도 broader stack semantics가 아직 다르다 |
 | merge paths | merging_shapes.json | 0.126 | 0.403 | 0.064 | 0.050 | 1.28x | 3104 | 3328 | ThorVG 우세 |
 | basic vector | abstract_circle.json, windmill.json, glow_loading.json, gradient_sleepy_loader.json, polystar_anim.json | 0.107 | 0.403 | 0.099 | 0.151 | 0.66x | 3689 | 3484 | rlottie 우세 |
 | correctness + parse | 32266.json, R_QPKIVi.json, 43391.json | 5.041 | 0.598 | 0.170 | 0.210 | 0.81x | 10112 | 7947 | steady-state는 오히려 rlottie가 앞서지만 parse와 correctness는 여전히 rlottie 열세 |

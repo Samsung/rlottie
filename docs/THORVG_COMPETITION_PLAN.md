@@ -262,6 +262,12 @@ This broad audit changes the interpretation of the current gap:
   shape content. `stroke_dash.json` now carries its title text again, and
   frame-0/frame-12 image adjudication stays fairly close, but animated text,
   text animators, and broader effect-stack semantics are still open.
+- A later narrow expression pass resolves the stroke `Color Control` and
+  `Slider Control` aliases used by `expressions/layereffect.json`. The parser
+  output now matches a static-expanded reference for both the full asset and a
+  reduced regression fixture, but the real asset still stays in the partial
+  bucket because broader layer-effect semantics continue to diverge from
+  ThorVG.
 - Image-level adjudication is now available for arbitrary frames on
   concentrated mismatches. Current runs show `expressions/world_locations.json`
   is already visually close on frame 0, `32266.json` still has a material
