@@ -2449,7 +2449,42 @@ bool LottieParserImpl::parseBevelAlphaEffect(
                 matchName = GetStringObject();
             } else if (0 == strcmp(key, "v")) {
                 if (matchName == "ADBE Bevel Alpha-0001") {
-                    parseProperty(effect.mEdgeThickness);
+                    EnterObject();
+                    while (const char *valueKey = NextObjectKey()) {
+                        if (0 == strcmp(valueKey, "k")) {
+                            parsePropertyHelper(effect.mEdgeThickness);
+                        } else if (0 == strcmp(valueKey, "x")) {
+                            std::string sourceLayerName;
+                            if (parseScalarScaleExpression(GetStringObject(),
+                                                           sourceLayerName)) {
+                                auto compIt = mLayerTransforms.find(compRef);
+                                if (compIt != mLayerTransforms.end()) {
+                                    auto layerIt =
+                                        compIt->second.find(sourceLayerName);
+                                    if (layerIt != compIt->second.end() &&
+                                        layerIt->second &&
+                                        layerIt->second->mScale.isStatic()) {
+                                        auto scale =
+                                            layerIt->second->mScale.value().x();
+                                        if (effect.mEdgeThickness.isStatic()) {
+                                            effect.mEdgeThickness.value() *=
+                                                scale / 100.0f;
+                                        } else {
+                                            supported = false;
+                                        }
+                                    } else {
+                                        supported = false;
+                                    }
+                                } else {
+                                    supported = false;
+                                }
+                            } else {
+                                supported = false;
+                            }
+                        } else {
+                            Skip(valueKey);
+                        }
+                    }
                 } else if (matchName == "ADBE Bevel Alpha-0002") {
                     parseProperty(effect.mLightAngle);
                 } else if (matchName == "ADBE Bevel Alpha-0003") {

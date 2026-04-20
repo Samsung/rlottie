@@ -583,7 +583,8 @@ turning into one-off asset hacks.
   `value * thisComp.layer(...).transform.scale[0] / 100` blur-radius
   expression subset used by `shutup.json`, and a narrow `ADBE Bevel Alpha`
   subset with edge thickness / light angle / light color / light intensity
-  are supported today. `Blend` is accepted as a
+  plus the same scale-driven edge-thickness expression subset are supported
+  today. `Blend` is accepted as a
   `4ColorGradient` intensity control, `stroke_dash.json` now includes its
   static title text again, and the default `ADBE 4ColorGradient` path uses a
   quad bilinear sampler instead of inverse-distance weighting. That improves
