@@ -23,6 +23,7 @@
 #include <climits>
 #include <cstring>
 #include <memory>
+#include "../lottie/perfprofile.h"
 #include "config.h"
 #include "v_ft_raster.h"
 #include "v_ft_stroker.h"
@@ -347,6 +348,8 @@ struct VRleTask {
     }
     void render(FTOutline &outRef)
     {
+        rlottie::internal::ScopedProfileEvent profile(
+            rlottie::internal::ProfileEvent::RasterRender);
         SW_FT_Raster_Params params;
 
         mRle.unsafe().reset();
@@ -376,7 +379,14 @@ struct VRleTask {
             return;
         }
 
+        rlottie::internal::ScopedProfileEvent profile(
+            mGenerateStroke
+                ? rlottie::internal::ProfileEvent::RasterStroke
+                : rlottie::internal::ProfileEvent::RasterFill);
+
         if (mGenerateStroke) {  // Stroke Task
+            rlottie::internal::ScopedProfileEvent setupProfile(
+                rlottie::internal::ProfileEvent::RasterStrokeSetup);
             outRef.convert(mPath);
             outRef.convert(mCap, mJoin, mStrokeWidth, mMiterLimit);
 

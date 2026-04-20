@@ -225,7 +225,30 @@ void printProfileStats(const std::string &asset, Size size, bool async,
               << ",paint_update_ms="
               << stats.paintUpdateRenderNode.totalMs
               << ",render_matte_calls=" << stats.renderMatteLayer.calls
-              << ",render_matte_ms=" << stats.renderMatteLayer.totalMs << "\n";
+              << ",render_matte_ms=" << stats.renderMatteLayer.totalMs
+              << ",trim_update_calls=" << stats.trimPathUpdate.calls
+              << ",trim_update_ms=" << stats.trimPathUpdate.totalMs
+              << ",bitmap_effect_calls=" << stats.bitmapEffectApply.calls
+              << ",bitmap_effect_ms=" << stats.bitmapEffectApply.totalMs
+              << ",dash_apply_calls=" << stats.dashApply.calls
+              << ",dash_apply_ms=" << stats.dashApply.totalMs
+              << ",raster_fill_calls=" << stats.rasterFill.calls
+              << ",raster_fill_ms=" << stats.rasterFill.totalMs
+              << ",raster_stroke_calls=" << stats.rasterStroke.calls
+              << ",raster_stroke_ms=" << stats.rasterStroke.totalMs
+              << ",raster_stroke_setup_calls="
+              << stats.rasterStrokeSetup.calls
+              << ",raster_stroke_setup_ms="
+              << stats.rasterStrokeSetup.totalMs
+              << ",raster_render_calls=" << stats.rasterRender.calls
+              << ",raster_render_ms=" << stats.rasterRender.totalMs
+              << ",draw_rle_solid_calls=" << stats.drawRleSolid.calls
+              << ",draw_rle_solid_ms=" << stats.drawRleSolid.totalMs
+              << ",draw_rle_gradient_calls=" << stats.drawRleGradient.calls
+              << ",draw_rle_gradient_ms=" << stats.drawRleGradient.totalMs
+              << ",draw_rle_texture_calls=" << stats.drawRleTexture.calls
+              << ",draw_rle_texture_ms=" << stats.drawRleTexture.totalMs
+              << "\n";
 }
 
 uint64_t currentRssKb()

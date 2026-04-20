@@ -386,6 +386,114 @@ void VBitmap::Impl::applyTint(const VRect &region, uint8_t blackRed,
 }
 
 void VBitmap::Impl::applyFourColorGradient(const VRect &region,
+                                           const VBitmap &gradientMap,
+                                           float amount)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied ||
+        !gradientMap.valid()) {
+        return;
+    }
+
+    auto clipped = region & rect() & gradientMap.rect();
+    if (clipped.empty()) return;
+
+    amount = std::max(0.0f, std::min(1.0f, amount));
+    if (vIsZero(amount)) return;
+
+    auto dataPtr = data();
+    auto gradientPtr = gradientMap.data();
+    const auto gradientStride = gradientMap.stride();
+
+    for (int y = clipped.top(); y < clipped.bottom(); ++y) {
+        uint32_t *pixel =
+            reinterpret_cast<uint32_t *>(dataPtr + mStride * y) + clipped.left();
+        const uint32_t *gradientPixel =
+            reinterpret_cast<const uint32_t *>(gradientPtr + gradientStride * y) +
+            clipped.left();
+        for (int x = clipped.left(); x < clipped.right(); ++x) {
+            const auto alpha = int(vAlpha(*pixel));
+            if (alpha == 0) {
+                ++pixel;
+                ++gradientPixel;
+                continue;
+            }
+
+            const auto effectRed = int(vRed(*gradientPixel));
+            const auto effectGreen = int(vGreen(*gradientPixel));
+            const auto effectBlue = int(vBlue(*gradientPixel));
+
+            int outRed;
+            int outGreen;
+            int outBlue;
+            if (vCompare(amount, 1.0f)) {
+                outRed = (effectRed * alpha + 127) / 255;
+                outGreen = (effectGreen * alpha + 127) / 255;
+                outBlue = (effectBlue * alpha + 127) / 255;
+            } else {
+                auto srcRed = int(vRed(*pixel));
+                auto srcGreen = int(vGreen(*pixel));
+                auto srcBlue = int(vBlue(*pixel));
+                if (alpha != 255) {
+                    srcRed = (srcRed * 255) / alpha;
+                    srcGreen = (srcGreen * 255) / alpha;
+                    srcBlue = (srcBlue * 255) / alpha;
+                }
+
+                outRed = int(std::lround(srcRed + (effectRed - srcRed) * amount));
+                outGreen = int(
+                    std::lround(srcGreen + (effectGreen - srcGreen) * amount));
+                outBlue =
+                    int(std::lround(srcBlue + (effectBlue - srcBlue) * amount));
+
+                outRed = (outRed * alpha + 127) / 255;
+                outGreen = (outGreen * alpha + 127) / 255;
+                outBlue = (outBlue * alpha + 127) / 255;
+            }
+
+            *pixel = (uint32_t(alpha) << 24) | (uint32_t(outRed) << 16) |
+                     (uint32_t(outGreen) << 8) | uint32_t(outBlue);
+            ++pixel;
+            ++gradientPixel;
+        }
+    }
+}
+
+void VBitmap::Impl::generateFourColorGradientMap(const VRect &region,
+                                                 const VPointF points[4],
+                                                 const VColor colors[4])
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    const FourColorGradientQuad quad(points);
+    auto dataPtr = data();
+    for (int y = clipped.top(); y < clipped.bottom(); ++y) {
+        uint32_t *pixel =
+            reinterpret_cast<uint32_t *>(dataPtr + mStride * y) + clipped.left();
+        for (int x = clipped.left(); x < clipped.right(); ++x) {
+            const float fx = x + 0.5f;
+            const float fy = y + 0.5f;
+            float u = 0.0f;
+            float v = 0.0f;
+            if (!quad.bilinearCoords({fx, fy}, u, v)) {
+                *pixel++ = 0xff000000;
+                continue;
+            }
+
+            const auto effectRed = bilinearChannel(colors, u, v, &VColor::red);
+            const auto effectGreen =
+                bilinearChannel(colors, u, v, &VColor::green);
+            const auto effectBlue =
+                bilinearChannel(colors, u, v, &VColor::blue);
+            *pixel++ = 0xff000000 | (uint32_t(effectRed) << 16) |
+                       (uint32_t(effectGreen) << 8) | uint32_t(effectBlue);
+        }
+    }
+}
+
+void VBitmap::Impl::applyFourColorGradient(const VRect &region,
                                            const VPointF points[4],
                                            const VColor colors[4],
                                            float amount)
@@ -583,6 +691,19 @@ void VBitmap::applyTint(const VRect &region, uint8_t blackRed,
         mImpl->applyTint(region, blackRed, blackGreen, blackBlue, whiteRed,
                          whiteGreen, whiteBlue, amount);
     }
+}
+
+void VBitmap::applyFourColorGradient(const VRect &region,
+                                     const VBitmap &gradientMap, float amount)
+{
+    if (mImpl) mImpl->applyFourColorGradient(region, gradientMap, amount);
+}
+
+void VBitmap::generateFourColorGradientMap(const VRect &region,
+                                           const VPointF points[4],
+                                           const VColor colors[4])
+{
+    if (mImpl) mImpl->generateFourColorGradientMap(region, points, colors);
 }
 
 void VBitmap::applyFourColorGradient(const VRect &region,

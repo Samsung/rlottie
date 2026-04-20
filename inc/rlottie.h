@@ -77,6 +77,16 @@ struct PerformanceStats {
     PerformanceCounter shapeLayerUpdateContent;
     PerformanceCounter paintUpdateRenderNode;
     PerformanceCounter renderMatteLayer;
+    PerformanceCounter trimPathUpdate;
+    PerformanceCounter bitmapEffectApply;
+    PerformanceCounter dashApply;
+    PerformanceCounter rasterFill;
+    PerformanceCounter rasterStroke;
+    PerformanceCounter rasterStrokeSetup;
+    PerformanceCounter rasterRender;
+    PerformanceCounter drawRleSolid;
+    PerformanceCounter drawRleGradient;
+    PerformanceCounter drawRleTexture;
 };
 
 RLOTTIE_API void configurePerformanceStats(bool enabled);

@@ -22,6 +22,7 @@
 
 #include "vpainter.h"
 #include <algorithm>
+#include "../lottie/perfprofile.h"
 #include "vpath.h"
 #include "vraster.h"
 
@@ -36,6 +37,23 @@ void VPainter::drawRle(const VPoint &, const VRle &rle)
 
     if (!mSpanData.mUnclippedBlendFunc) return;
 
+    rlottie::internal::ProfileEvent event = rlottie::internal::ProfileEvent::DrawRleSolid;
+    switch (mSpanData.mType) {
+    case VSpanData::Type::LinearGradient:
+    case VSpanData::Type::RadialGradient:
+        event = rlottie::internal::ProfileEvent::DrawRleGradient;
+        break;
+    case VSpanData::Type::Texture:
+        event = rlottie::internal::ProfileEvent::DrawRleTexture;
+        break;
+    case VSpanData::Type::Solid:
+    case VSpanData::Type::None:
+    default:
+        event = rlottie::internal::ProfileEvent::DrawRleSolid;
+        break;
+    }
+    rlottie::internal::ScopedProfileEvent profile(event);
+
     // do draw after applying clip.
     rle.intersect(mSpanData.clipRect(), mSpanData.mUnclippedBlendFunc,
                   &mSpanData);
@@ -46,6 +64,23 @@ void VPainter::drawRle(const VRle &rle, const VRle &clip)
     if (rle.empty() || clip.empty()) return;
 
     if (!mSpanData.mUnclippedBlendFunc) return;
+
+    rlottie::internal::ProfileEvent event = rlottie::internal::ProfileEvent::DrawRleSolid;
+    switch (mSpanData.mType) {
+    case VSpanData::Type::LinearGradient:
+    case VSpanData::Type::RadialGradient:
+        event = rlottie::internal::ProfileEvent::DrawRleGradient;
+        break;
+    case VSpanData::Type::Texture:
+        event = rlottie::internal::ProfileEvent::DrawRleTexture;
+        break;
+    case VSpanData::Type::Solid:
+    case VSpanData::Type::None:
+    default:
+        event = rlottie::internal::ProfileEvent::DrawRleSolid;
+        break;
+    }
+    rlottie::internal::ScopedProfileEvent profile(event);
 
     rle.intersect(clip, mSpanData.mUnclippedBlendFunc, &mSpanData);
 }

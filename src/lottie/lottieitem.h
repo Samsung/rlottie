@@ -23,6 +23,7 @@
 #ifndef LOTTIEITEM_H
 #define LOTTIEITEM_H
 
+#include <array>
 #include <memory>
 #include <sstream>
 
@@ -212,6 +213,14 @@ private:
 
 class Layer {
 public:
+    struct FourColorGradientCache {
+        VBitmap                 map;
+        VRect                   region;
+        std::array<VPointF, 4>  points;
+        std::array<VColor, 4>   colors;
+        bool                    valid{false};
+    };
+
     virtual ~Layer() = default;
     Layer &operator=(Layer &&) noexcept = delete;
     Layer(model::Layer *layerData);
@@ -268,6 +277,14 @@ public:
     {
         return mLayerData->fourColorGradientEffect();
     }
+    FourColorGradientCache &ensureFourColorGradientCache()
+    {
+        if (!mFourColorGradientCache) {
+            mFourColorGradientCache =
+                std::make_unique<FourColorGradientCache>();
+        }
+        return *mFourColorGradientCache;
+    }
     bool             hasBitmapEffect() const
     {
         return mLayerData->hasBitmapEffect();
@@ -306,6 +323,7 @@ protected:
     std::unique_ptr<LayerMask> mLayerMask;
     model::Layer *             mLayerData{nullptr};
     Layer *                    mParentLayer{nullptr};
+    std::unique_ptr<FourColorGradientCache> mFourColorGradientCache;
     VMatrix                    mCombinedMatrix;
     float                      mCombinedAlpha{0.0};
     int                        mFrameNo{-1};

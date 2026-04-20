@@ -28,6 +28,7 @@
 #include <cmath>
 #include <iterator>
 #include "lottiekeypath.h"
+#include "perfprofile.h"
 #include "vbitmap.h"
 #include "vpainter.h"
 #include "vraster.h"
@@ -39,18 +40,8 @@
  * AE. which means (start frame > endFrame) 3.
  */
 
-namespace {
-
-enum class ProfileEvent : uint8_t {
-    CompositionUpdate,
-    CompositionRender,
-    CompLayerUpdateContent,
-    ShapeLayerUpdateContent,
-    PaintUpdateRenderNode,
-    RenderMatteLayer,
-    Count
-};
-
+namespace rlottie {
+namespace internal {
 struct ProfileAccumulator {
     std::atomic<uint64_t> calls{0};
     std::atomic<uint64_t> totalNs{0};
@@ -60,46 +51,34 @@ std::atomic<bool> gPerformanceStatsEnabled{false};
 std::array<ProfileAccumulator, static_cast<size_t>(ProfileEvent::Count)>
     gPerformanceStats{};
 
-size_t profileIndex(ProfileEvent event)
+static size_t profileIndex(ProfileEvent event)
 {
     return static_cast<size_t>(event);
 }
 
-rlottie::PerformanceCounter profileCounter(ProfileEvent event)
+static rlottie::PerformanceCounter profileCounter(ProfileEvent event)
 {
     auto &entry = gPerformanceStats[profileIndex(event)];
     return {entry.calls.load(std::memory_order_relaxed),
             double(entry.totalNs.load(std::memory_order_relaxed)) / 1000000.0};
 }
 
-struct ScopedProfileEvent {
-    explicit ScopedProfileEvent(ProfileEvent event)
-        : mEvent(event),
-          mEnabled(gPerformanceStatsEnabled.load(std::memory_order_relaxed))
-    {
-        if (mEnabled) mStart = std::chrono::steady_clock::now();
-    }
+bool performanceStatsEnabled()
+{
+    return gPerformanceStatsEnabled.load(std::memory_order_relaxed);
+}
 
-    ~ScopedProfileEvent()
-    {
-        if (!mEnabled) return;
+void recordProfileEvent(ProfileEvent event, uint64_t elapsedNs)
+{
+    auto &entry = gPerformanceStats[profileIndex(event)];
+    entry.calls.fetch_add(1, std::memory_order_relaxed);
+    entry.totalNs.fetch_add(elapsedNs, std::memory_order_relaxed);
+}
+}  // namespace internal
+}  // namespace rlottie
 
-        auto elapsed = std::chrono::steady_clock::now() - mStart;
-        auto elapsedNs = uint64_t(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed)
-                .count());
-        auto &entry = gPerformanceStats[profileIndex(mEvent)];
-        entry.calls.fetch_add(1, std::memory_order_relaxed);
-        entry.totalNs.fetch_add(elapsedNs, std::memory_order_relaxed);
-    }
-
-private:
-    ProfileEvent                             mEvent;
-    bool                                     mEnabled{false};
-    std::chrono::steady_clock::time_point    mStart{};
-};
-
-}  // namespace
+using rlottie::internal::ProfileEvent;
+using rlottie::internal::ScopedProfileEvent;
 
 RLOTTIE_API void rlottie::configurePerformanceStats(bool enabled)
 {
@@ -126,6 +105,17 @@ RLOTTIE_API rlottie::PerformanceStats rlottie::performanceStats()
     stats.paintUpdateRenderNode =
         profileCounter(ProfileEvent::PaintUpdateRenderNode);
     stats.renderMatteLayer = profileCounter(ProfileEvent::RenderMatteLayer);
+    stats.trimPathUpdate = profileCounter(ProfileEvent::TrimPathUpdate);
+    stats.bitmapEffectApply = profileCounter(ProfileEvent::BitmapEffectApply);
+    stats.dashApply = profileCounter(ProfileEvent::DashApply);
+    stats.rasterFill = profileCounter(ProfileEvent::RasterFill);
+    stats.rasterStroke = profileCounter(ProfileEvent::RasterStroke);
+    stats.rasterStrokeSetup =
+        profileCounter(ProfileEvent::RasterStrokeSetup);
+    stats.rasterRender = profileCounter(ProfileEvent::RasterRender);
+    stats.drawRleSolid = profileCounter(ProfileEvent::DrawRleSolid);
+    stats.drawRleGradient = profileCounter(ProfileEvent::DrawRleGradient);
+    stats.drawRleTexture = profileCounter(ProfileEvent::DrawRleTexture);
     return stats;
 }
 
@@ -331,14 +321,45 @@ static void applyFourColorGradientEffect(
                         effect.color2(frameNo).toColor(),
                         effect.color3(frameNo).toColor(),
                         effect.color4(frameNo).toColor()};
-    bitmap.applyFourColorGradient(bitmap.rect(), points, colors,
-                                  effect.opacity(frameNo));
+    auto amount = effect.opacity(frameNo);
+
+    auto &cache = layer->ensureFourColorGradientCache();
+
+    const auto cacheValid = [&]() {
+        if (!cache.valid || cache.region != bitmap.rect() ||
+            !cache.map.valid() || cache.map.size() != bitmap.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < 4; ++i) {
+            if (!vCompare(cache.points[i].x(), points[i].x()) ||
+                !vCompare(cache.points[i].y(), points[i].y()) ||
+                !(cache.colors[i] == colors[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!cacheValid()) {
+        cache.map.reset(bitmap.width(), bitmap.height(),
+                        VBitmap::Format::ARGB32_Premultiplied);
+        cache.region = bitmap.rect();
+        for (size_t i = 0; i < 4; ++i) {
+            cache.points[i] = points[i];
+            cache.colors[i] = colors[i];
+        }
+        cache.map.generateFourColorGradientMap(cache.region, points, colors);
+        cache.valid = true;
+    }
+
+    bitmap.applyFourColorGradient(bitmap.rect(), cache.map, amount);
 }
 
 static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer,
                                const VRect &drawRegion)
 {
     if (!layer->hasBitmapEffect()) return;
+    ScopedProfileEvent profile(ProfileEvent::BitmapEffectApply);
 
     for (auto effectType : layer->bitmapEffectOrder()) {
         switch (effectType) {
@@ -2099,6 +2120,8 @@ void renderer::Trim::update(int frameNo, const VMatrix & /*parentMatrix*/,
 
 void renderer::Trim::update()
 {
+    ScopedProfileEvent profile(ProfileEvent::TrimPathUpdate);
+
     // when both path and trim are not dirty
     if (!(mDirty || pathDirty())) return;
 

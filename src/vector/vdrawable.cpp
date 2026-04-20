@@ -21,6 +21,7 @@
  */
 
 #include "vdrawable.h"
+#include "../lottie/perfprofile.h"
 #include "vdasher.h"
 #include "vraster.h"
 #include <cmath>
@@ -104,6 +105,8 @@ void VDrawable::setType(VDrawable::Type type)
 void VDrawable::applyDashOp()
 {
     if (mStrokeInfo && (mType == Type::StrokeWithDash)) {
+        rlottie::internal::ScopedProfileEvent profile(
+            rlottie::internal::ProfileEvent::DashApply);
         auto obj = static_cast<StrokeWithDashInfo *>(mStrokeInfo);
         if (!obj->mDash.empty()) {
             VDasher dasher(obj->mDash.data(), obj->mDash.size());
