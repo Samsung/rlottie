@@ -856,12 +856,41 @@ public:
             return std::max(1, std::min(3, value));
         }
     };
+    struct BevelAlphaEffect {
+        Property<float> mEdgeThickness{0.0f};
+        Property<float> mLightAngle{0.0f};
+        Property<Color> mLightColor{{1, 1, 1}};
+        Property<float> mLightIntensity{0.0f};
+        bool            isStatic() const
+        {
+            return mEdgeThickness.isStatic() && mLightAngle.isStatic() &&
+                   mLightColor.isStatic() && mLightIntensity.isStatic();
+        }
+        float edgeThickness(int frameNo) const
+        {
+            return std::max(0.0f, mEdgeThickness.value(frameNo));
+        }
+        float lightAngle(int frameNo) const
+        {
+            return mLightAngle.value(frameNo);
+        }
+        Color lightColor(int frameNo) const
+        {
+            return mLightColor.value(frameNo);
+        }
+        float lightIntensity(int frameNo) const
+        {
+            auto value = mLightIntensity.value(frameNo);
+            return std::max(0.0f, std::min(1.0f, value));
+        }
+    };
     enum class BitmapEffectType : uint8_t {
         Fill,
         Tint,
         FourColorGradient,
         Stroke,
-        BoxBlur
+        BoxBlur,
+        BevelAlpha
     };
     struct Extra {
         Color               mSolidColor;
@@ -875,6 +904,7 @@ public:
         std::unique_ptr<FourColorGradientEffect> mFourColorGradientEffect;
         std::unique_ptr<StrokeEffect> mStrokeEffect;
         std::unique_ptr<BoxBlurEffect> mBoxBlurEffect;
+        std::unique_ptr<BevelAlphaEffect> mBevelAlphaEffect;
         std::vector<BitmapEffectType> mBitmapEffectOrder;
     };
 
@@ -925,11 +955,20 @@ public:
     {
         return hasBoxBlurEffect() ? mExtra->mBoxBlurEffect.get() : nullptr;
     }
+    bool hasBevelAlphaEffect() const
+    {
+        return mExtra && mExtra->mBevelAlphaEffect;
+    }
+    BevelAlphaEffect *bevelAlphaEffect() const
+    {
+        return hasBevelAlphaEffect() ? mExtra->mBevelAlphaEffect.get()
+                                     : nullptr;
+    }
     bool hasBitmapEffect() const
     {
         return hasFillEffect() || hasTintEffect() ||
                hasFourColorGradientEffect() || hasStrokeEffect() ||
-               hasBoxBlurEffect();
+               hasBoxBlurEffect() || hasBevelAlphaEffect();
     }
     const std::vector<BitmapEffectType> &bitmapEffectOrder() const
     {

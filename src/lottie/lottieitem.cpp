@@ -324,6 +324,17 @@ static void applyBoxBlurEffect(VBitmap &bitmap,
                         effect.iterations(frameNo), effect.dimensions(frameNo));
 }
 
+static void applyBevelAlphaEffect(VBitmap &bitmap,
+                                  const model::Layer::BevelAlphaEffect &effect,
+                                  int frameNo)
+{
+    auto lightColor = effect.lightColor(frameNo).toColor();
+    bitmap.applyBevelAlpha(bitmap.rect(), effect.edgeThickness(frameNo),
+                           effect.lightAngle(frameNo), lightColor.r,
+                           lightColor.g, lightColor.b,
+                           effect.lightIntensity(frameNo));
+}
+
 static void applyFourColorGradientEffect(
     VBitmap &bitmap, const model::Layer::FourColorGradientEffect &effect,
     renderer::Layer *layer, const VRect &drawRegion)
@@ -413,6 +424,12 @@ static void applyBitmapEffects(VBitmap &bitmap, renderer::Layer *layer,
                                    layer->currentFrame());
             }
             break;
+        case model::Layer::BitmapEffectType::BevelAlpha:
+            if (layer->hasBevelAlphaEffect()) {
+                applyBevelAlphaEffect(bitmap, *layer->bevelAlphaEffect(),
+                                      layer->currentFrame());
+            }
+            break;
         }
     }
 }
@@ -494,6 +511,12 @@ static int bitmapEffectOutset(renderer::Layer *layer)
             outset,
             int(std::ceil(effect->radius(layer->currentFrame()) *
                           effect->iterations(layer->currentFrame()))));
+    }
+    if (layer->hasBevelAlphaEffect()) {
+        outset = std::max(
+            outset,
+            int(std::ceil(
+                layer->bevelAlphaEffect()->edgeThickness(layer->currentFrame()))));
     }
     return outset;
 }

@@ -293,6 +293,14 @@ public:
     {
         return mLayerData->boxBlurEffect();
     }
+    bool             hasBevelAlphaEffect() const
+    {
+        return mLayerData->hasBevelAlphaEffect();
+    }
+    model::Layer::BevelAlphaEffect *bevelAlphaEffect() const
+    {
+        return mLayerData->bevelAlphaEffect();
+    }
     FourColorGradientCache &ensureFourColorGradientCache()
     {
         if (!mFourColorGradientCache) {

@@ -774,6 +774,105 @@ void VBitmap::Impl::applyBoxBlur(const VRect &region, float radius,
     }
 }
 
+void VBitmap::Impl::applyBevelAlpha(const VRect &region, float edgeThickness,
+                                    float lightAngle, uint8_t lightRed,
+                                    uint8_t lightGreen, uint8_t lightBlue,
+                                    float lightIntensity)
+{
+    if (mFormat != VBitmap::Format::ARGB32_Premultiplied) return;
+
+    auto clipped = region & rect();
+    if (clipped.empty()) return;
+
+    const auto sampleRadius = std::max(1, int(std::ceil(edgeThickness)));
+    lightIntensity = std::max(0.0f, std::min(1.0f, lightIntensity));
+    if (sampleRadius <= 0 || vIsZero(lightIntensity)) return;
+
+    auto dataPtr = data();
+    if (!dataPtr) return;
+
+    const auto width = clipped.width();
+    const auto height = clipped.height();
+    std::vector<uint32_t> srcPixels(size_t(width) * size_t(height));
+    for (int y = 0; y < height; ++y) {
+        auto *row = reinterpret_cast<uint32_t *>(
+            dataPtr + mStride * uint32_t(clipped.top() + y));
+        std::memcpy(srcPixels.data() + size_t(y) * size_t(width),
+                    row + clipped.left(), size_t(width) * sizeof(uint32_t));
+    }
+
+    const auto radians = float(lightAngle * float(M_PI / 180.0));
+    const auto lightDirX = std::cos(radians);
+    const auto lightDirY = -std::sin(radians);
+
+    auto sampleAlpha = [&](int x, int y) {
+        x = std::max(0, std::min(width - 1, x));
+        y = std::max(0, std::min(height - 1, y));
+        return float(vAlpha(srcPixels[size_t(y) * size_t(width) + size_t(x)])) /
+               255.0f;
+    };
+
+    for (int y = 0; y < height; ++y) {
+        auto *dstRow = reinterpret_cast<uint32_t *>(
+            dataPtr + mStride * uint32_t(clipped.top() + y));
+        dstRow += clipped.left();
+        for (int x = 0; x < width; ++x) {
+            const auto srcPixel =
+                srcPixels[size_t(y) * size_t(width) + size_t(x)];
+            const auto alpha = int(vAlpha(srcPixel));
+            if (alpha == 0) continue;
+
+            const auto gx =
+                sampleAlpha(x + sampleRadius, y) - sampleAlpha(x - sampleRadius, y);
+            const auto gy =
+                sampleAlpha(x, y + sampleRadius) - sampleAlpha(x, y - sampleRadius);
+            const auto gradMag = std::sqrt(gx * gx + gy * gy);
+            if (gradMag <= 1e-5f) continue;
+
+            const auto nx = float(-gx / gradMag);
+            const auto ny = float(-gy / gradMag);
+            const auto shade = -(nx * lightDirX + ny * lightDirY);
+            const auto edgeWeight =
+                std::min(1.0f, gradMag * float(sampleRadius) * 2.0f);
+            const auto highlight =
+                std::max(0.0f, shade) * edgeWeight * lightIntensity;
+            const auto shadow =
+                std::max(0.0f, -shade) * edgeWeight * lightIntensity;
+            if (vIsZero(highlight) && vIsZero(shadow)) continue;
+
+            auto srcRed = int(vRed(srcPixel));
+            auto srcGreen = int(vGreen(srcPixel));
+            auto srcBlue = int(vBlue(srcPixel));
+            if (alpha != 255) {
+                srcRed = (srcRed * 255) / alpha;
+                srcGreen = (srcGreen * 255) / alpha;
+                srcBlue = (srcBlue * 255) / alpha;
+            }
+
+            auto outRed = srcRed * (1.0f - shadow);
+            auto outGreen = srcGreen * (1.0f - shadow);
+            auto outBlue = srcBlue * (1.0f - shadow);
+
+            outRed += (float(lightRed) - outRed) * highlight;
+            outGreen += (float(lightGreen) - outGreen) * highlight;
+            outBlue += (float(lightBlue) - outBlue) * highlight;
+
+            const auto outRedInt =
+                std::max(0, std::min(255, int(std::lround(outRed))));
+            const auto outGreenInt =
+                std::max(0, std::min(255, int(std::lround(outGreen))));
+            const auto outBlueInt =
+                std::max(0, std::min(255, int(std::lround(outBlue))));
+            const auto premulRed = (outRedInt * alpha + 127) / 255;
+            const auto premulGreen = (outGreenInt * alpha + 127) / 255;
+            const auto premulBlue = (outBlueInt * alpha + 127) / 255;
+
+            dstRow[x] = (uint32_t(alpha) << 24) | (uint32_t(premulRed) << 16) |
+                        (uint32_t(premulGreen) << 8) | uint32_t(premulBlue);
+        }
+    }
+}
+
 void VBitmap::Impl::applyFourColorGradient(const VRect &region,
                                            const VPointF points[4],
                                            const VColor colors[4],
@@ -994,6 +1093,17 @@ void VBitmap::applyBoxBlur(const VRect &region, float radius, int iterations,
                            int dimensions)
 {
     if (mImpl) mImpl->applyBoxBlur(region, radius, iterations, dimensions);
+}
+
+void VBitmap::applyBevelAlpha(const VRect &region, float edgeThickness,
+                              float lightAngle, uint8_t lightRed,
+                              uint8_t lightGreen, uint8_t lightBlue,
+                              float lightIntensity)
+{
+    if (mImpl) {
+        mImpl->applyBevelAlpha(region, edgeThickness, lightAngle, lightRed,
+                               lightGreen, lightBlue, lightIntensity);
+    }
 }
 
 void VBitmap::generateFourColorGradientMap(const VRect &region,

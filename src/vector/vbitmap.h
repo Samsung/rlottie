@@ -74,6 +74,10 @@ public:
                                    const VBitmap &gradientMap, float amount);
     void    applyBoxBlur(const VRect &region, float radius, int iterations,
                          int dimensions);
+    void    applyBevelAlpha(const VRect &region, float edgeThickness,
+                            float lightAngle, uint8_t lightRed,
+                            uint8_t lightGreen, uint8_t lightBlue,
+                            float lightIntensity);
 private:
     struct Impl {
         std::unique_ptr<uint8_t[]> mOwnData{nullptr};
@@ -124,6 +128,10 @@ private:
                                     const VBitmap &gradientMap, float amount);
         void applyBoxBlur(const VRect &region, float radius, int iterations,
                           int dimensions);
+        void applyBevelAlpha(const VRect &region, float edgeThickness,
+                             float lightAngle, uint8_t lightRed,
+                             uint8_t lightGreen, uint8_t lightBlue,
+                             float lightIntensity);
     };
 
     rc_ptr<Impl> mImpl;

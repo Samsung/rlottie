@@ -248,6 +248,8 @@ public:
         model::Layer::FourColorGradientEffect &effect);
     bool             parseStrokeEffect(model::Layer::StrokeEffect &effect);
     bool             parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect);
+    bool             parseBevelAlphaEffect(
+        model::Layer::BevelAlphaEffect &effect);
     void             parseMaskProperty(model::Layer *layer);
     void             parseShapesAttr(model::Layer *layer);
     void             parseObject(model::Group *parent);
@@ -1929,6 +1931,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         parsedFourColorGradientEffect;
     std::unique_ptr<model::Layer::StrokeEffect> parsedStrokeEffect;
     std::unique_ptr<model::Layer::BoxBlurEffect> parsedBoxBlurEffect;
+    std::unique_ptr<model::Layer::BevelAlphaEffect> parsedBevelAlphaEffect;
     std::vector<model::Layer::BitmapEffectType> parsedBitmapEffectOrder;
     bool narrowStackSupported = true;
     while (NextArrayValue()) {
@@ -1946,6 +1949,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
         model::Layer::FourColorGradientEffect candidateFourColorGradientEffect;
         model::Layer::StrokeEffect candidateStrokeEffect;
         model::Layer::BoxBlurEffect candidateBoxBlurEffect;
+        model::Layer::BevelAlphaEffect candidateBevelAlphaEffect;
 
         EnterObject();
         while (const char *key = NextObjectKey()) {
@@ -1968,6 +1972,9 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
                     supported = parseStrokeEffect(candidateStrokeEffect);
                 } else if (effectMatchName == "ADBE Box Blur2") {
                     supported = parseBoxBlurEffect(candidateBoxBlurEffect);
+                } else if (effectMatchName == "ADBE Bevel Alpha") {
+                    supported = parseBevelAlphaEffect(
+                        candidateBevelAlphaEffect);
                 } else {
                     deferredSupport = true;
                     parseNarrowLayerEffectParams(this, candidateFillEffect,
@@ -2053,6 +2060,19 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             continue;
         }
 
+        if (effectMatchName == "ADBE Bevel Alpha") {
+            if (!sawParams || !supported || parsedBevelAlphaEffect) {
+                narrowStackSupported = false;
+                continue;
+            }
+            parsedBevelAlphaEffect =
+                std::make_unique<model::Layer::BevelAlphaEffect>(
+                    std::move(candidateBevelAlphaEffect));
+            parsedBitmapEffectOrder.push_back(
+                model::Layer::BitmapEffectType::BevelAlpha);
+            continue;
+        }
+
         if (!allowNarrowEffectSibling(effectMatchName)) {
             narrowStackSupported = false;
         }
@@ -2066,6 +2086,7 @@ void LottieParserImpl::parseLayerEffects(model::Layer *layer)
             std::move(parsedFourColorGradientEffect);
         extra->mStrokeEffect = std::move(parsedStrokeEffect);
         extra->mBoxBlurEffect = std::move(parsedBoxBlurEffect);
+        extra->mBevelAlphaEffect = std::move(parsedBevelAlphaEffect);
         extra->mBitmapEffectOrder = std::move(parsedBitmapEffectOrder);
     }
 }
@@ -2309,6 +2330,39 @@ bool LottieParserImpl::parseBoxBlurEffect(model::Layer::BoxBlurEffect &effect)
 
     supported &= repeatEdge.isStatic() && vIsZero(repeatEdge.value());
     supported &= effect.dimensions(0) >= 1 && effect.dimensions(0) <= 3;
+    return supported;
+}
+
+bool LottieParserImpl::parseBevelAlphaEffect(
+    model::Layer::BevelAlphaEffect &effect)
+{
+    bool supported = true;
+
+    EnterArray();
+    while (NextArrayValue()) {
+        std::string matchName;
+        EnterObject();
+        while (const char *key = NextObjectKey()) {
+            if (0 == strcmp(key, "mn")) {
+                matchName = GetStringObject();
+            } else if (0 == strcmp(key, "v")) {
+                if (matchName == "ADBE Bevel Alpha-0001") {
+                    parseProperty(effect.mEdgeThickness);
+                } else if (matchName == "ADBE Bevel Alpha-0002") {
+                    parseProperty(effect.mLightAngle);
+                } else if (matchName == "ADBE Bevel Alpha-0003") {
+                    parseProperty(effect.mLightColor);
+                } else if (matchName == "ADBE Bevel Alpha-0004") {
+                    parseProperty(effect.mLightIntensity);
+                } else {
+                    supported &= skipStaticZeroEffectValue(this);
+                }
+            } else {
+                Skip(key);
+            }
+        }
+    }
+
     return supported;
 }
 
