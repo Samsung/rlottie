@@ -430,17 +430,16 @@ void model::Asset::loadBitmapIfNeeded() const
 
     mImageLoadTried = true;
     if (!mImageData.empty()) {
-        auto rawData = mImageData;
+        auto rawData = std::move(mImageData);
         if (rawData.compare(0, 5, "data:") == 0 &&
             rawData.find(',') != std::string::npos) {
             rawData = convertFromBase64(rawData);
         }
         mBitmap = VImageLoader::instance().load(rawData.c_str(),
                                                 rawData.length());
-        mImageData.clear();
     } else if (!mImagePath.empty()) {
-        mBitmap = VImageLoader::instance().load(mImagePath.c_str());
-        mImagePath.clear();
+        auto path = std::move(mImagePath);
+        mBitmap = VImageLoader::instance().load(path.c_str());
     }
 }
 
