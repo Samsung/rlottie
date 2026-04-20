@@ -20,7 +20,7 @@
 | `ty`-last shape parser | `gr/sh/fl/tr` shape object에서 `ty`가 마지막에 와도 payload를 잃지 않도록 parser fallback 추가 |
 | 회귀 fixture | `example/resource/shape_group_ty_last.json` 추가. `100x100` 기준 `nonzero_pixels=1600`으로 정상 렌더 확인 |
 | `ADBE 4ColorGradient` | narrow whole-layer bitmap postprocess를 추가했다. 현재 지원 범위는 static point/color/opacity + `Blend=100`, `Jitter=0`, `Blending Mode=1` 기본값 케이스뿐이다. synthetic fixture `layer_effect_4color_gradient_solid.json`의 코너 샘플은 `blue / white / red / green`으로 분리된다 |
-| `ADBE 4ColorGradient` 수학 교체 | default-case `4ColorGradient`의 색 필드를 inverse-distance 가중치에서 quad bilinear sampler로 바꿨다. `stroke_dash.json` same-machine baseline 대비 median steady-state는 `0.265 ms -> 0.194 ms`로 줄었지만, ThorVG 대비 frame 0 / frame 12 adjudication은 아주 미세하게만 나빠졌다 |
+| `ADBE 4ColorGradient` 수학 교체 | default-case `4ColorGradient`의 색 필드를 inverse-distance 가중치에서 quad bilinear sampler로 바꿨다. `stroke_dash.json` same-machine baseline 대비 median steady-state는 `0.265 ms -> 0.194 ms`로 줄었지만, ThorVG 대비 frame 0 exact match는 `0.951435 -> 0.951381`, frame 12 exact match는 `0.949159 -> 0.949066`으로 아주 미세하게만 나빠졌다 |
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 이번 배치에서 single solid-fill shape layer는 layer alpha를 drawable 쪽으로 접고 offscreen을 생략하도록 바꿨다. exact match는 여전히 `0`이지만 full-frame compositing drift는 확실히 줄었다 |
 | `world_locations.json` matte 경로 | 기존 `ShapeLayer` alpha offscreen clip tightening 위에, nested child-layer walk가 필요한 source에서 source offscreen을 건너뛰는 recursive direct-alpha matte 경로를 추가했다. `first-frame` 정합성은 그대로 유지된다 |
 | static `ShapeLayer` drawable-list 재사용 | `contentStatic`가 참인 `ShapeLayer`는 drawable pointer list 구조가 프레임마다 바뀌지 않는다는 점을 이용해, `preprocessStage()`에서 render-list 재구성을 매 프레임 반복하지 않도록 바꿨다 |

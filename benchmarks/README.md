@@ -224,8 +224,9 @@ Recent cold-review note:
 - the current `stroke_dash.json` path uses a quad bilinear `ADBE 4ColorGradient`
   sampler. It beats the same-machine `ab561b4` baseline on steady-state
   (`0.265 ms -> 0.194 ms`) but still trails ThorVG and slightly worsens frame-0
-  and frame-12 adjudication, so it should be treated as a bounded performance
-  win rather than a semantics-complete fix
+  and frame-12 adjudication (`0.951435 -> 0.951381`, `0.949159 -> 0.949066`),
+  so it should be treated as a bounded performance win rather than a
+  semantics-complete fix
 - the current surviving `world_locations.json` optimizations are:
   `ShapeLayer` alpha offscreen clip tightening plus direct-alpha matte support
   for single translucent solid-fill sources, and a recursive direct-alpha
