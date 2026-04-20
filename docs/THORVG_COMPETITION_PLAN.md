@@ -79,6 +79,12 @@ The project is complete only when all of the following are true:
   alpha-matte path, which improves `world_locations.json` in same-machine
   A/B comparisons against the current `HEAD` baseline while preserving
   first-frame adjudication.
+- Matte sources that require a nested child-layer walk can now also skip the
+  extra source offscreen pass through a recursive direct-alpha matte path,
+  which further improves `world_locations.json` and still lifts the
+  same-machine `HEAD` baseline medians for `11555.json`, `confetti.json`, and
+  `threads.json` after the path was narrowed back away from plain shape-layer
+  sources.
 - Positive alpha/luma matte pairs now preprocess against tighter current-frame
   source bounds, while skipping layers whose mask semantics depend on the full
   clip rectangle.
@@ -136,11 +142,11 @@ Clear current `rlottie` steady-state wins:
 
 Largest current `rlottie` steady-state losses:
 
-1. `expressions/world_locations.json`: `0.514 ms` vs `0.239 ms`
-2. `11555.json`: `1.541 ms` vs `1.409 ms`
-3. `confetti.json`: `0.209 ms` vs `0.109 ms`
-4. `stroke_dash.json`: `0.159 ms` vs `0.126 ms`
-5. `threads.json` is now effectively a tie in the current run: `2.013 ms` vs `2.017 ms`
+1. `expressions/world_locations.json`: `0.504 ms` vs `0.235 ms`
+2. `11555.json`: `1.503 ms` vs `1.369 ms`
+3. `threads.json`: `2.076 ms` vs `2.009 ms`
+4. `confetti.json`: `0.191 ms` vs `0.119 ms`
+5. `stroke_dash.json`: `0.175 ms` vs `0.139 ms`
 6. `textrange.json` is no longer a performance priority; it remains a text
    correctness priority even though `rlottie` is faster there
 7. `32266.json` remains a correctness and parse target rather than a

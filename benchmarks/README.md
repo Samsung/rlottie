@@ -190,11 +190,11 @@ On the current median-of-5 comparison for the main lagging assets at
 `360x360`, `30` iterations, `3` warmup, and `1` ThorVG thread, the main
 steady-state losses are:
 
-- `expressions/world_locations.json`: `0.514 ms` vs `0.239 ms`
-- `11555.json`: `1.541 ms` vs `1.409 ms`
-- `confetti.json`: `0.209 ms` vs `0.109 ms`
-- `threads.json`: `2.013 ms` vs `2.017 ms`
-- `stroke_dash.json`: `0.159 ms` vs `0.126 ms`
+- `expressions/world_locations.json`: `0.504 ms` vs `0.235 ms`
+- `11555.json`: `1.503 ms` vs `1.369 ms`
+- `confetti.json`: `0.191 ms` vs `0.119 ms`
+- `threads.json`: `2.076 ms` vs `2.009 ms`
+- `stroke_dash.json`: `0.175 ms` vs `0.139 ms`
 - `textrange.json` is already faster in `rlottie`, so it remains a correctness
   target rather than a steady-state target
 
@@ -212,9 +212,11 @@ Recent cold-review note:
   the benchmark workflow
 - the current surviving `world_locations.json` optimizations are:
   `ShapeLayer` alpha offscreen clip tightening plus direct-alpha matte support
-  for single translucent solid-fill sources; the latter kept first-frame
-  adjudication unchanged and beat the same-machine `HEAD` baseline in repeated
-  A/B medians on `world_locations`, `11555`, and `threads`
+  for single translucent solid-fill sources, and a recursive direct-alpha
+  matte path for source layers whose alpha can be resolved only through a
+  nested child-layer walk; the latest path kept first-frame adjudication
+  unchanged and beat the same-machine `HEAD` baseline in repeated A/B medians on
+  `world_locations`, `11555`, `confetti`, and `threads`
 
 ## Current Lagging Buckets
 
@@ -243,15 +245,17 @@ Recent matte work:
   tighter positive-matte preprocessing clips and a direct alpha-matte path
   that skips the extra source offscreen when the source layer has no
   blend/effect work.
-- That direct path now also accepts opaque solid strokes, which matches the
-  actual source content inside `world_locations.json`.
-- On the current median-of-5 comparison, the asset sits around `0.499 ms`
+- That direct path now also accepts nested source layers whose child layers
+  can collapse into alpha RLEs, which matches the actual precomp source
+  structure inside `world_locations.json`.
+- On the current median-of-5 comparison, the asset sits around `0.504 ms`
   steady-state against ThorVG's `0.235 ms`. The gap is still large, but the
-  stroke-aware direct path survived correctness checks and remains the current
+  recursive direct path survived correctness checks and remains the current
   best matte-specific optimization on this branch.
-- The same path cuts `render_matte_ms` in the steady 30-frame profile from
-  the older high-20ms range down into the mid-teens on the cleaner runs
-  without changing the first-frame adjudication result (`0.999722` exact-match
+- The same-machine `HEAD` baseline A/B medians now sit at
+  `world_locations 0.580 -> 0.548 ms`, `11555 1.615 -> 1.507 ms`,
+  `confetti 0.201 -> 0.196 ms`, and `threads 2.237 -> 2.124 ms` without
+  changing the first-frame adjudication result (`0.999722` exact-match
   ratio). Profile runs remain noisy enough that they should be used only as
   hotspot guides, not as ranking inputs.
 
