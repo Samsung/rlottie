@@ -47,11 +47,17 @@ static VRect pathBounds(const VPath &path)
     return {x, y, int(std::ceil(right)) - x, int(std::ceil(bottom)) - y};
 }
 
-static VRect tightClipFromBounds(const VRect &clip, const VRect &pathBounds,
-                                 VDrawable::Type type,
-                                 const VDrawable::StrokeInfo *strokeInfo)
+struct TightClipResult {
+    VRect clip;
+    bool  skip{false};
+};
+
+static TightClipResult tightClipFromBounds(const VRect &clip,
+                                           const VRect &pathBounds,
+                                           VDrawable::Type type,
+                                           const VDrawable::StrokeInfo *strokeInfo)
 {
-    if (pathBounds.empty()) return clip;
+    if (pathBounds.empty()) return {clip, false};
 
     VRect bounds = pathBounds;
     if (type != VDrawable::Type::Fill && strokeInfo) {
@@ -62,10 +68,11 @@ static VRect tightClipFromBounds(const VRect &clip, const VRect &pathBounds,
         bounds.setBottom(bounds.bottom() + pad);
     }
 
-    if (clip.empty()) return bounds;
+    if (clip.empty()) return {bounds, false};
 
     auto result = clip & bounds;
-    return result.empty() ? clip : result;
+    if (result.empty()) return {{}, true};
+    return {result, false};
 }
 
 VDrawable::VDrawable(VDrawable::Type type)
@@ -112,13 +119,23 @@ void VDrawable::preprocess(const VRect &clip)
     if (mFlag & (DirtyState::Path)) {
         auto rasterClip = tightClipFromBounds(clip, mPathBounds, mType,
                                               mStrokeInfo);
+        if (rasterClip.skip) {
+            if (mType == Type::Fill) {
+                mRasterizer.rasterize(VPath(), mFillRule);
+            } else {
+                mRasterizer.rasterize(VPath(), mStrokeInfo->cap,
+                                      mStrokeInfo->join, mStrokeInfo->width,
+                                      mStrokeInfo->miterLimit);
+            }
+            return;
+        }
         if (mType == Type::Fill) {
-            mRasterizer.rasterize(std::move(mPath), mFillRule, rasterClip);
+            mRasterizer.rasterize(std::move(mPath), mFillRule, rasterClip.clip);
         } else {
             applyDashOp();
             mRasterizer.rasterize(std::move(mPath), mStrokeInfo->cap, mStrokeInfo->join,
                                   mStrokeInfo->width, mStrokeInfo->miterLimit,
-                                  rasterClip);
+                                  rasterClip.clip);
         }
         mPath = {};
         mFlag &= ~DirtyFlag(DirtyState::Path);
