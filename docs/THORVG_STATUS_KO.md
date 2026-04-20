@@ -21,6 +21,8 @@
 | 회귀 fixture | `example/resource/shape_group_ty_last.json` 추가. `100x100` 기준 `nonzero_pixels=1600`으로 정상 렌더 확인 |
 | `ADBE 4ColorGradient` | narrow whole-layer bitmap postprocess를 추가했다. 현재 지원 범위는 static point/color/opacity + `Blend=100`, `Jitter=0`, `Blending Mode=1` 기본값 케이스뿐이다. synthetic fixture `layer_effect_4color_gradient_solid.json`의 코너 샘플은 `blue / white / red / green`으로 분리된다 |
 | `ADBE 4ColorGradient` 수학 교체 | default-case `4ColorGradient`의 색 필드를 inverse-distance 가중치에서 quad bilinear sampler로 바꿨다. `stroke_dash.json` same-machine baseline 대비 median steady-state는 `0.265 ms -> 0.194 ms`로 줄었지만, ThorVG 대비 frame 0 exact match는 `0.951435 -> 0.951381`, frame 12 exact match는 `0.949159 -> 0.949066`으로 아주 미세하게만 나빠졌다 |
+| stroke/effect hot-path profiling | `threads.json`과 `stroke_dash.json`을 위해 내부 profile counter를 `rasterStrokeSetup`, `rasterRender`, `drawRleSolid`, `drawRleGradient`, `drawRleTexture`까지 확장했다. 최신 profile상 `threads`는 `trim`이 아니라 `raster_render`가 절대 다수이고, `stroke_dash`는 `raster_stroke > bitmap_effect > dash_apply` 순으로 비용이 갈린다 |
+| static `4ColorGradient` color-map cache | 정적인 `4ColorGradient` point/color 레이어는 bilinear field를 매 프레임 다시 풀지 않고 color map을 캐시해 재사용하도록 바꿨다. `stroke_dash.json` same-machine profile run은 `avg_frame_ms 0.451 -> 0.232`까지 줄었고, hardened median-of-5도 `0.272 ms`까지 내려왔다. 다만 ThorVG `0.126 ms`보다는 아직 느리다 |
 | `R_QPKIVi.json` 상태 변화 | blank-output 단계는 이미 벗어났다. 이번 배치에서 single solid-fill shape layer는 layer alpha를 drawable 쪽으로 접고 offscreen을 생략하도록 바꿨다. exact match는 여전히 `0`이지만 full-frame compositing drift는 확실히 줄었다 |
 | `world_locations.json` matte 경로 | 기존 `ShapeLayer` alpha offscreen clip tightening 위에, nested child-layer walk가 필요한 source에서 source offscreen을 건너뛰는 recursive direct-alpha matte 경로를 추가했다. `first-frame` 정합성은 그대로 유지된다 |
 | static `ShapeLayer` drawable-list 재사용 | `contentStatic`가 참인 `ShapeLayer`는 drawable pointer list 구조가 프레임마다 바뀌지 않는다는 점을 이용해, `preprocessStage()`에서 render-list 재구성을 매 프레임 반복하지 않도록 바꿨다 |
@@ -61,13 +63,14 @@
 
 | 항목 | 현재 결론 |
 | --- | --- |
-| `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 inverse-distance 가중치 대신 quad bilinear sampler로 돈다. same-machine baseline 대비 steady-state는 분명히 줄었지만 ThorVG 대비 frame 0 / frame 12 image adjudication은 아주 조금 나빠졌고, overall steady-state도 아직 느리다. 즉 성능은 개선됐지만 effect semantics는 아직 미완이다. |
+| `stroke_dash.json` | 정적 title text는 복구됐고, default-case `ADBE 4ColorGradient`도 bilinear sampler + 정적 color-map cache로 돈다. same-machine baseline 대비 steady-state는 크게 줄었지만 ThorVG 대비 frame 12 exact match는 여전히 `0.949066` 수준이고, hardened median-of-5도 `0.272 ms vs 0.126 ms`라 아직 느리다. 즉 성능은 더 좋아졌지만 effect semantics와 broader stack은 아직 미완이다. |
 | `textrange.json` | 성능은 이미 ThorVG보다 빠르다. 남은 핵심 gap은 animated `t.d.k` document와 range-selector opacity animator다. |
 | `text_anim.json` | runtime text가 아니라 outlined shape scene이다. real text 완성의 근거로 쓰면 안 된다. |
 | `32266.json` | steady-state보다 correctness + parse 이슈가 더 크다. first-frame exact match ratio는 `0.717` 수준이다. |
 | `world_locations.json` | correctness 문제는 사실상 아니다. matte/direct-alpha 경로와 drawable-list 재사용 위에, 이번에는 raster bounds 바깥 drawables를 실제 rasterize하지 않도록 줄여서 current desktop median이 더 내려갔다. 다만 Tizen 실기기에서도 같은 결과가 유지되는지는 아직 검증이 필요하다. |
 | `11555/confetti` | reusable subgraph / transform 계열 진단은 여전히 유효하다. `11555`는 여전히 크게 앞서고 `confetti`도 desktop median에서 rlottie 우세다. 이번 low-level raster skip도 두 자산에서 baseline 대비 추가 이득을 보였다. |
-| `threads.json` | pure transform bucket으로 보기 어렵다. 최신 audit 기준 `Path.ks`와 `Trim.s/e`가 모두 animated라서, 남은 병목은 transform-cache보다 trim + animated-path + stroke raster seam이다. 다만 이번 raster skip으로 baseline 대비 steady-state가 `2.072 -> 2.006 ms`까지는 줄었다. |
+| `threads.json` | pure transform bucket으로 보기 어렵다. 최신 hot-path profile 기준 steady 30-frame 누적이 `trim_update_ms=2.17`, `raster_stroke_setup_ms=6.05`, `raster_render_ms=59.75`라서 실제 병목은 trim이 아니라 stroke raster render 자체다. gradient brush 도색은 `draw_rle_gradient_ms=2.31` 수준이라 주원인이 아니다. |
+| expression bucket | `10444`는 direct layer transform alias, `10416`은 transform alias + path alias + `loopOut()`, `11272`는 `content(...).innerRadius` 참조, `16447`는 direct alias + wiggle류 effect expression으로 갈린다. 반면 `balloons_with_string.json`은 명시적 `x` expression string이 없어, 실제로는 pseudo-control/rig 계열 correctness backlog에 더 가깝다. |
 | transform-cache 프로토타입 | world-space snapshot 재투영만으로는 충분하지 않았다. `11555.json`과 `threads.json`은 baseline보다 빨라졌지만 ThorVG image adjudication에서는 오히려 더 멀어졌다. 현재 남겨둔 건 affine bitmap helper와 `contentStatic` 메타데이터뿐이고, 다음 시도도 pure transform 자산에 한정해야 한다. |
 | `R_QPKIVi.json` | `ty`가 마지막인 shape object parser blank는 닫혔다. 이번 배치에서 single solid-fill shape layer alpha를 drawable 쪽으로 접으면서 frame 0 drift가 더 줄었다. exact match는 여전히 `0`이지만 mean abs diff RGB는 `[0.1539, 1.1118, 0.1537] -> [0.0960, 0.9815, 0.0505]`로 개선됐다. |
 | `43391.json` | chained `Merge Paths` semantics 수정으로 큰 빈 구멍은 줄었지만 아직 틀린 영역이 남는다. 현재는 추가 merge-path chain semantics와 stroke semantics를 같이 봐야 한다. |
@@ -79,9 +82,9 @@
 | world_locations.json | matte/offscreen | 0.245 | 0.417 | 0.061 | 0.219 | 0.28x | 4480 | 5024 | rlottie 우세 |
 | 11555.json | transform cache | 0.171 | 0.391 | 0.084 | 1.265 | 0.07x | 4080 | 3648 | rlottie 우세 |
 | confetti.json | reusable subgraph | 1.393 | 0.561 | 0.077 | 0.099 | 0.77x | 3856 | 4368 | rlottie 우세 |
-| threads.json | trim + stroke raster | 0.107 | 0.376 | 1.914 | 1.841 | 1.04x | 5216 | 3648 | ThorVG 우세 |
+| threads.json | trim + stroke raster | 0.105 | 0.429 | 1.903 | 1.837 | 1.04x | 5200 | 3648 | ThorVG 우세, 실제 병목은 trim이 아니라 `raster_render` |
 | text_anim.json | outlined text scene | 1.078 | 0.501 | 0.115 | 0.084 | 1.37x | 3936 | 4160 | ThorVG 우세 |
-| stroke_dash.json | real text + effect | 0.122 | 0.411 | 0.207 | 0.125 | 1.66x | 4224 | 3408 | ThorVG 우세, rlottie는 bilinear `4ColorGradient`와 low-level raster skip으로 baseline보다는 빨라졌지만 ThorVG와는 아직 다르다 |
+| stroke_dash.json | real text + effect | 0.121 | 0.398 | 0.272 | 0.126 | 2.16x | 4256 | 3392 | ThorVG 우세, bilinear `4ColorGradient`에 정적 color-map cache를 더해도 아직 effect semantics와 broader stack이 남는다 |
 | textrange.json | real text animator | 0.113 | 0.338 | 0.009 | 0.022 | 0.39x | 2784 | 3344 | rlottie 우세 |
 | textblock.json | outlined shape text | 4.496 | 1.040 | 0.849 | 0.318 | 2.67x | 8592 | 7584 | ThorVG 우세 |
 | 32266.json | correctness + parse | 14.192 | 0.796 | 0.174 | 0.392 | 0.44x | 22608 | 15904 | rlottie 우세 |
@@ -101,9 +104,9 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | matte/offscreen | world_locations.json | 0.245 | 0.417 | 0.061 | 0.219 | 0.28x | 4480 | 5024 | rlottie 우세 |
 | reusable subgraph / transform cache | 11555.json, confetti.json | 0.782 | 0.476 | 0.080 | 0.682 | 0.12x | 3968 | 4008 | rlottie 우세, 다만 이 버킷 진단을 `threads`까지 넓히면 안 된다 |
-| trim + stroke raster | threads.json | 0.107 | 0.376 | 1.914 | 1.841 | 1.04x | 5216 | 3648 | 현재 desktop steady-state 열세의 핵심 |
+| trim + stroke raster | threads.json | 0.105 | 0.429 | 1.903 | 1.837 | 1.04x | 5200 | 3648 | 현재 desktop steady-state 열세의 핵심. trim보다 `raster_render`가 본체다 |
 | outlined text scene | text_anim.json, textblock.json | 2.787 | 0.771 | 0.482 | 0.201 | 2.40x | 6264 | 5872 | ThorVG 우세 |
-| real text / text animator | stroke_dash.json, textrange.json | 0.117 | 0.375 | 0.108 | 0.073 | 1.47x | 3504 | 3376 | ThorVG 우세, `stroke_dash`는 bilinear `4ColorGradient`와 low-level raster skip으로 baseline보다 빨라졌지만 ThorVG exact match는 아직 더 멀다 |
+| real text / text animator | stroke_dash.json, textrange.json | 0.117 | 0.368 | 0.141 | 0.076 | 1.86x | 3520 | 3368 | ThorVG 우세, `stroke_dash`는 캐시로 빨라졌지만 여전히 effect semantics와 stack coverage가 부족하다 |
 | layer effect | layereffect.json | 0.174 | 0.389 | 0.115 | 0.174 | 0.66x | 4080 | 3856 | rlottie 우세 |
 | merge paths | merging_shapes.json | 0.126 | 0.403 | 0.064 | 0.050 | 1.28x | 3104 | 3328 | ThorVG 우세 |
 | basic vector | abstract_circle.json, windmill.json, glow_loading.json, gradient_sleepy_loader.json, polystar_anim.json | 0.107 | 0.403 | 0.099 | 0.151 | 0.66x | 3689 | 3484 | rlottie 우세 |
@@ -115,9 +118,9 @@
 | --- | --- | --- | --- |
 | 1 | `threads.json` | 최신 audit 기준 trim + animated-path + stroke raster 병목이 남아 있다. 이번 low-level raster skip으로도 아직 ThorVG보다 느리다 | trim/stroke geometry reuse seam을 다시 찾고 raster backend 측 재사용 지점을 확인 |
 | 2 | `stroke_dash.json` | bilinear `4ColorGradient`로 baseline 대비 성능은 줄였지만 ThorVG보다 아직 느리고 exact match도 더 좋지 않다 | true `4ColorGradient` semantics와 broader effect stack을 분리해서 다시 설계 |
-| 3 | `text_anim.json`, `textblock.json` | outlined scene bucket은 여전히 ThorVG보다 느리다 | path/raster work를 더 줄일 구조를 찾고 precomp 경계 캐시를 재검토 |
-| 4 | `textrange.json`, `32266.json`, `R_QPKIVi.json`, `43391.json` | 성능보다 correctness drift가 더 큰 축이다 | `t.d.k`/selector, image-precomp drift, non-opaque compositing, chained merge semantics를 각각 분리 |
-| 5 | `world_locations.json` | desktop에서는 이미 앞서지만 Tizen 실기기에서도 같은 결과가 유지되는지 검증이 필요하다 | Tizen ARM 기준 matte/offscreen profile을 다시 확보 |
+| 3 | expression bucket (`10444`, `10416`, `11272`, `16447`) | full engine 없이도 direct alias / path alias / simple math / loop류 subset을 먼저 닫을 수 있다 | subset evaluator와 unsupported diagnostics를 분리해서 좁게 넣기 |
+| 4 | `text_anim.json`, `textblock.json`, `textrange.json` | outlined scene와 runtime text correctness가 아직 섞여 있다 | outlined bucket 최적화와 `t.d.k` / selector subset을 분리 |
+| 5 | `32266.json`, `R_QPKIVi.json`, `43391.json`, `27746-joypixels-partying-face-emoji-animation.json` | 성능보다 correctness drift가 더 큰 축이다 | image-precomp drift, non-opaque compositing, chained merge semantics, pseudo-control rig를 각각 분리 |
 
 ## 주의할 점
 
@@ -127,6 +130,7 @@
 - `world_locations`와 `11555/confetti/threads`에 대해 speculative한 matte/cache 경로를 억지로 유지하면 오히려 median frame time이 악화된다. 현재 문서에는 benchmark를 통과한 경로만 남긴다.
 - narrow `ShapeLayer` snapshot cache는 baseline steady-state를 일부 줄였지만 `11555.json`과 `threads.json`에서 baseline 대비 frame 0 drift가 커졌다. 그래서 코드에는 남기지 않고, affine bitmap draw helper와 `contentStatic` 메타데이터만 선행 작업으로 유지했다.
 - 이번 path-bounds raster clip 계열은 representative late-frame dump 여섯 개(`threads@90`, `text_anim@120`, `11555@160`, `stroke_dash@12`, `confetti@30`, `world_locations@120`)에서 모두 baseline exact match를 유지한 채, bounds 밖 drawables는 empty RLE로 조기 종료하도록 더 좁혀 same-machine `HEAD` baseline 대비 `world_locations 0.085 -> 0.080 ms`, `11555 0.190 -> 0.093 ms`, `confetti 0.085 -> 0.081 ms`, `threads 2.072 -> 2.006 ms`, `stroke_dash 0.216 -> 0.196 ms`, `text_anim 0.162 -> 0.122 ms`, `textrange 0.030 -> 0.007 ms`까지 줄였다.
-- `stroke_dash.json`은 bilinear `4ColorGradient`로 baseline steady-state는 줄였지만, frame 0과 frame 12 판정은 baseline보다 아주 조금 나빠졌다. 지금은 “성능 개선은 됐지만 effect semantics는 아직 틀리다”로 보는 게 맞다.
+- `stroke_dash.json`은 bilinear `4ColorGradient`에 정적 color-map cache까지 더해 steady-state는 더 줄었지만, frame 12 판정은 여전히 `0.949066` 수준이다. 지금은 “성능 개선은 됐지만 effect semantics는 아직 틀리다”로 보는 게 맞다.
+- `threads.json`은 trim 최적화를 더 파는 방향이 틀렸다는 게 계측으로 확인됐다. 현재는 `raster_render`와 stroke geometry reuse를 직접 건드려야 한다.
 - `R_QPKIVi.json`은 이제 blank도 아니고 catastrophic miss도 아니다. single solid-fill layer alpha를 inline한 뒤에도 exact match는 `0`이지만, 이건 여전히 전면적인 작은 compositing drift 문제라는 뜻이다.
 - `43391.json`은 parser fallback 문제가 아니라 merge-path chain semantics 문제였다. 다만 이번 수정으로도 exact match가 `0.779` 수준이라, 남은 drift를 과소평가하면 안 된다.
