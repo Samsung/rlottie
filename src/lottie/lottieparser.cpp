@@ -54,6 +54,8 @@
 // the parse.
 
 #include <array>
+#include <queue>
+#include <unordered_set>
 
 #include "lottiemodel.h"
 #include "rapidjson/document.h"
@@ -647,12 +649,48 @@ model::BlendMode LottieParserImpl::getBlendMode()
 
 void LottieParserImpl::resolveLayerRefs()
 {
+    // Build directed graph: assetId → direct precomp refIds.
+    // Then BFS from each asset to detect if it can reach itself (cycle).
+    std::unordered_set<std::string> cyclicAssets;
+    {
+        std::unordered_map<std::string, std::vector<std::string>> deps;
+        for (const auto &kv : compRef->mAssets) {
+            for (const auto &obj : kv.second->mLayers) {
+                if (obj->type() != model::Object::Type::Layer) continue;
+                auto layer = static_cast<model::Layer *>(obj);
+                if (layer->mLayerType == model::Layer::Type::Precomp &&
+                    layer->mExtra && !layer->mExtra->mPreCompRefId.empty()) {
+                    deps[kv.first].push_back(layer->mExtra->mPreCompRefId);
+                }
+            }
+        }
+        for (const auto &kv : deps) {
+            const std::string &           startId = kv.first;
+            std::unordered_set<std::string> visited;
+            std::queue<std::string>         q;
+            for (const auto &dep : kv.second) q.push(dep);
+            while (!q.empty()) {
+                std::string id = q.front(); q.pop();
+                if (id == startId) { cyclicAssets.insert(startId); break; }
+                if (!visited.insert(id).second) continue;
+                auto it = deps.find(id);
+                if (it != deps.end())
+                    for (const auto &dep : it->second) q.push(dep);
+            }
+        }
+    }
+
     for (const auto &layer : mLayersToUpdate) {
         auto search = compRef->mAssets.find(layer->extra()->mPreCompRefId);
         if (search != compRef->mAssets.end()) {
             if (layer->mLayerType == model::Layer::Type::Image) {
                 layer->extra()->mAsset = search->second;
             } else if (layer->mLayerType == model::Layer::Type::Precomp) {
+                if (cyclicAssets.count(search->first)) {
+                    vWarning << "Circular asset reference detected, ignoring: "
+                             << search->first;
+                    continue;
+                }
                 layer->mChildren = search->second->mLayers;
                 layer->setStatic(layer->isStatic() &&
                                  search->second->isStatic());
