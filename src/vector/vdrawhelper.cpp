@@ -138,6 +138,11 @@ bool VGradientCache::generateGradientColorTable(const VGradientStops &stops,
 
     if (!vCompare(opacity, 1.0f)) alpha = true;
 
+    if (stopCount == 0) {
+        for (int j = 0; j < size; ++j) colorTable[j] = 0;
+        return alpha;
+    }
+
     start = stops.data();
     curr = start;
     if (!curr->second.isOpaque()) alpha = true;
@@ -153,7 +158,7 @@ bool VGradientCache::generateGradientColorTable(const VGradientStops &stops,
         fpos += incr;
     }
 
-    for (i = 0; i < stopCount - 1; ++i) {
+    for (i = 0; i + 1 < stopCount; ++i) {
         curr = (start + i);
         next = (start + i + 1);
         delta = 1 / (next->first - curr->first);

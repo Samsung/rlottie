@@ -187,17 +187,17 @@ typedef struct SW_FT_Outline_Funcs_ {
 #define ONE_PIXEL (1L << PIXEL_BITS)
 #define PIXEL_MASK (-1L << PIXEL_BITS)
 #define TRUNC(x) ((TCoord)((x) >> PIXEL_BITS))
-#define SUBPIXELS(x) ((TPos)(x) << PIXEL_BITS)
+#define SUBPIXELS(x) ((TPos)((unsigned long)(x) << PIXEL_BITS))
 #define FLOOR(x) ((x) & -ONE_PIXEL)
 #define CEILING(x) (((x) + ONE_PIXEL - 1) & -ONE_PIXEL)
 #define ROUND(x) (((x) + ONE_PIXEL / 2) & -ONE_PIXEL)
 
 #if PIXEL_BITS >= 6
-#define UPSCALE(x) ((x) << (PIXEL_BITS - 6))
+#define UPSCALE(x)   ((TPos)((unsigned long)(x) << (PIXEL_BITS - 6)))
 #define DOWNSCALE(x) ((x) >> (PIXEL_BITS - 6))
 #else
-#define UPSCALE(x) ((x) >> (6 - PIXEL_BITS))
-#define DOWNSCALE(x) ((x) << (6 - PIXEL_BITS))
+#define UPSCALE(x)   ((x) >> (6 - PIXEL_BITS))
+#define DOWNSCALE(x) ((TPos)((unsigned long)(x) << (6 - PIXEL_BITS)))
 #endif
 
 /* Compute `dividend / divisor' and return both its quotient and     */
@@ -1016,7 +1016,7 @@ static int SW_FT_Outline_Decompose(const SW_FT_Outline*       outline,
                                    void*                      user)
 {
 #undef SCALED
-#define SCALED(x) (((x) << shift) - delta)
+#define SCALED(x) ((TPos)((unsigned long)(x) << shift) - delta)
 
     SW_FT_Vector v_last;
     SW_FT_Vector v_control;
