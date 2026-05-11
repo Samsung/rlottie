@@ -114,12 +114,12 @@
 /*                                                                       */
 typedef struct  SW_FT_Outline_
 {
-  short       n_contours;      /* number of contours in glyph        */
-  short       n_points;        /* number of points in the glyph      */
+  int         n_contours;      /* number of contours in glyph        */
+  int         n_points;        /* number of points in the glyph      */
 
   SW_FT_Vector*  points;          /* the outline's points               */
   char*       tags;            /* the points flags                   */
-  short*      contours;        /* the contour end points             */
+  int*        contours;        /* the contour end points             */
   char*       contours_flag;   /* the contour open flags             */
 
   int         flags;           /* outline masks                      */

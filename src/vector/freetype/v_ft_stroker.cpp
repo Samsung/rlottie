@@ -650,8 +650,8 @@ static void ft_stroke_border_export(SW_FT_StrokeBorder border,
     {
         SW_FT_UInt   count = border->num_points;
         SW_FT_Byte*  tags = border->tags;
-        SW_FT_Short* write = outline->contours + outline->n_contours;
-        SW_FT_Short  idx = (SW_FT_Short)outline->n_points;
+        SW_FT_Int*   write = outline->contours + outline->n_contours;
+        SW_FT_Int  idx = outline->n_points;
 
         for (; count > 0; count--, tags++, idx++) {
             if (*tags & SW_FT_STROKE_TAG_END) {
@@ -661,7 +661,7 @@ static void ft_stroke_border_export(SW_FT_StrokeBorder border,
         }
     }
 
-    outline->n_points = (short)(outline->n_points + border->num_points);
+    outline->n_points = (int)(outline->n_points + border->num_points);
 
     assert(SW_FT_Outline_Check(outline) == 0);
 }
