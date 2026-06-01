@@ -250,11 +250,14 @@ void model::Gradient::populate(VGradientStops &stops, int frameNo)
     auto                  size = gradData.mGradient.size();
     float *               ptr = gradData.mGradient.data();
     int                   colorPoints = mColorPoints;
-    size_t                colorPointsSize = colorPoints * 4;
     if (!ptr) return;
-    if (colorPoints < 0 || colorPointsSize > size) {  // for legacy bodymovin (ref: lottie-android)
+    if (colorPoints > 0 && (size_t)colorPoints > size / 4) {
         colorPoints = int(size / 4);
     }
+    if (colorPoints < 0) {  // for legacy bodymovin (ref: lottie-android)
+        colorPoints = int(size / 4);
+    }
+    size_t                colorPointsSize = (size_t)colorPoints * 4;
     auto   opacityArraySize = size - colorPointsSize;
     if (opacityArraySize % 2 != 0) {
         opacityArraySize = 0;
