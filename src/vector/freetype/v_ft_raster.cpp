@@ -806,6 +806,8 @@ gray_render_cubic(RAS_ARG_ const SW_FT_Vector* control1,
       continue;
 
     Split:
+      if ( arc - ras.bez_stack >= 31 * 3 )
+        return; // bez_stack size is 32*3+1
       gray_split_cubic( arc );
       arc += 3;
     }

@@ -78,7 +78,7 @@ public:
     SW_FT_Fixed             ftMiterLimit;
     dyn_array<SW_FT_Vector> mPointMemory{100};
     dyn_array<char>         mTagMemory{100};
-    dyn_array<short>        mContourMemory{10};
+    dyn_array<int>          mContourMemory{10};
     dyn_array<char>         mContourFlagMemory{10};
 };
 
