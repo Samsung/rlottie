@@ -223,6 +223,7 @@ public:
     virtual void update(int frameNo, const VMatrix &parentMatrix,
                         float parentAlpha);
     VMatrix      matrix(int frameNo) const;
+    VMatrix      matrix(int frameNo, int depth) const;
     void         preprocess(const VRect &clip);
     virtual DrawableList renderList() { return {}; }
     virtual void         render(VPainter *painter, const VRle &mask,
