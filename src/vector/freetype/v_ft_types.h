@@ -1,6 +1,8 @@
 #ifndef V_FT_TYPES_H
 #define V_FT_TYPES_H
 
+#include <cstdint>
+
 /*************************************************************************/
 /*                                                                       */
 /* <Type>                                                                */
@@ -10,7 +12,7 @@
 /*    This type is used to store 16.16 fixed-point values, like scaling  */
 /*    values or matrix coefficients.                                     */
 /*                                                                       */
-typedef signed long  SW_FT_Fixed;
+typedef int32_t  SW_FT_Fixed;
 
 
 /*************************************************************************/
@@ -21,7 +23,7 @@ typedef signed long  SW_FT_Fixed;
 /* <Description>                                                         */
 /*    A typedef for the int type.                                        */
 /*                                                                       */
-typedef signed int  SW_FT_Int;
+typedef int32_t  SW_FT_Int;
 
 
 /*************************************************************************/
@@ -30,9 +32,9 @@ typedef signed int  SW_FT_Int;
 /*    SW_FT_UInt                                                            */
 /*                                                                       */
 /* <Description>                                                         */
-/*    A typedef for the unsigned int type.                               */
+/*    A typedef for the uint32_t type.                                   */
 /*                                                                       */
-typedef unsigned int  SW_FT_UInt;
+typedef uint32_t  SW_FT_UInt;
 
 
 /*************************************************************************/
@@ -41,9 +43,9 @@ typedef unsigned int  SW_FT_UInt;
 /*    SW_FT_Long                                                            */
 /*                                                                       */
 /* <Description>                                                         */
-/*    A typedef for signed long.                                         */
+/*    A typedef for int32_t.                                             */
 /*                                                                       */
-typedef signed long  SW_FT_Long;
+typedef int32_t  SW_FT_Long;
 
 
 /*************************************************************************/
@@ -52,9 +54,9 @@ typedef signed long  SW_FT_Long;
 /*    SW_FT_ULong                                                           */
 /*                                                                       */
 /* <Description>                                                         */
-/*    A typedef for unsigned long.                                       */
+/*    A typedef for uint32_t.                                            */
 /*                                                                       */
-typedef unsigned long SW_FT_ULong;
+typedef uint32_t SW_FT_ULong;
 
 /*************************************************************************/
 /*                                                                       */
@@ -64,7 +66,7 @@ typedef unsigned long SW_FT_ULong;
 /* <Description>                                                         */
 /*    A typedef for signed short.                                        */
 /*                                                                       */
-typedef signed short  SW_FT_Short;
+typedef int16_t  SW_FT_Short;
 
 
 /*************************************************************************/
@@ -75,7 +77,7 @@ typedef signed short  SW_FT_Short;
 /* <Description>                                                         */
 /*    A simple typedef for the _unsigned_ char type.                     */
 /*                                                                       */
-typedef unsigned char  SW_FT_Byte;
+typedef uint8_t  SW_FT_Byte;
 
 
 /*************************************************************************/
@@ -87,7 +89,7 @@ typedef unsigned char  SW_FT_Byte;
 /*    A typedef of unsigned char, used for simple booleans.  As usual,   */
 /*    values 1 and~0 represent true and false, respectively.             */
 /*                                                                       */
-typedef unsigned char  SW_FT_Bool;
+typedef uint8_t  SW_FT_Bool;
 
 
 
@@ -113,7 +115,7 @@ typedef int  SW_FT_Error;
 /*    on the context, these can represent distances in integer font      */
 /*    units, or 16.16, or 26.6 fixed-point pixel coordinates.            */
 /*                                                                       */
-typedef signed long  SW_FT_Pos;
+typedef int32_t  SW_FT_Pos;
 
 
 /*************************************************************************/
@@ -137,11 +139,11 @@ typedef struct  SW_FT_Vector_
 } SW_FT_Vector;
 
 
-typedef long long int           SW_FT_Int64;
-typedef unsigned long long int  SW_FT_UInt64;
+typedef int64_t             SW_FT_Int64;
+typedef uint64_t            SW_FT_UInt64;
 
-typedef signed int              SW_FT_Int32;
-typedef unsigned int            SW_FT_UInt32;
+typedef int32_t             SW_FT_Int32;
+typedef uint32_t            SW_FT_UInt32;
 
 
 #define SW_FT_BOOL( x )  ( (SW_FT_Bool)( x ) )
