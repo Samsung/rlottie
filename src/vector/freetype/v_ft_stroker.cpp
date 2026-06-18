@@ -18,6 +18,7 @@
 
 #include "v_ft_stroker.h"
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include "v_ft_math.h"
@@ -626,6 +627,8 @@ Fail:
 static void ft_stroke_border_export(SW_FT_StrokeBorder border,
                                     SW_FT_Outline*     outline)
 {
+    if ((unsigned long)outline->n_points + border->num_points > SHRT_MAX) return;
+
     /* copy point locations */
     memcpy(outline->points + outline->n_points, border->points,
            border->num_points * sizeof(SW_FT_Vector));
