@@ -883,8 +883,8 @@ static void gray_hline(RAS_ARG_ TCoord x, TCoord y, TPos area, TCoord acount)
     /* SW_FT_Span.x is a 16-bit short, so limit our coordinates appropriately */
     if (x >= 32767) x = 32767;
 
-    /* SW_FT_Span.y is an integer, so limit our coordinates appropriately */
-    if (y >= SW_FT_INT_MAX) y = SW_FT_INT_MAX;
+    /* SW_FT_Span.y is a 16-bit short, so limit our coordinates appropriately */
+    if (y >= 32767) y = 32767;
 
     if (coverage) {
         SW_FT_Span* span;
