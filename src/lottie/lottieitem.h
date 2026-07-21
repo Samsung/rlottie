@@ -107,6 +107,8 @@ public:
 
     void release_surface(VBitmap &surface) { mCache.push_back(surface); }
 
+    int mRenderDepth{0};
+
 private:
     std::vector<VBitmap> mCache;
 };
@@ -272,7 +274,8 @@ protected:
 
 class CompLayer final : public Layer {
 public:
-    explicit CompLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    CompLayer(model::Layer *layerData, VArenaAlloc *allocator, int depth,
+              size_t &nodeBudget);
 
     void render(VPainter *painter, const VRle &mask, const VRle &matteRle,
                 SurfaceCache &cache) final;
