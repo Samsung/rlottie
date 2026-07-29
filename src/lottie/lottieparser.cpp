@@ -881,20 +881,18 @@ namespace
    bool Canonicalize(const char *path, char *resolved_path)
    {
 #ifdef _WIN32
-       std::wstring wpath = ToStdWString( path );
-       std::wstring wresolved_path;
-       wresolved_path.resize( PATH_MAX );
-       if ( PathCanonicalizeW( const_cast<wchar_t *>(wresolved_path.data()), wpath.c_str() ) )
-       {
-           std::string path = ToStdString(wresolved_path);
-           strcpy_s( resolved_path, path.length() * sizeof( char ), path.c_str() );
+       std::wstring wpath = ToStdWString(path);
+       std::replace(wpath.begin(), wpath.end(), L'/', L'\\');
+       if (wpath.empty() || wpath.size() >= MAX_PATH) return false;
 
-           return true;
-       }
+       wchar_t wresolved_path[MAX_PATH] = {};
+       if (!PathCanonicalizeW(wresolved_path, wpath.c_str())) return false;
 
-       return false;
+       std::string out = ToStdString(wresolved_path);
+       if (out.size() >= PATH_MAX) return false;
+       return strcpy_s(resolved_path, PATH_MAX, out.c_str()) == 0;
 #else
-       return realpath(path, resolved_path);
+       return realpath(path, resolved_path) != nullptr;
 #endif
    }
 }
@@ -916,7 +914,11 @@ static bool isResourcePathSafe(const std::string& baseDir, const std::string& us
 
     // Resolve target path
     std::string fullPath = baseDir;
-    if (!baseDir.empty() && baseDir.back() != '/') fullPath += "/";
+    #ifdef _WIN32
+    if (!fullPath.empty() && fullPath.back() != '/' && fullPath.back() != '\\') fullPath += '\\';
+    #else
+    if (!fullPath.empty() && fullPath.back() != '/') fullPath += '/';
+    #endif
     fullPath += userPath;
 
     if (!Canonicalize(fullPath.c_str(), resolvedTarget)) {
@@ -930,8 +932,13 @@ static bool isResourcePathSafe(const std::string& baseDir, const std::string& us
     std::string target(resolvedTarget);
 
     // Ensure target starts with base
+    #ifdef _WIN32
+        const char sep = '\\';
+    #else
+        const char sep = '/';
+    #endif
     bool result = target.compare(0, base.length(), base) == 0 &&
-         (target.length() == base.length() || target[base.length()] == '/');
+         (target.length() == base.length() || target[base.length()] == sep);
 
     if (!result) {
 #ifdef DEBUG_PARSER
