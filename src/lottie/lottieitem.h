@@ -275,7 +275,7 @@ protected:
 class CompLayer final : public Layer {
 public:
     CompLayer(model::Layer *layerData, VArenaAlloc *allocator, int depth,
-              size_t &nodeBudget);
+              size_t &nodeBudget, size_t &contentBudget);
 
     void render(VPainter *painter, const VRle &mask, const VRle &matteRle,
                 SurfaceCache &cache) final;
@@ -319,7 +319,8 @@ class Group;
 
 class ShapeLayer final : public Layer {
 public:
-    explicit ShapeLayer(model::Layer *layerData, VArenaAlloc *allocator);
+    explicit ShapeLayer(model::Layer *layerData, VArenaAlloc *allocator,
+                        size_t &contentBudget);
     DrawableList renderList() final;
     void         buildLayerNode() final;
     bool         resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
@@ -379,8 +380,10 @@ class Shape;
 class Group : public Object {
 public:
     Group() = default;
-    explicit Group(model::Group *data, VArenaAlloc *allocator);
-    void addChildren(model::Group *data, VArenaAlloc *allocator);
+    explicit Group(model::Group *data, VArenaAlloc *allocator,
+                   size_t &contentBudget);
+    void addChildren(model::Group *data, VArenaAlloc *allocator,
+                     size_t &contentBudget);
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) override;
     void applyTrim();
@@ -618,7 +621,8 @@ private:
 
 class Repeater final : public Group {
 public:
-    explicit Repeater(model::Repeater *data, VArenaAlloc *allocator);
+    explicit Repeater(model::Repeater *data, VArenaAlloc *allocator,
+                      size_t &contentBudget);
     void update(int frameNo, const VMatrix &parentMatrix, float parentAlpha,
                 const DirtyFlag &flag) final;
     void renderList(std::vector<VDrawable *> &list) final;
