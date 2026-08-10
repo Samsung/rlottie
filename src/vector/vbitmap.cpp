@@ -31,14 +31,26 @@ V_BEGIN_NAMESPACE
 void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
 {
     mRoData = nullptr;
+    mFormat = format;
+    mDepth = depth(format);
+
+    constexpr uint64_t kMaxBitmapBytes = 128ull * 1024 * 1024;
+
+    uint64_t stride64 = 0, size64 = 0;
+    if (width > 0 && height > 0) {
+        stride64 = ((uint64_t(width) * mDepth + 31) >> 5) << 2; // bytes per scanline (must be multiple of 4)
+        size64 = stride64 * uint64_t(height);
+        if (size64 > kMaxBitmapBytes) size64 = 0;
+    }
+    if (size64 == 0) {
+        // Invalid or oversized request: fall back to an empty bitmap instead of an undersized allocation.
+        width = height = stride64 = 0;
+    }
+
     mWidth = uint32_t(width);
     mHeight = uint32_t(height);
-    mFormat = format;
-
-    mDepth = depth(format);
-    mStride = ((mWidth * mDepth + 31) >> 5)
-                  << 2;  // bytes per scanline (must be multiple of 4)
-    mOwnData = std::make_unique<uint8_t[]>(mStride * mHeight);
+    mStride = uint32_t(stride64);
+    mOwnData = std::make_unique<uint8_t[]>(size64);
 }
 
 void VBitmap::Impl::reset(uint8_t *data, size_t width, size_t height,
