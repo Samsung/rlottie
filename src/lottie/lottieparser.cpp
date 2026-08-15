@@ -2037,6 +2037,14 @@ void LottieParserImpl::getValue(model::Color &color)
         }
     }
 
+    if (val[0] > 1.f || val[1] > 1.f || val[2] > 1.f) {
+        constexpr float inv255 = 1.f / 255.f;
+        val[0] *= inv255;
+        val[1] *= inv255;
+        val[2] *= inv255;
+        val[3] *= inv255;
+    }
+
     if (mColorFilter) mColorFilter(val[0], val[1], val[2]);
 
     color.r = val[0];

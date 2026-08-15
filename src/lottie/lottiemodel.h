@@ -67,13 +67,20 @@ enum class BlendMode : uint8_t {
 };
 
 class Color {
+    static uint8_t toUint8(float v)
+    {
+        const float scaled = 255.f * v;
+        if (!(scaled > 0.f)) return 0;      // also catches NaN
+        if (scaled >= 255.f) return 255;
+        return static_cast<uint8_t>(scaled);
+    }
+
 public:
     Color() = default;
     Color(float red, float green, float blue) : r(red), g(green), b(blue) {}
     VColor toColor(float a = 1)
     {
-        return VColor(uint8_t(255 * r), uint8_t(255 * g), uint8_t(255 * b),
-                      uint8_t(255 * a));
+        return VColor(toUint8(r), toUint8(g), toUint8(b), toUint8(a));
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
