@@ -94,7 +94,7 @@ static constexpr size_t kMaxLayerNodes = 100000;  // global render-node budget
 // bounds nested repeaters (repeater whose content contains another
 // repeater), since every copy at every nesting level draws from the same
 // shared budget.
-static constexpr size_t kMaxShapeContentBudget = 15000;
+static constexpr size_t kMaxShapeContentBudget = 200000;
 
 static renderer::Layer *createLayerItem(model::Layer *layerData,
                                         VArenaAlloc *allocator, int depth,
@@ -841,8 +841,16 @@ static size_t contentItemCost(model::Object *contentData)
     switch (contentData->type()) {
     case model::Object::Type::Polystar: {
         auto *data = static_cast<model::Polystar *>(contentData);
-        float pts = data->mPointCount.isStatic() ? data->mPointCount.value(0)
-                                                 : kMaxPolyPoints;
+        float pts = 1.0f;
+        if (data->mPointCount.isStatic()) {
+            pts = data->mPointCount.value(0);
+        } else {
+            // Animated: charge the largest point count any keyframe reaches,
+            // rather than assuming the worst case for every animated shape.
+            for (const auto &f : data->mPointCount.animation().frames_) {
+                pts = std::max(pts, std::max(f.value_.start_, f.value_.end_));
+            }
+        }
         if (!std::isfinite(pts)) pts = kMaxPolyPoints;
         pts = std::min(std::max(pts, 1.0f), kMaxPolyPoints);
         return size_t(pts);
@@ -852,7 +860,13 @@ static size_t contentItemCost(model::Object *contentData)
         if (data->mShape.isStatic()) {
             return std::max<size_t>(1, data->mShape.value().mPoints.size());
         }
-        return size_t(kMaxPolyPoints);
+        // Animated: charge the largest point count any keyframe reaches.
+        size_t pts = 1;
+        for (const auto &f : data->mShape.animation().frames_) {
+            pts = std::max(pts, std::max(f.value_.start_.mPoints.size(),
+                                         f.value_.end_.mPoints.size()));
+        }
+        return std::min<size_t>(pts, size_t(kMaxPolyPoints));
     }
     default:
         return 1;
