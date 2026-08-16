@@ -94,7 +94,7 @@ static constexpr size_t kMaxLayerNodes = 100000;  // global render-node budget
 // bounds nested repeaters (repeater whose content contains another
 // repeater), since every copy at every nesting level draws from the same
 // shared budget.
-static constexpr size_t kMaxShapeContentBudget = 200000;
+static constexpr size_t kMaxShapeContentBudget = 15000;
 
 static renderer::Layer *createLayerItem(model::Layer *layerData,
                                         VArenaAlloc *allocator, int depth,
@@ -832,9 +832,8 @@ void renderer::NullLayer::updateContent() {}
 
 // Weighted cost of a single content item against kMaxShapeContentBudget.
 // Point-heavy shapes (polystar/polygon, custom path) charge their actual
-// point count (worst case MAX_POLY_POINTS for animated polystars, since the
-// per-frame value isn't known yet); everything else is a cheap wrapper/paint
-// node and charges a flat 1.
+// point count, using the largest value stored in animated keyframes;
+// everything else is a cheap wrapper/paint node and charges a flat 1.
 static size_t contentItemCost(model::Object *contentData)
 {
     constexpr float kMaxPolyPoints = 1024.0f;
