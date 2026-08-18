@@ -382,6 +382,7 @@ protected:
     model::Layer *                                   curLayerRef{nullptr};
     std::vector<model::Layer *>                      mLayersToUpdate;
     std::string                                      mDirPath;
+    int                                              mGroupDepth{0};
     void                                             SkipOut(int depth);
 };
 
@@ -1381,14 +1382,25 @@ model::Object *LottieParserImpl::parseGroupObject()
 {
     auto group = allocator().make<model::Group>();
 
+    bool tooDeep = mGroupDepth >= kMaxModelTreeDepth;
+    if (tooDeep) {
+        vWarning << "Max shape-group nesting depth (" << kMaxModelTreeDepth << ") exceeded, discarding deeper content";
+    }
+
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "nm")) {
             group->setName(GetString());
         } else if (0 == strcmp(key, "it")) {
+            if (tooDeep) {
+                Skip(key);
+                continue;
+            }
             EnterArray();
+            ++mGroupDepth;
             while (NextArrayValue()) {
                 parseObject(group);
             }
+            --mGroupDepth;
             if (!group->mChildren.empty()
                     && group->mChildren.back()->type()
                             == model::Object::Type::Transform) {
