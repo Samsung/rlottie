@@ -29,7 +29,6 @@
 
 using namespace rlottie::internal;
 
-static constexpr int kMaxModelTreeDepth = 32;
 struct DepthGuard {
     int &mDepth;
     explicit DepthGuard(int &depth) : mDepth(depth) { ++mDepth; }

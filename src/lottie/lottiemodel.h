@@ -45,6 +45,9 @@ namespace rlottie {
 
 namespace internal {
 
+// Maximum nesting depth allowed for the shape-group / layer model tree.
+constexpr int kMaxModelTreeDepth = 32;
+
 using Marker = std::tuple<std::string, int, int>;
 
 using LayerInfo = Marker;
