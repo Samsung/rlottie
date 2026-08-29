@@ -154,7 +154,7 @@ std::shared_ptr<model::Composition> model::loadFromData(
     std::string jsonData, const std::string &key, std::string resourcePath,
     bool cachePolicy)
 {
-    if (cachePolicy) {
+    if (cachePolicy && !key.empty()) {
         auto obj = ModelCache::instance().find(key);
         if (obj) return obj;
     }
@@ -162,7 +162,8 @@ std::shared_ptr<model::Composition> model::loadFromData(
     auto obj = internal::model::parse(const_cast<char *>(jsonData.c_str()), jsonData.size(),
                                       std::move(resourcePath));
 
-    if (obj && cachePolicy) ModelCache::instance().add(key, obj);
+    if (obj && cachePolicy && !key.empty())
+        ModelCache::instance().add(key, obj);
 
     return obj;
 }
