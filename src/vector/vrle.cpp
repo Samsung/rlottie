@@ -34,7 +34,9 @@
 
 V_BEGIN_NAMESPACE
 
-using Result = std::array<VRle::Span, 255>;
+static constexpr size_t SpanBatchSize = 256;
+using Result = std::array<VRle::Span, SpanBatchSize>;
+
 using rle_view = VRle::View;
 static size_t _opGeneric(rle_view &a, rle_view &b, Result &result,
                          VRle::Data::Op op);
@@ -503,7 +505,7 @@ void blitSrc(VRle::Span *spans, int count, uint8_t *buffer, int offsetX)
 }
 
 size_t bufferToRle(uint8_t *buffer, int size, int offsetX, int y,
-                   VRle::Span *out)
+                   VRle::Span *out, size_t capacity)
 {
     size_t count = 0;
     uint8_t value = buffer[0];
@@ -514,6 +516,7 @@ size_t bufferToRle(uint8_t *buffer, int size, int offsetX, int y,
         uint8_t curValue = buffer[0];
         if (value != curValue) {
             if (value) {
+                if (count == capacity) return 0;
                 out->y = y;
                 out->x = offsetX + curIndex;
                 out->len = i - curIndex;
@@ -527,6 +530,7 @@ size_t bufferToRle(uint8_t *buffer, int size, int offsetX, int y,
         buffer++;
     }
     if (value) {
+        if (count == capacity) return 0;
         out->y = y;
         out->x = offsetX + curIndex;
         out->len = size - curIndex;
@@ -552,11 +556,11 @@ struct SpanMerger {
         }
     }
     using blitter = void (*)(VRle::Span *, int, uint8_t *, int);
-    blitter                     _blitter;
-    std::array<VRle::Span, 256> _result;
-    std::array<uint8_t, 1024>   _buffer;
-    VRle::Span *                _aStart{nullptr};
-    VRle::Span *                _bStart{nullptr};
+    blitter                               _blitter;
+    std::array<VRle::Span, SpanBatchSize> _result;
+    std::array<uint8_t, 1024>             _buffer;
+    VRle::Span *                          _aStart{nullptr};
+    VRle::Span *                          _bStart{nullptr};
 
     void revert(VRle::Span *&aPtr, VRle::Span *&bPtr)
     {
@@ -583,7 +587,7 @@ size_t SpanMerger::merge(VRle::Span *&aPtr, const VRle::Span *aEnd,
 
     int ub = std::max((aPtr - 1)->x + (aPtr - 1)->len,
                       (bPtr - 1)->x + (bPtr - 1)->len);
-    int length = (lb < 0) ? ub + lb : ub - lb;
+    int length = ub - lb;
 
     if (length <= 0 || size_t(length) >= _buffer.max_size()) {
         // can't handle merge . skip
@@ -600,7 +604,7 @@ size_t SpanMerger::merge(VRle::Span *&aPtr, const VRle::Span *aEnd,
     _blitter(_bStart, bPtr - _bStart, _buffer.data(), -lb);
 
     // convert buffer to span
-    return bufferToRle(_buffer.data(), length, lb, y, _result.data());
+    return bufferToRle(_buffer.data(), length, lb, y, _result.data(), _result.size());
 }
 
 static size_t _opGeneric(rle_view &a, rle_view &b, Result &result,
