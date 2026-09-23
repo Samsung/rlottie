@@ -50,7 +50,7 @@ void VBitmap::Impl::reset(size_t width, size_t height, VBitmap::Format format)
     mWidth = uint32_t(width);
     mHeight = uint32_t(height);
     mStride = uint32_t(stride64);
-    mOwnData = std::make_unique<uint8_t[]>(size64);
+    mOwnData = size64 ? std::make_unique<uint8_t[]>(size64) : nullptr;
 }
 
 void VBitmap::Impl::reset(uint8_t *data, size_t width, size_t height,
