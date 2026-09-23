@@ -7,6 +7,7 @@ vector_test_sources = [
     'testsuite.cpp',
     'test_vrect.cpp',
     'test_vpath.cpp',
+    'test_vbitmap.cpp',
     ]
 
 vector_testsuite = executable('vectorTestSuite',
