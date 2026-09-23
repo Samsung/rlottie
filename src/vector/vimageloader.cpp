@@ -117,15 +117,25 @@ struct VImageLoader::Impl {
     VBitmap createBitmap(unsigned char *data, int width, int height,
                          int channel)
     {
+        if (width <= 0 || height <= 0) {
+            imageFree(data);
+            return VBitmap();
+        }
+
+        VBitmap result = VBitmap(width, height, VBitmap::Format::ARGB32_Premultiplied);
+
+        if (!result.data() || result.width() != static_cast<size_t>(width) ||
+            result.height() != static_cast<size_t>(height) ||
+            result.stride() != static_cast<size_t>(width) * 4) {
+            imageFree(data);
+            return VBitmap();
+        }
+
         // premultiply alpha
         if (channel == 4)
             convertToBGRAPremul(data, width, height);
         else
             convertToBGRA(data, width, height);
-
-        // create a bitmap of same size.
-        VBitmap result =
-            VBitmap(width, height, VBitmap::Format::ARGB32_Premultiplied);
 
         // copy the data to bitmap buffer
         memcpy(result.data(), data, width * height * 4);
