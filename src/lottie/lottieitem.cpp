@@ -832,17 +832,24 @@ void renderer::NullLayer::updateContent() {}
 
 // Weighted cost of a single content item against kMaxShapeContentBudget.
 // Point-heavy shapes (polystar/polygon, custom path) charge their actual
-// point count (worst case MAX_POLY_POINTS for animated polystars, since the
-// per-frame value isn't known yet); everything else is a cheap wrapper/paint
-// node and charges a flat 1.
+// point count, using the largest value stored in animated keyframes;
+// everything else is a cheap wrapper/paint node and charges a flat 1.
 static size_t contentItemCost(model::Object *contentData)
 {
     constexpr float kMaxPolyPoints = 1024.0f;
     switch (contentData->type()) {
     case model::Object::Type::Polystar: {
         auto *data = static_cast<model::Polystar *>(contentData);
-        float pts = data->mPointCount.isStatic() ? data->mPointCount.value(0)
-                                                 : kMaxPolyPoints;
+        float pts = 1.0f;
+        if (data->mPointCount.isStatic()) {
+            pts = data->mPointCount.value(0);
+        } else {
+            // Animated: charge the largest point count any keyframe reaches,
+            // rather than assuming the worst case for every animated shape.
+            for (const auto &f : data->mPointCount.animation().frames_) {
+                pts = std::max(pts, std::max(f.value_.start_, f.value_.end_));
+            }
+        }
         if (!std::isfinite(pts)) pts = kMaxPolyPoints;
         pts = std::min(std::max(pts, 1.0f), kMaxPolyPoints);
         return size_t(pts);
@@ -852,7 +859,13 @@ static size_t contentItemCost(model::Object *contentData)
         if (data->mShape.isStatic()) {
             return std::max<size_t>(1, data->mShape.value().mPoints.size());
         }
-        return size_t(kMaxPolyPoints);
+        // Animated: charge the largest point count any keyframe reaches.
+        size_t pts = 1;
+        for (const auto &f : data->mShape.animation().frames_) {
+            pts = std::max(pts, std::max(f.value_.start_.mPoints.size(),
+                                         f.value_.end_.mPoints.size()));
+        }
+        return std::min<size_t>(pts, size_t(kMaxPolyPoints));
     }
     default:
         return 1;
