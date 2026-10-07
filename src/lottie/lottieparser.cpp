@@ -1129,7 +1129,7 @@ model::Layer *LottieParserImpl::parseLayer()
 {
     model::Layer *layer = allocator().make<model::Layer>();
     curLayerRef = layer;
-    bool ddd = true;
+    bool ddd = false;
     EnterObject();
     while (const char *key = NextObjectKey()) {
         if (0 == strcmp(key, "ty")) { /* Type of layer*/
