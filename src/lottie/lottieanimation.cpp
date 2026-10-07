@@ -75,7 +75,7 @@ private:
     mutable LayerInfoList                  mLayerList;
     model::Composition *                   mModel;
     SharedRenderTask                       mTask;
-    std::atomic<bool>                      mRenderInProgress;
+    std::atomic_flag                       mRenderInProgress;
     std::unique_ptr<renderer::Composition> mRenderer{nullptr};
 };
 
@@ -108,19 +108,17 @@ bool AnimationImpl::update(size_t frameNo, const VSize &size,
 Surface AnimationImpl::render(size_t frameNo, const Surface &surface,
                               bool keepAspectRatio)
 {
-    bool renderInProgress = mRenderInProgress.load();
-    if (renderInProgress) {
+    if (mRenderInProgress.test_and_set()) {
         vCritical << "Already Rendering Scheduled for this Animation";
         return surface;
     }
 
-    mRenderInProgress.store(true);
     update(
         frameNo,
         VSize(int(surface.drawRegionWidth()), int(surface.drawRegionHeight())),
         keepAspectRatio);
     mRenderer->render(surface);
-    mRenderInProgress.store(false);
+    mRenderInProgress.clear();
 
     return surface;
 }
@@ -129,7 +127,7 @@ void AnimationImpl::init(std::shared_ptr<model::Composition> composition)
 {
     mModel = composition.get();
     mRenderer = std::make_unique<renderer::Composition>(composition);
-    mRenderInProgress = false;
+    mRenderInProgress.clear();
 }
 
 #ifdef LOTTIE_THREAD_SUPPORT
