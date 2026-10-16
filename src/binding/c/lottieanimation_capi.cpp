@@ -169,6 +169,21 @@ lottie_animation_render(Lottie_Animation_S *animation,
 }
 
 RLOTTIE_API void
+lottie_animation_render_aspect(Lottie_Animation_S *animation,
+                        size_t frame_number,
+                        uint32_t *buffer,
+                        size_t width,
+                        size_t height,
+                        size_t bytes_per_line,
+                        int keep_aspect_ratio)
+{
+    if (!animation) return;
+
+    rlottie::Surface surface(buffer, width, height, bytes_per_line);
+    animation->mAnimation->renderSync(frame_number, surface, keep_aspect_ratio);
+}
+
+RLOTTIE_API void
 lottie_animation_render_async(Lottie_Animation_S *animation,
                               size_t frame_number,
                               uint32_t *buffer,
@@ -180,6 +195,22 @@ lottie_animation_render_async(Lottie_Animation_S *animation,
 
     rlottie::Surface surface(buffer, width, height, bytes_per_line);
     animation->mRenderTask = animation->mAnimation->render(frame_number, surface);
+    animation->mBufferRef = buffer;
+}
+
+RLOTTIE_API void
+lottie_animation_render_async_aspect(Lottie_Animation_S *animation,
+                              size_t frame_number,
+                              uint32_t *buffer,
+                              size_t width,
+                              size_t height,
+                              size_t bytes_per_line,
+                              int keep_aspect_ratio)
+{
+    if (!animation) return;
+
+    rlottie::Surface surface(buffer, width, height, bytes_per_line);
+    animation->mRenderTask = animation->mAnimation->render(frame_number, surface, keep_aspect_ratio);
     animation->mBufferRef = buffer;
 }
 

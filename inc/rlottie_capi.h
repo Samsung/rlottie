@@ -234,6 +234,23 @@ RLOTTIE_API size_t lottie_animation_get_frame_at_pos(const Lottie_Animation *ani
 RLOTTIE_API void lottie_animation_render(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
 
 /**
+ *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer.
+ *
+ *  @param[in] animation Animation object.
+ *  @param[in] frame_num the frame number needs to be rendered.
+ *  @param[in] buffer surface buffer use for rendering.
+ *  @param[in] width width of the surface
+ *  @param[in] height height of the surface
+ *  @param[in] bytes_per_line stride of the surface in bytes.
+ *  @param[in] keep_aspect_ratio whether to keep the aspect ratio while scaling the content.
+ *
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_animation_render_aspect(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line, int keep_aspect_ratio);
+
+/**
  *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer asynchronously.
  *
  *  @param[in] animation Animation object.
@@ -249,6 +266,24 @@ RLOTTIE_API void lottie_animation_render(Lottie_Animation *animation, size_t fra
  *  @internal
  */
 RLOTTIE_API void lottie_animation_render_async(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
+
+/**
+ *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer asynchronously.
+ *
+ *  @param[in] animation Animation object.
+ *  @param[in] frame_num the frame number needs to be rendered.
+ *  @param[in] buffer surface buffer use for rendering.
+ *  @param[in] width width of the surface
+ *  @param[in] height height of the surface
+ *  @param[in] bytes_per_line stride of the surface in bytes.
+ *  @param[in] keep_aspect_ratio whether to keep the aspect ratio while scaling the content.
+ *
+ *  @note user must call lottie_animation_render_flush() to make sure render is finished.
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_animation_render_async_aspect(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line, int keep_aspect_ratio);
 
 /**
  *  @brief Request to finish the current async renderer job for this animation object.
