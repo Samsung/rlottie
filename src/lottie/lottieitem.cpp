@@ -1299,7 +1299,6 @@ void renderer::Polystar::updatePath(VPath &path, int frameNo)
     }
 
     m.translate(pos.x(), pos.y()).rotate(rotation);
-    m.rotate(rotation);
     path.transform(m);
 }
 
