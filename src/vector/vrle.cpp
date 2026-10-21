@@ -22,13 +22,17 @@
  */
 
 #include "vrle.h"
+
 #include <vrect.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <vector>
+
 #include "vdebug.h"
 #include "vglobal.h"
 
