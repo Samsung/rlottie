@@ -23,6 +23,8 @@
 #ifndef VRASTER_H
 #define VRASTER_H
 #include <future>
+#include <memory>
+
 #include "vglobal.h"
 #include "vrect.h"
 
